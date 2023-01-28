@@ -89,7 +89,9 @@ calc_prod <- function(catchfile,
       var_name = "rdev"
     )
 
-    c <- c %>% rename(year = `...1`, other_catch = other) %>% mutate(catch = trawl + other_catch)
+    c <- c %>% rename(year = `...1`) %>%
+      pivot_longer(2:ncol(c), names_to = "fleet", values_to = "value") %>%
+      group_by(year) %>% summarise(catch = sum(value, na.rm = TRUE))
   }
 
 
