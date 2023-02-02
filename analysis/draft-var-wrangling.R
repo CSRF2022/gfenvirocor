@@ -142,8 +142,7 @@ saveRDS(df, "data/annual_mean_tob_BC.rds")
 # df <- readRDS("data/annual_mean_tob.rds")
 df <- readRDS("data/annual_mean_tob_bc.rds")
 
-# Create raster from netcdf data -------------------------
-
+# Project netcdf data to a set of coordinates -------------------------
 
 bccoast <- readRDS("data/predictiongrid_bccoast_scaled.rds") %>%
   mutate(UTM.lon = UTM.lon * 1000, UTM.lat = UTM.lat * 1000)
@@ -151,35 +150,51 @@ sf::st_geometry(bccoast) <- NULL
 bccoast <- bccoast %>% dplyr::select(-year, -geartype, -value, -offset) %>% distinct()
 
 
-# set_resolution <- 10000
-# model_start_year <- 1950
-# model_end_year <- 1979
-#
 # rds.file <- "data/tob-monthly-1950-1979-max-112.rds"
-#   var_xvar_name <- "longitude"
-# var_yvar_name <- "latitude"
 # var_crs <- "+proj=longlat +datum=WGS84"
 # grid_crs <- '+proj=utm +zone=9 +datum=WGS84'
-
+# set_resolution <- 10000
 rds.file <- "data/annual_mean_tob_bc.rds"
 
+# test plot with radius set
+project_netcdf_values(rds.file,
+                      variable_name = "ann_mean",
+                      print_test_plot = TRUE,
+                      coord_df = bccoast,
+                      radius = 1000,
+                      grid_xvar_name = "UTM.lon",
+                      grid_yvar_name = "UTM.lat",
+                      grid_crs = '+proj=utm +zone=9 +datum=WGS84')
 
+# test that is works with only coords
+bc <- bccoast %>% dplyr::select("UTM.lon", "UTM.lat") %>% distinct()
 
-grid <- project_annual_values(rds.file, variable_name = "ann_mean")
+grid <- project_netcdf_values(rds.file,
+                              variable_name = "ann_mean",
+                              coord_df = bc,
+                              grid_xvar_name = "UTM.lon",
+                              grid_yvar_name = "UTM.lat",
+                              grid_crs = '+proj=utm +zone=9 +datum=WGS84')
+
 
 saveRDS(grid, "data/ann_max_grid.rds")
 
+# Test with a shape file
+shape <- st_read("../../ye-wcvi/grids/HBLL-N-S/PHMA_S_GRID.shp")
 
-# # st_crs(grid) <- CRS("+proj=utm +zone=9 +datum=WGS84 +units=m +no_defs")
-#
-# wcvi <- gfplot::synoptic_grid %>% filter(survey == "SYN WCVI") #%>% View()
-#
-# bbox <- as(raster::extent((min(wcvi$X*1000)-10000), max(wcvi$X*1000) + 10000, min(wcvi$Y*1000)-10000, max(wcvi$Y*1000) + 10000 ), "SpatialLines")
-# proj4string(bbox) <- CRS("+proj=utm +zone=9 +datum=WGS84 +units=m +no_defs")
-# bboxsf <- st_as_sf(bbox)
-#
+# type <- st_geometry_type(shape, by_geometry = FALSE)
+# type[1]=="POLYGON"
 
-library(tidyverse)
+d <- project_netcdf_values(rds.file,
+                      variable_name = "ann_mean",
+                      # print_test_plot = TRUE,
+                      coord_df = shape,
+                      grid_xvar_name = NULL,
+                      grid_yvar_name = NULL,
+                      grid_crs = '+proj=utm +zone=9 +datum=WGS84')
+
+
+
 
 grid <- readRDS( "data/ann_max_grid.rds")
 
