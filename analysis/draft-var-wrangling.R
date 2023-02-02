@@ -1,4 +1,4 @@
-# bottom temp
+# global bottom temp --------------------------------------
 
 library(ncdf4) # package for netcdf manipulation
 library(tidyverse)
@@ -6,6 +6,45 @@ library(raster) # package for raster manipulation
 library(rgdal) # package for geospatial analysis
 library(sf)
 library(terra)
+
+# two files downloaded from: https://aims2.llnl.gov/search
+# though maybe also available here: https://esgf-data.dkrz.de/search/cmip6-dkrz/
+# Identifier DOI: http://doi.org/10.22033/ESGF/CMIP6.2921
+# Creators: Jie, Weihua; Zhang, Jie; Wu, Tongwen; et al.
+# Titles: BCC BCC-CSM2HR model output prepared for CMIP6 HighResMIP hist-1950
+# Publisher: Earth System Grid Federation
+# Publication Year: 2020
+# License: Creative Commons Attribution 4.0 International License (CC BY 4.0)
+
+# File 1:
+#   id: CMIP6.HighResMIP.BCC.BCC-CSM2-HR.hist-1950.r1i1p1f1.Omon.tob.gn.v20200922.tob_Omon_BCC-CSM2-HR_hist-1950_r1i1p1f1_gn_195001-197912.nc|cmip.bcc.cma.cn
+# version: 1
+# cf_standard_name: sea_water_potential_temperature_at_sea_floor
+# checksum_type: SHA256
+# dataset_id: CMIP6.HighResMIP.BCC.BCC-CSM2-HR.hist-1950.r1i1p1f1.Omon.tob.gn.v20200922|cmip.bcc.cma.cn
+# instance_id: CMIP6.HighResMIP.BCC.BCC-CSM2-HR.hist-1950.r1i1p1f1.Omon.tob.gn.v20200922.tob_Omon_BCC-CSM2-HR_hist-1950_r1i1p1f1_gn_195001-197912.nc
+# master_id: CMIP6.HighResMIP.BCC.BCC-CSM2-HR.hist-1950.r1i1p1f1.Omon.tob.gn.tob_Omon_BCC-CSM2-HR_hist-1950_r1i1p1f1_gn_195001-197912.nc
+# timestamp: 2020-09-22T10:25:56Z
+# variable: tob
+# variable_id: tob
+# variable_long_name: Sea Water Potential Temperature at Sea Floor
+# variable_units: degC
+#
+#
+# File 2:
+#   id: CMIP6.HighResMIP.BCC.BCC-CSM2-HR.hist-1950.r1i1p1f1.Omon.tob.gn.v20200922.tob_Omon_BCC-CSM2-HR_hist-1950_r1i1p1f1_gn_198001-201412.nc|cmip.bcc.cma.cn
+# version: 1
+# cf_standard_name: sea_water_potential_temperature_at_sea_floor
+# checksum_type: SHA256
+# dataset_id: CMIP6.HighResMIP.BCC.BCC-CSM2-HR.hist-1950.r1i1p1f1.Omon.tob.gn.v20200922|cmip.bcc.cma.cn
+# instance_id: CMIP6.HighResMIP.BCC.BCC-CSM2-HR.hist-1950.r1i1p1f1.Omon.tob.gn.v20200922.tob_Omon_BCC-CSM2-HR_hist-1950_r1i1p1f1_gn_198001-201412.nc
+# master_id: CMIP6.HighResMIP.BCC.BCC-CSM2-HR.hist-1950.r1i1p1f1.Omon.tob.gn.tob_Omon_BCC-CSM2-HR_hist-1950_r1i1p1f1_gn_198001-201412.nc
+# timestamp: 2020-09-22T14:58:24Z
+# variable: tob
+# variable_id: tob
+# variable_long_name: Sea Water Potential Temperature at Sea Floor
+# variable_units: degC
+
 
 nc_data <- nc_open('data/bottom-temp/tob_Omon_BCC-CSM2-HR_hist-1950_r1i1p1f1_gn_195001-197912.nc')
 # # Save the print(nc) dump to a text file
@@ -84,29 +123,26 @@ st_bbox(bc_ll)
 #   theme_bw() # use the black and white theme
 #
 
-
-
-# Get averages from certain months within the netcdf -------------------------------------------------------
-
-extract_annual_values <- function(
-  nc.file = 'data/bottom-temp/tob_Omon_BCC-CSM2-HR_hist-1950_r1i1p1f1_gn_195001-197912.nc',
+extract_netcdf_values <- function(
+  nc.file,
   output.dir = "data",
   xvar_name = "longitude",
   yvar_name = "latitude",
   time_name = "time",
-  time_resolution = "monthly",
+  time_resolution_input = "monthly",
+  time_resolution_output = "annual",
   variable_name = "tob",
-  model_start_year = 1950,
-  model_end_year = 1979,
+  model_start_time = 1950,
+  model_end_time = 1979,
   xbounds = c(-133.85254, -123.21362), # default all BC coast
   ybounds = c(48.21968, 55.68620), # default all BC coast
-  whichmonths = c(1:12), # default all for annual mean
-  type = "mean"
-  ) {
+  whichtimes = c(1:12), # default all for annual mean
+  agg_method = "mean"
+) {
 
   nc_data <- nc_open(nc.file)
-  lon <- ncvar_get(nc_data, xvar_name)
-  lat <- ncvar_get(nc_data, yvar_name)
+  x <- ncvar_get(nc_data, xvar_name)
+  y <- ncvar_get(nc_data, yvar_name)
 
   # browser()
 
@@ -125,75 +161,85 @@ extract_annual_values <- function(
   nc.array[nc.array == fillvalue$value] <- NA
 
 
-  if(time_resolution == "monthly") {
-  # create df of months and years to go with the sequential time variable in the array
-  month <- rep(1:12, (model_end_year - model_start_year + 1))
-  year <- rep(model_start_year:model_end_year, each = 12)
-  timedf <- as.data.frame(cbind(t, months = month, year = year))
-  timedf$layer_seq <- seq(1, nrow(timedf), 1)
-  selected_months <- dplyr::filter(timedf, month %in% whichmonths)
+  if(time_resolution_input == "monthly" & time_resolution_output == "annual") {
+    # create df of months and years to go with the sequential time variable in the array
+    month <- rep(1:12, (model_end_time - model_start_time + 1))
+    year <- rep(model_start_time:model_end_time, each = 12)
+    timedf <- as.data.frame(cbind(t, months = month, year = year))
+    timedf$layer_seq <- seq(1, nrow(timedf), 1)
+    selected_months <- dplyr::filter(timedf, month %in% whichtimes)
 
-  years <- as.numeric(seq(model_start_year, model_end_year, 1))
+    years <- as.numeric(seq(model_start_time, model_end_time, 1))
 
-  df <- data.frame(longitude=c(lon), latitude=c(lat))
+    df <- data.frame(X=c(x), Y=c(y))
 
-  for (i in 1:length(years) ){
+    for (i in 1:length(years) ){
 
-  yearsel <- years[i]
-  xx <- selected_months %>% dplyr::filter(year == yearsel) %>% dplyr::select(layer_seq)
-  selection <- nc.array[,,xx[1:5,]]
+      yearsel <- years[i]
+      xx <- selected_months %>% dplyr::filter(year == yearsel) %>% dplyr::select(layer_seq)
+      selection <- nc.array[,,xx[1:5,]]
 
-  if(type == "mean") {
-    value <- apply(selection, MARGIN=c(1, 2), mean) #margin, rows and columns
-  }
+      if(agg_method == "mean") {
+        value <- apply(selection, MARGIN=c(1, 2), mean) #margin, rows and columns
+      }
 
-  if(type == "max") {
-    value <- apply(selection, MARGIN=c(1, 2), max) #margin, rows and columns
-  }
+      if(agg_method == "max") {
+        value <- apply(selection, MARGIN=c(1, 2), max) #margin, rows and columns
+      }
 
-  if(type == "min") {
-    value <- apply(selection, MARGIN=c(1, 2), min) #margin, rows and columns
-  }
+      if(agg_method == "min") {
+        value <- apply(selection, MARGIN=c(1, 2), min) #margin, rows and columns
+      }
 
-  df[[as.character(yearsel)]] <- c(value[,]) # most be character to name columns
-  }
+      df[[as.character(yearsel)]] <- c(value[,]) # most be character to use to name columns
+    }
   } else{
-    stop("Time resolutions other than monthly are not supported yet.")
+    stop("Time resolutions other than monthly input with annual output are not yet supported.")
   }
 
   if(!is.null(xbounds)){
-  df <- df %>%
-    filter(
-      .data[[xvar_name]] > xbounds[1],
-      .data[[xvar_name]] < xbounds[2]
-    )
+    df <- df %>%
+      filter(
+        .data[["X"]] > xbounds[1],
+        .data[["X"]] < xbounds[2]
+      )
   }
 
   if(!is.null(ybounds)){
     df <- df %>%
       filter(
-        .data[[yvar_name]] > ybounds[1],
-        .data[[yvar_name]] < ybounds[2]
+        .data[["Y"]] > ybounds[1],
+        .data[["Y"]] < ybounds[2]
       )
   }
 
   saveRDS(df, paste0(output.dir, "/",
                      variable_name, "-",
-                     time_resolution, "-",
-                     model_start_year, "-", model_end_year, "-",
-                     type, "-",
-                     whichmonths[1],
-                     whichmonths[max(whichmonths)], ".rds"))
+                     time_resolution_input, "-",
+                     model_start_time, "-", model_end_time, "-",
+                     agg_method, "-",
+                     whichtimes[1],
+                     whichtimes[max(whichtimes)], ".rds"))
   return(df)
 }
 
-df <- extract_annual_values()
-df <- extract_annual_values(type = "max")
+#default is annual mean "tob" (temp on bottom)
+df1 <- extract_netcdf_values('data/bottom-temp/tob_Omon_BCC-CSM2-HR_hist-1950_r1i1p1f1_gn_195001-197912.nc',
+                            model_start_time = 1950,
+                            model_end_time = 1979)
+
+df2 <- extract_netcdf_values('data/bottom-temp/tob_Omon_BCC-CSM2-HR_hist-1950_r1i1p1f1_gn_198001-201412.nc',
+                            model_start_time = 1980,
+                            model_end_time = 2014)
+
+df <- left_join(df1, df2)
+
+saveRDS(df, "data/annual_mean_tob_BC.rds")
 
 
 # saved overall mean for whole world, but function now saved smaller file for just bc coast
 # df <- readRDS("data/annual_mean_tob.rds")
-
+df <- readRDS("data/annual_mean_tob_bc.rds")
 
 # Create raster from ROMs-------------------------
 
@@ -218,8 +264,8 @@ bccoast <- bccoast %>% dplyr::select(-year, -geartype, -value, -offset) %>% dist
 project_annual_values <- function (
   rds.file = "data/tob-monthly-1950-1979-max-112.rds",
   variable_name = "ann_max",
-  var_xvar_name = "longitude",
-  var_yvar_name = "latitude",
+  var_xvar_name = "X",
+  var_yvar_name = "Y",
   var_crs = "+proj=longlat +datum=WGS84",
   set_resolution = 10000,
   spatial_grid = bccoast,
@@ -232,15 +278,15 @@ project_annual_values <- function (
 #get rid of the nas
 #df <- df %>% drop_na()
 
-spdf <- readRDS(rds.file) %>%  mutate(longitude = .data[[var_xvar_name]], latitude = .data[[var_yvar_name]])
+spdf <- readRDS(rds.file) %>%  mutate(X = .data[[var_xvar_name]], Y = .data[[var_yvar_name]])
 
 # min(unique(spdf$longitude))
-# df <- df[,!names(df) %in% c("longitude","latitude")]
-coordinates(spdf) <- ~longitude+latitude
+# df <- df[,!names(df) %in% c("X","Y")]
+coordinates(spdf) <- ~X+Y
 proj4string(spdf) <- CRS(var_crs)
 # Create a base raster with with ROMS lat/lon extent
-b <- rast(xmin=min(unique(spdf$longitude)), xmax=max(unique(spdf$longitude)),
-          ymin=min(unique(spdf$latitude)), ymax=max(unique(spdf$latitude)),
+b <- rast(xmin=min(unique(spdf$X)), xmax=max(unique(spdf$X)),
+          ymin=min(unique(spdf$Y)), ymax=max(unique(spdf$Y)),
           crs=var_crs)
 class(b)
 
@@ -276,17 +322,17 @@ r <- xf
 ## test output
 # xy <- raster::extract(r[[1]], df_utm, weights = FALSE, fun = mean, na.rm = T)
 # df <- data.frame(cbind(z = xy[,2], df_utm))
-# ggplot(df) + geom_point( aes(longitude, latitude, col = z)) + scale_colour_viridis_c()
+# ggplot(df) + geom_point( aes(X, Y, col = z)) + scale_colour_viridis_c()
 # browser()
 
 # grid <- spatial_grid
-# spatial_grid$longitude <- spatial_grid[grid_xvar_name]
-# spatial_grid$latitude <- spatial_grid[grid_yvar_name]
+# spatial_grid$X <- spatial_grid[grid_xvar_name]
+# spatial_grid$Y <- spatial_grid[grid_yvar_name]
 
-grid <- spatial_grid %>% mutate(longitude = .data[[grid_xvar_name]], latitude = .data[[grid_yvar_name]])
+grid <- spatial_grid %>% mutate(X = .data[[grid_xvar_name]], Y = .data[[grid_yvar_name]])
 
 #get just coordinates
-coords <- grid %>% dplyr::select(longitude, latitude) %>% distinct()
+coords <- grid %>% dplyr::select(X, Y) %>% distinct()
 
 # coords to append to output
 out <- coords
