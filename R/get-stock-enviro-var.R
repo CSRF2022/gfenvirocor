@@ -35,7 +35,7 @@
 #'   lat_var_name = "LATITUDE"
 #' )
 #'
-get_stock_enviro_vars <- function(temporal_grid = grid,
+get_stock_enviro_var <- function(temporal_grid = grid,
                                   variable_name = "ann_mean",
                                   species = "NA",
                                   stock = "NA",

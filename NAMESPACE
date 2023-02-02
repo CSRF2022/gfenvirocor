@@ -2,6 +2,6 @@
 
 export(calc_prod)
 export(extract_netcdf_values)
-export(get_stock_enviro_vars)
+export(get_stock_enviro_var)
 export(iscam_mcmc)
 export(project_netcdf_values)
