@@ -5,41 +5,44 @@
 \title{Get aggregated netcdf values for specific locations or grid cells}
 \usage{
 project_netcdf_values(
-  rds.file,
+  nc.rds.file,
   variable_name,
   set_resolution = 10000,
+  radius = NULL,
   print_test_plot = FALSE,
   var_xvar_name = "X",
   var_yvar_name = "Y",
   var_crs = "+proj=longlat +datum=WGS84",
-  spatial_grid = bccoast,
+  coord_df = bccoast,
   grid_xvar_name = "UTM.lon",
   grid_yvar_name = "UTM.lat",
   grid_crs = "+proj=utm +zone=9 +datum=WGS84"
 )
 }
 \arguments{
-\item{rds.file}{File containing output from \code{extract-netcdf()} function}
-
 \item{variable_name}{What variable does the above file contain}
 
-\item{set_resolution}{Choose a resolution in m for the projected raster}
+\item{set_resolution}{Choose a resolution in m for the projected raster#'}
 
-\item{print_test_plot}{If \code{TRUE} will return a plot of how the resolution looks}
+\item{radius}{Choose radius around points (only applies if not using a polygon). Default is half the resolution.}
 
-\item{var_xvar_name}{What is the x variable from the rds called?}
+\item{print_test_plot}{If \code{TRUE} will return a plot of the first time step, showing how the resolution and extraction is working}
 
-\item{var_yvar_name}{What is the Y variable from the rds called?}
+\item{var_xvar_name}{What is the x variable from the rds called? Default matches output from \code{extract_netcdf_values()} function}
+
+\item{var_yvar_name}{What is the Y variable from the rds called? Default matches output from \code{extract_netcdf_values()} function}
 
 \item{var_crs}{What CRS projection was the netcdf file in?}
 
-\item{spatial_grid}{The grid to extract values for. Can be spatial object, or have x and y columns.}
+\item{coord_df}{Coordinates data frame. Can be spatial object, or any data frame with x and y columns}
 
-\item{grid_xvar_name}{If a spatial object, use \code{NULL}, otherwise give name of x variable in the grid.}
+\item{grid_xvar_name}{Provide name of x variable in the grid, if not using a spatial object}
 
-\item{grid_yvar_name}{If a spatial object, use \code{NULL}, otherwise give name of y variable in the grid.}
+\item{grid_yvar_name}{Provide name of y variable in the grid, if not using a spatial object}
 
 \item{grid_crs}{What CRS projection is the grid in?}
+
+\item{rds.file}{File containing output from \code{extract_netcdf_values()} function}
 }
 \value{
 The grid expanded to include all years and the netcdf derived variables.
@@ -51,7 +54,7 @@ Get aggregated netcdf values for specific locations or grid cells
 project_netcdf_values(rds.file,
   variable_name = "ann_mean",
   print_test_plot = TRUE,
-  spatial_grid = bccoast,
+  coord_df = bccoast,
   grid_xvar_name = "UTM.lon",
   grid_yvar_name = "UTM.lat"
 )
