@@ -9,6 +9,7 @@ get_stock_enviro_vars(
   variable_name = "ann_mean",
   species = "NA",
   stock = "NA",
+  time_var = "year",
   recruitment_age = 1,
   depth_range = c(0, 200),
   lon_range = NULL,
@@ -28,7 +29,9 @@ get_stock_enviro_vars(
 
 \item{stock}{Optional argument to provide a variable indicating the stock. Default is "NA"}
 
-\item{recruitment_age}{The age at recruitment used in the stock assessments.
+\item{time_var}{Which variable contains the time steps of interest. Must be evenly spaced integers}
+
+\item{recruitment_age}{The age at recruitment used in the stock assessments in same units as time_var
 This controls which lags (up to age + 1) are included.}
 
 \item{depth_range}{Vector length 2 defining the range of depths of interest.
@@ -53,16 +56,17 @@ A data frame of time steps and variable values summarized for a specific geograp
 Get stock specific environmental variables from any larger scale spatiotemporal grid
 }
 \examples{
-df <- get_stock_enviro_vars(  temporal_grid = grid,
-variable_name = "ann_mean",
-species = "yelloweye rockfish",
-stock = "WCVI",
-recruitment_age = 1,
-depth_range = c(0, 200),
-lon_range = NULL,
-lat_range = c(48,51.2),
-lon_var_name = "LONGITUDE",
-lat_var_name = "LATITUDE"
+df <- get_stock_enviro_vars(
+  temporal_grid = grid,
+  variable_name = "ann_mean",
+  species = "yelloweye rockfish",
+  stock = "WCVI",
+  recruitment_age = 1,
+  depth_range = c(0, 200),
+  lon_range = NULL,
+  lat_range = c(48, 51.2),
+  lon_var_name = "LONGITUDE",
+  lat_var_name = "LATITUDE"
 )
 
 }
