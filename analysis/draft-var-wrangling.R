@@ -1,11 +1,11 @@
 # global bottom temp --------------------------------------
 
-library(ncdf4) # package for netcdf manipulation
+# library(ncdf4) # package for netcdf manipulation
 library(tidyverse)
-library(raster) # package for raster manipulation
-library(rgdal) # package for geospatial analysis
+# library(raster) # package for raster manipulation
+# library(rgdal) # package for geospatial analysis
 library(sf)
-library(terra)
+# library(terra)
 
 # two files downloaded from: https://aims2.llnl.gov/search
 # though maybe also available here: https://esgf-data.dkrz.de/search/cmip6-dkrz/
@@ -157,89 +157,79 @@ bccoast <- bccoast %>% dplyr::select(-year, -geartype, -value, -offset) %>% dist
 rds.file <- "data/annual_mean_tob_bc.rds"
 
 # test plot with radius set
-project_netcdf_values(rds.file,
+grid <- project_netcdf_values(rds.file,
                       variable_name = "ann_mean",
-                      print_test_plot = TRUE,
+                      # print_test_plot = TRUE,
                       coord_df = bccoast,
                       radius = 1000,
                       grid_xvar_name = "UTM.lon",
                       grid_yvar_name = "UTM.lat",
                       grid_crs = '+proj=utm +zone=9 +datum=WGS84')
 
-# test that is works with only coords
-bc <- bccoast %>% dplyr::select("UTM.lon", "UTM.lat") %>% distinct()
 
-grid <- project_netcdf_values(rds.file,
-                              variable_name = "ann_mean",
-                              coord_df = bc,
-                              grid_xvar_name = "UTM.lon",
-                              grid_yvar_name = "UTM.lat",
-                              grid_crs = '+proj=utm +zone=9 +datum=WGS84')
+saveRDS(grid, "data/grid_w_annual_mean_tob_bc.rds")
 
 
-saveRDS(grid, "data/ann_max_grid.rds")
-
-# Test with a shape file
-shape <- st_read("../../ye-wcvi/grids/HBLL-N-S/PHMA_S_GRID.shp")
-
-# type <- st_geometry_type(shape, by_geometry = FALSE)
-# type[1]=="POLYGON"
-
-d <- project_netcdf_values(rds.file,
-                      variable_name = "ann_mean",
-                      # print_test_plot = TRUE,
-                      coord_df = shape,
-                      grid_xvar_name = NULL,
-                      grid_yvar_name = NULL,
-                      grid_crs = '+proj=utm +zone=9 +datum=WGS84')
+# # test that is works with only coords
+# bc <- bccoast %>% dplyr::select("UTM.lon", "UTM.lat") %>% distinct()
+#
+# grid <- project_netcdf_values(rds.file,
+#                               variable_name = "ann_mean",
+#                               coord_df = bc,
+#                               grid_xvar_name = "UTM.lon",
+#                               grid_yvar_name = "UTM.lat",
+#                               grid_crs = '+proj=utm +zone=9 +datum=WGS84')
+#
 
 
 
-
-grid <- readRDS( "data/ann_max_grid.rds")
+grid <- readRDS("data/grid_w_annual_mean_tob_bc.rds")
 
 grid <- grid %>% mutate(depth = posdepth)
 
-stock_specific_values <- function(
-  temporal_grid = grid,
-  variable_name = "ann_max",
-  species = "NA",
-  recruitment_age = 1,
-  # bbox = NULL,
-  # lon_range = NULL,
-  # lat_range = NULL,
-  depth_range = c(0, 200)
-  ){
 
-  dat <-  dplyr::filter(temporal_grid, depth >= depth_range[1] & depth >= depth_range[2])
-  dat <- dat %>% dplyr::group_by(year) %>%
-    dplyr::summarise(var = mean(.data[[variable_name]], na.rm = T)
-    )
-
-  dat <- dat %>% dplyr::arrange(year)
+df <- get_stock_enviro_vars(  temporal_grid = grid,
+                              variable_name = "ann_max",
+                              species = "NA",
+                              stock = "NA",
+                              recruitment_age = 1,
+                              depth_range = c(0, 200),
+                              # lon_range = NULL,
+                              # lat_range = c(48,51.2),
+                              lon_var_name = "UTM.lon",
+                              lat_var_name = "UTM.lat",
+                              polygon = NULL,
+                              bbox = NULL)
 
 
-  if (recruitment_age == 1) {
-    dat <- dat %>% mutate(var_lag1 = lag(var, 1),
-                          var_lag2 = lag(var, 2))
-  }
 
-  if (recruitment_age == 2) {
-    dat <- dat %>% mutate(var_lag1 = lag(var, 1),
-                          var_lag2 = lag(var, 2),
-                          var_lag3 = lag(var, 3))
-  }
-
-  if (recruitment_age == 3) {
-    dat <- dat %>% mutate(var_lag1 = lag(var, 1),
-                          var_lag2 = lag(var, 2),
-                          var_lag3 = lag(var, 3),
-                          var_lag4 = lag(var, 4))
-  }
-names(dat) <- gsub("var", variable_name, names(dat))
-dat$species <- species
-dat
-}
+grid <- grid %>% mutate(depth = posdepth)
 
 
-df <- stock_specific_values()
+# # Test with a shape file
+shape <- sf::st_read("../../ye-wcvi/grids/HBLL-N-S/PHMA_S_GRID.shp")
+#
+# # type <- st_geometry_type(shape, by_geometry = FALSE)
+# # type[1]=="POLYGON"
+#
+d <-  project_netcdf_values(rds.file,
+                            variable_name = "ann_mean",
+                            # print_test_plot = TRUE,
+                            coord_df = shape,
+                            grid_xvar_name = NULL,
+                            grid_yvar_name = NULL,
+                            grid_crs = '+proj=utm +zone=9 +datum=WGS84')
+
+grid <- d %>% mutate(depth = -DEPTH_M)
+# st_geometry(grid) <- NULL
+df <- get_stock_enviro_vars(  temporal_grid = grid,
+                              variable_name = "ann_mean",
+                              species = "NA",
+                              stock = "NA",
+                              recruitment_age = 1,
+                              depth_range = c(0, 200),
+                              lon_range = NULL,
+                              lat_range = c(48,51.2),
+                              lon_var_name = "LONGITUDE",
+                              lat_var_name = "LATITUDE"
+)
