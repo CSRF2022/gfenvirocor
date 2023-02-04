@@ -7,8 +7,6 @@
 project_netcdf_values(
   nc.rds.file,
   variable_name,
-  set_resolution = 10000,
-  radius = NULL,
   print_test_plot = FALSE,
   var_xvar_name = "X",
   var_yvar_name = "Y",
@@ -16,15 +14,13 @@ project_netcdf_values(
   coord_df = bccoast,
   grid_xvar_name = "UTM.lon",
   grid_yvar_name = "UTM.lat",
-  grid_crs = "+proj=utm +zone=9 +datum=WGS84"
+  grid_crs = "+proj=utm +zone=9 +datum=WGS84 +units=km",
+  set_resolution = 10,
+  radius = NULL
 )
 }
 \arguments{
 \item{variable_name}{What variable does the above file contain}
-
-\item{set_resolution}{Choose a resolution in m for the projected raster#'}
-
-\item{radius}{Choose radius around points (only applies if not using a polygon). Default is half the resolution.}
 
 \item{print_test_plot}{If \code{TRUE} will return a plot of the first time step, showing how the resolution and extraction is working}
 
@@ -42,6 +38,10 @@ project_netcdf_values(
 
 \item{grid_crs}{What CRS projection is the grid in?}
 
+\item{set_resolution}{Choose a resolution in same units as grid_crs}
+
+\item{radius}{Choose radius around points (only applies if not using a polygon). Default is half the resolution.}
+
 \item{rds.file}{File containing output from \code{extract_netcdf_values()} function}
 }
 \value{
@@ -51,12 +51,12 @@ The grid expanded to include all years and the netcdf derived variables.
 Get aggregated netcdf values for specific locations or grid cells
 }
 \examples{
-project_netcdf_values(rds.file,
+project_netcdf_values(
+  rds.file,
   variable_name = "ann_mean",
   print_test_plot = TRUE,
-  coord_df = bccoast,
-  grid_xvar_name = "UTM.lon",
-  grid_yvar_name = "UTM.lat"
+  coord_df = sdmTMB::qcs_grid,
+  grid_xvar_name = "X",
+  grid_yvar_name = "Y"
 )
-
 }

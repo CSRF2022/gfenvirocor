@@ -2,8 +2,6 @@
 #'
 #' @param rds.file File containing output from `extract_netcdf_values()` function
 #' @param variable_name What variable does the above file contain
-#' @param set_resolution Choose a resolution in m for the projected raster#'
-#' @param radius Choose radius around points (only applies if not using a polygon). Default is half the resolution.
 #' @param print_test_plot If `TRUE` will return a plot of the first time step, showing how the resolution and extraction is working
 #' @param var_xvar_name What is the x variable from the rds called? Default matches output from `extract_netcdf_values()` function
 #' @param var_yvar_name What is the Y variable from the rds called? Default matches output from `extract_netcdf_values()` function
@@ -12,7 +10,8 @@
 #' @param grid_xvar_name Provide name of x variable in the grid, if not using a spatial object
 #' @param grid_yvar_name Provide name of y variable in the grid, if not using a spatial object
 #' @param grid_crs What CRS projection is the grid in?
-
+#' @param set_resolution Choose a resolution in same units as grid_crs
+#' @param radius Choose radius around points (only applies if not using a polygon). Default is half the resolution.
 #'
 #' @return
 #' The grid expanded to include all years and the netcdf derived variables.
@@ -20,18 +19,17 @@
 #' @export
 #'
 #' @examples
-#' project_netcdf_values(rds.file,
+#' rds.file <- "data/annual_mean_tob_bc.rds"
+#' project_netcdf_values(
+#'   rds.file,
 #'   variable_name = "ann_mean",
 #'   print_test_plot = TRUE,
-#'   coord_df = bccoast,
-#'   grid_xvar_name = "UTM.lon",
-#'   grid_yvar_name = "UTM.lat"
+#'   coord_df = sdmTMB::qcs_grid,
+#'   grid_xvar_name = "X",
+#'   grid_yvar_name = "Y"
 #' )
-#'
 project_netcdf_values <- function(nc.rds.file,
                                   variable_name,
-                                  set_resolution = 10000,
-                                  radius = NULL,
                                   print_test_plot = FALSE,
                                   var_xvar_name = "X",
                                   var_yvar_name = "Y",
@@ -39,8 +37,9 @@ project_netcdf_values <- function(nc.rds.file,
                                   coord_df = bccoast,
                                   grid_xvar_name = "UTM.lon",
                                   grid_yvar_name = "UTM.lat",
-                                  grid_crs = "+proj=utm +zone=9 +datum=WGS84") {
-
+                                  grid_crs = "+proj=utm +zone=9 +datum=WGS84 +units=km",
+                                  set_resolution = 10,
+                                  radius = NULL) {
   spdf <- readRDS(nc.rds.file) %>% dplyr::mutate(X = .data[[var_xvar_name]], Y = .data[[var_yvar_name]])
 
   sp::coordinates(spdf) <- ~ X + Y
@@ -69,6 +68,7 @@ project_netcdf_values <- function(nc.rds.file,
   # if(print_test_plot) raster::plot(xx)
   # raster::plot(xx)
   mx <- matrix(1, nc = 3, nr = 3)
+
   # mx[2,1] <- NA  # will loose a couple peripheral cells
   xf <- terra::focal(xx, w = mx, fun = mean, na.policy = "only", na.rm = T)
   # raster::plot(xf)
@@ -104,7 +104,8 @@ project_netcdf_values <- function(nc.rds.file,
         df <- sf::st_as_sf(df)
         g <- ggplot(df) +
           geom_sf(aes(colour = z)) +
-          scale_colour_viridis_c()
+          scale_colour_viridis_c() +
+          labs(colour = variable_name)
       } else {
 
         # coords to append to output
@@ -129,9 +130,11 @@ project_netcdf_values <- function(nc.rds.file,
         xy <- raster::extract(r[[1]], coord_df, buffer = radius, weights = FALSE, fun = mean, na.rm = T)
         df <- data.frame(cbind(z = xy[, 2], coord_df))
         df <- st_as_sf(df)
+        browser()
         g <- ggplot(df) +
           geom_sf(aes(colour = z)) +
-          scale_colour_viridis_c()
+          scale_colour_viridis_c() +
+          labs(colour = variable_name)
       } else {
 
         # coords to append to output
@@ -149,12 +152,12 @@ project_netcdf_values <- function(nc.rds.file,
       }
     }
     if (!print_test_plot) {
-    # browser()
-    out2 <- tidyr::pivot_longer(out, ncol(coord_df):(ncol(out)-1),
-      names_to = "year", values_to = variable_name
-    )
-    out2
-    }else{
+      # browser()
+      out2 <- tidyr::pivot_longer(out, ncol(coord_df):(ncol(out) - 1),
+        names_to = "year", values_to = variable_name
+      )
+      out2
+    } else {
       g
     }
   } else {
@@ -173,7 +176,8 @@ project_netcdf_values <- function(nc.rds.file,
       df <- data.frame(cbind(z = xy[, 2], coords))
       g <- ggplot(df) +
         geom_point(aes(X, Y, colour = z)) +
-        scale_colour_viridis_c()
+        scale_colour_viridis_c() +
+        labs(colour = variable_name)
       g
     } else {
 
@@ -194,6 +198,4 @@ project_netcdf_values <- function(nc.rds.file,
       out2
     }
   }
-
-
 }
