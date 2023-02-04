@@ -1,5 +1,5 @@
 # global bottom temp --------------------------------------
-
+devtools::load_all(".")
 # library(ncdf4) # package for netcdf manipulation
 library(tidyverse)
 # library(raster) # package for raster manipulation
@@ -83,17 +83,16 @@ nc_close(nc_data)
 library(tidyverse)
 library(sf)
 
-bccoast <- readRDS("data/predictiongrid_bccoast_scaled.rds") %>%
-  mutate(UTM.lon = UTM.lon * 1000, UTM.lat = UTM.lat * 1000)
+bccoast <- readRDS("data/predictiongrid_bccoast_scaled.rds")
 
 #Conversion of data frame to sf object
 bc_utm <- st_as_sf(x = bccoast,
                   coords = c("UTM.lon", "UTM.lat"),
-                  crs = '+proj=utm +zone=9 +datum=WGS84')
+                  crs = '+proj=utm +zone=9 +datum=WGS84 +units=km')
 
-st_crs(bc_utm) <- '+proj=utm +zone=9 +datum=WGS84'
+st_crs(bc_utm) <- '+proj=utm +zone=9 +datum=WGS84 +units=km'
 
-bc_ll <- st_transform(bc_utm, crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs+ towgs84=0,0,0")
+bc_ll <- st_transform(bc_utm, crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs+  towgs84=0,0,0")
 
 st_bbox(bc_ll)
 
@@ -144,8 +143,7 @@ df <- readRDS("data/annual_mean_tob_bc.rds")
 
 # Project netcdf data to a set of coordinates -------------------------
 
-bccoast <- readRDS("data/predictiongrid_bccoast_scaled.rds") %>%
-  mutate(UTM.lon = UTM.lon * 1000, UTM.lat = UTM.lat * 1000)
+bccoast <- readRDS("data/predictiongrid_bccoast_scaled.rds")
 sf::st_geometry(bccoast) <- NULL
 bccoast <- bccoast %>% dplyr::select(-year, -geartype, -value, -offset) %>% distinct()
 
@@ -159,12 +157,13 @@ rds.file <- "data/annual_mean_tob_bc.rds"
 # test plot with radius set
 grid <- project_netcdf_values(rds.file,
                       variable_name = "ann_mean",
+                      set_resolution = 10,
                       # print_test_plot = TRUE,
                       coord_df = bccoast,
                       radius = 1000,
                       grid_xvar_name = "UTM.lon",
                       grid_yvar_name = "UTM.lat",
-                      grid_crs = '+proj=utm +zone=9 +datum=WGS84')
+                      grid_crs = '+proj=utm +zone=9 +datum=WGS84 +units=km')
 
 
 saveRDS(grid, "data/grid_w_annual_mean_tob_bc.rds")
@@ -179,8 +178,6 @@ saveRDS(grid, "data/grid_w_annual_mean_tob_bc.rds")
 #                               grid_xvar_name = "UTM.lon",
 #                               grid_yvar_name = "UTM.lat",
 #                               grid_crs = '+proj=utm +zone=9 +datum=WGS84')
-#
-
 
 
 grid <- readRDS("data/grid_w_annual_mean_tob_bc.rds")
@@ -188,8 +185,8 @@ grid <- readRDS("data/grid_w_annual_mean_tob_bc.rds")
 grid <- grid %>% mutate(depth = posdepth)
 
 
-df <- get_stock_enviro_vars(  temporal_grid = grid,
-                              variable_name = "ann_max",
+df <- get_stock_enviro_var(  temporal_grid = grid,
+                              variable_name = "ann_mean",
                               species = "NA",
                               stock = "NA",
                               recruitment_age = 1,
@@ -200,10 +197,6 @@ df <- get_stock_enviro_vars(  temporal_grid = grid,
                               lat_var_name = "UTM.lat",
                               polygon = NULL,
                               bbox = NULL)
-
-
-
-grid <- grid %>% mutate(depth = posdepth)
 
 
 # # Test with a shape file
@@ -220,9 +213,10 @@ d <-  project_netcdf_values(rds.file,
                             grid_yvar_name = NULL,
                             grid_crs = '+proj=utm +zone=9 +datum=WGS84')
 
+
 grid <- d %>% mutate(depth = -DEPTH_M)
 # st_geometry(grid) <- NULL
-df <- get_stock_enviro_vars(  temporal_grid = grid,
+df <- get_stock_enviro_var(  temporal_grid = grid,
                               variable_name = "ann_mean",
                               species = "NA",
                               stock = "NA",
@@ -233,3 +227,106 @@ df <- get_stock_enviro_vars(  temporal_grid = grid,
                               lon_var_name = "LONGITUDE",
                               lat_var_name = "LATITUDE"
 )
+
+
+
+project_netcdf_values(
+  rds.file,
+  variable_name = "ann_mean",
+  print_test_plot = TRUE,
+  coord_df = sdmTMB::qcs_grid,
+  grid_xvar_name = "X",
+  grid_yvar_name = "Y"
+)
+# ## get major area from PBSmapping
+#
+# library(gfplot)
+# library(PBSmapping) # needs this for some reason
+#
+# load_boundaries <- function(utm_zone) {
+#   data("major", package = "PBSdata", envir = environment())
+#   gfplot:::ll2utm(major, utm_zone = utm_zone)
+# }
+#
+# major_labels <- gfplot:::boundary_labels(9, xmin = 122)
+# majorbound <- load_boundaries(9)
+#
+# majorbounds <- fortify(majorbound)
+#
+# ggplot() + geom_polygon(
+#   data = majorbounds,
+#   aes(X , Y , group = PID, fill = as.factor(PID)),
+#   lty = 1
+# ) + geom_text(data = major_labels,
+#               aes(X , Y, label = label), colour = "grey97"
+# )
+#
+#
+# library(sp)
+Area_3cd <- majorbound %>% filter(PID %in% c(3,4))
+
+Area_3cd <- fortify(Area_3cd)
+Area_3cd <- cbind(Area_3cd$X, Area_3cd$Y)
+Area_3cd <- Polygon(Area_3cd)
+Area_3cd <- Polygons(list(Area_3cd),1)
+Area_3cd <- SpatialPolygons(list(Area_3cd))
+# plot(Area_3cd)
+# proj4string(Area_3cd) <- CRS('+proj=utm +zone=9 +datum=WGS84 +units=km')
+#
+# ## might also be:
+# # "+proj=utm +zone=9 +datum=NAD83 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0  +units=m +no_defs" # i believe this is 3156
+# # crsnum <- 3156
+#
+#
+data <- data.frame(f=99.9)
+Area_3cd <- SpatialPolygonsDataFrame(Area_3cd,data)
+# Area_3cd
+#
+# spplot(Area_3cd)
+
+
+# # Test with a shape file
+Area_3cd <- sf::st_read("../BC_map/Shapes/majorOutline.shp") %>% filter(Name %in% c("3C", "3D"))
+
+
+df6 <- get_stock_enviro_var(  temporal_grid = grid,
+                              variable_name = "ann_mean",
+                              species = "NA",
+                              stock = "NA",
+                              lat_range = c(48, 51.2),
+                              lat_var_name = "LATITUDE",
+                              recruitment_age = 3,
+                              depth_range = c(0, 200),
+                              polygon = Area_3cd
+)
+
+
+
+# test run code used in the above
+grid <- grid %>% mutate(x = UTM.lon/1000, y = UTM.lat/1000) #%>% filter(year== "1950")
+
+# grid1 <- grid %>% mutate(x = UTM.lon/1000, y = UTM.lat/1000) %>% filter(year== "1950")
+gridsf <- st_as_sf(grid, coords = c("x", "y"), crs = '+proj=utm +zone=9 +datum=WGS84 +units=km' )
+# plot(gridsf)
+
+
+Area_3cd2 <- st_as_sfc(Area_3cd)
+Area_3cd2 <- st_as_sfc(Area_3cd, crs = '+proj=utm +zone=9 +datum=WGS84 +units=km')
+
+plot(Area_3cd)
+
+## none of this is working yet!
+# keep <- st_intersects(Area_3cd, gridsf)
+# grid1 <- gridsf[unlist(keep)]
+#
+# new_grid <- st_as_sf(grid1)
+
+cells_in_area <- st_intersection(gridsf, Area_3cd)
+# area_in_grid <- st_intersection(Area_3cd, gridsf)
+#
+# #not sure why, but st_union required otherwise df becomes huge!
+# new_grid1 <- st_difference(gridsf, st_union(area_in_grid))
+# new_grid2 <- st_difference(st_union(area_in_grid), gridsf)
+# new_grid3 <- new_grid1 %>% filter(year == "1950")
+# ggplot(new_grid3) + geom_sf()
+ggplot(cells_in_area) + geom_sf()
