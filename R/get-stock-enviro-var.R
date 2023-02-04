@@ -22,7 +22,19 @@
 #' @export
 #'
 #' @examples
-#' df <- get_stock_enviro_vars(
+#' rds.file <- "data/annual_mean_tob_bc.rds"
+#' load(file = "data/wcvi_grid.rda")
+#'
+#' grid <- project_netcdf_values(
+#'   rds.file,
+#'   variable_name = "ann_mean",
+#'   print_test_plot = TRUE,
+#'   coord_df = wcvi_grid,
+#'   grid_xvar_name = "X",
+#'   grid_yvar_name = "Y"
+#' )
+#'
+#' df <- get_stock_enviro_var(
 #'   temporal_grid = grid,
 #'   variable_name = "ann_mean",
 #'   species = "yelloweye rockfish",
@@ -72,19 +84,19 @@ get_stock_enviro_var <- function(temporal_grid = grid,
     browser()
     grid_crs2 <- st_crs(dat)$proj4string
 
-    if(is.na(grid_crs2)){
-    if(is.null(grid_crs)) {
-      stop("Your grid does not have a CRS, so you need to provide it to the arguement 'grid_crs'.")
-    } else{
-      # make grid into sf object
-      dat <- dat %>% dplyr::mutate(
-        lon = .data[[lon_var_name]],
-        lat = .data[[lat_var_name]]
-      )
-      grid <- dat %>% mutate(x = lon, y = lat)
-      gridsf <- st_as_sf(grid, coords = c("x", "y"), crs = grid_crs)
-    }
-    } else{
+    if (is.na(grid_crs2)) {
+      if (is.null(grid_crs)) {
+        stop("Your grid does not have a CRS, so you need to provide it to the arguement 'grid_crs'.")
+      } else {
+        # make grid into sf object
+        dat <- dat %>% dplyr::mutate(
+          lon = .data[[lon_var_name]],
+          lat = .data[[lat_var_name]]
+        )
+        grid <- dat %>% mutate(x = lon, y = lat)
+        gridsf <- st_as_sf(grid, coords = c("x", "y"), crs = grid_crs)
+      }
+    } else {
       print(paste("The grid provided had a CRS of", grid_crs2, ". Is this what you expected? If you provided one, it will be replaced with this one."))
       grid_crs <- grid_crs2
       gridsf <- dat
@@ -98,20 +110,17 @@ get_stock_enviro_var <- function(temporal_grid = grid,
     }
 
     if (type[1] %in% c("sfg_POLYGON", "sfc_POLYGON", "sfc_MULTIPOLYGON", "sfg_MULTIPOLYGON")) {
-
       polygon_crs2 <- st_crs(polygon)$proj4string
 
-      if(is.na(polygon_crs2)){
-        if(is.null(polygon_crs)) {
+      if (is.na(polygon_crs2)) {
+        if (is.null(polygon_crs)) {
           stop("Your polygon is missing a CRS, so you need to provide it to the arguement 'polygon_crs'.")
-          }
+        }
 
         st_crs(polygon) <- polygon_crs # check how to define the crs?
       } else {
-
         print(paste("The polygon provided had a CRS of", polygon_crs2, ". Is this what you expected? It will be tranformed to match the grid crs."))
       }
-
     } else {
       if (type == "SpatialPolygonsDataFrame") {
         # there isn't a geometry, so make into an sf object
@@ -134,6 +143,14 @@ get_stock_enviro_var <- function(temporal_grid = grid,
   if (!is.null(depth_range)) {
     dat <- dplyr::filter(dat, depth >= depth_range[1] & depth <= depth_range[2])
   }
+
+  print(
+    ggplot(dat) +
+      geom_point(aes(.data[[lon_var_name]], .data[[lat_var_name]],
+        colour = .data[[variable_name]]
+      )) +
+      scale_colour_viridis_c()
+  )
 
   # for now only using mean to aggregate environmental conditions within the spatial extent of interest
   dat <- dat %>%
