@@ -17,6 +17,8 @@ get_stock_enviro_var(
   lon_var_name = "UTM.lon",
   lat_var_name = "UTM.lat",
   polygon = NULL,
+  grid_crs = "+proj=utm +zone=9 +datum=WGS84 +units=m",
+  polygon_crs = "+proj=utm +zone=9 +datum=WGS84 +units=km",
   bbox = NULL
 )
 }

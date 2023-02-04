@@ -36,33 +36,94 @@
 #' )
 #'
 get_stock_enviro_var <- function(temporal_grid = grid,
-                                  variable_name = "ann_mean",
-                                  species = "NA",
-                                  stock = "NA",
-                                  time_var = "year",
-                                  recruitment_age = 1,
-                                  depth_range = c(0, 200),
-                                  lon_range = NULL,
-                                  lat_range = NULL,
-                                  lon_var_name = "UTM.lon",
-                                  lat_var_name = "UTM.lat",
-                                  polygon = NULL,
-                                  bbox = NULL) {
+                                 variable_name = "ann_mean",
+                                 species = "NA",
+                                 stock = "NA",
+                                 time_var = "year",
+                                 recruitment_age = 1,
+                                 depth_range = c(0, 200),
+                                 lon_range = NULL,
+                                 lat_range = NULL,
+                                 lon_var_name = "UTM.lon",
+                                 lat_var_name = "UTM.lat",
+                                 polygon = NULL,
+                                 grid_crs = "+proj=utm +zone=9 +datum=WGS84 +units=m",
+                                 polygon_crs = "+proj=utm +zone=9 +datum=WGS84 +units=km",
+                                 bbox = NULL) {
   dat <- temporal_grid %>% dplyr::mutate(
-    time = .data[[time_var]],
-    lon = .data[[lon_var_name]],
-    lat = .data[[lat_var_name]]
+    time = .data[[time_var]]
   )
 
   if (!is.null(lon_range)) {
-    dat <- dplyr::filter(dat, lon >= lon_range[1] & lon >= lon_range[2])
+    dat <- dat %>% dplyr::mutate(
+      lon = .data[[lon_var_name]]
+    )
+    dat <- dplyr::filter(dat, lon >= lon_range[1] & lon <= lon_range[2])
   }
   if (!is.null(lat_range)) {
-    dat <- dplyr::filter(dat, lat >= lat_range[1] & lat >= lat_range[2])
+    dat <- dat %>% dplyr::mutate(
+      lat = .data[[lat_var_name]]
+    )
+    dat <- dplyr::filter(dat, lat >= lat_range[1] & lat <= lat_range[2])
   }
 
   if (!is.null(polygon)) {
-    "TODO: Polygons are not yet supported."
+    # "TODO: Polygons are not yet supported."
+    browser()
+    grid_crs2 <- st_crs(dat)$proj4string
+
+    if(is.na(grid_crs2)){
+    if(is.null(grid_crs)) {
+      stop("Your grid does not have a CRS, so you need to provide it to the arguement 'grid_crs'.")
+    } else{
+      # make grid into sf object
+      dat <- dat %>% dplyr::mutate(
+        lon = .data[[lon_var_name]],
+        lat = .data[[lat_var_name]]
+      )
+      grid <- dat %>% mutate(x = lon, y = lat)
+      gridsf <- st_as_sf(grid, coords = c("x", "y"), crs = grid_crs)
+    }
+    } else{
+      print(paste("The grid provided had a CRS of", grid_crs2, ". Is this what you expected? If you provided one, it will be replaced with this one."))
+      grid_crs <- grid_crs2
+      gridsf <- dat
+    }
+
+    # check if polygon is already an sf object?
+    type <- attr(polygon, "class")
+    # browser()
+    if (type[1] == "sf") {
+      type <- attr(Area_3cd$geometry, "class")
+    }
+
+    if (type[1] %in% c("sfg_POLYGON", "sfc_POLYGON", "sfc_MULTIPOLYGON", "sfg_MULTIPOLYGON")) {
+
+      polygon_crs2 <- st_crs(polygon)$proj4string
+
+      if(is.na(polygon_crs2)){
+        if(is.null(polygon_crs)) {
+          stop("Your polygon is missing a CRS, so you need to provide it to the arguement 'polygon_crs'.")
+          }
+
+        st_crs(polygon) <- polygon_crs # check how to define the crs?
+      } else {
+
+        print(paste("The polygon provided had a CRS of", polygon_crs2, ". Is this what you expected? It will be tranformed to match the grid crs."))
+      }
+
+    } else {
+      if (type == "SpatialPolygonsDataFrame") {
+        # there isn't a geometry, so make into an sf object
+        polygon <- st_as_sfc(polygon, crs = polygon_crs)
+      } else {
+        "Object input to the polygon arguement needs to be a spatial polygon."
+      }
+    }
+
+    # transform into the same projection as your temporal grid
+    polygon <- st_transform(polygon, crs = grid_crs)
+    dat <- st_intersection(gridsf, polygon)
   }
 
   if (!is.null(bbox)) {
@@ -71,9 +132,10 @@ get_stock_enviro_var <- function(temporal_grid = grid,
 
 
   if (!is.null(depth_range)) {
-    dat <- dplyr::filter(dat, depth >= depth_range[1] & depth >= depth_range[2])
+    dat <- dplyr::filter(dat, depth >= depth_range[1] & depth <= depth_range[2])
   }
 
+  # for now only using mean to aggregate environmental conditions within the spatial extent of interest
   dat <- dat %>%
     dplyr::group_by(time) %>%
     dplyr::summarise(var = mean(.data[[variable_name]], na.rm = T))
