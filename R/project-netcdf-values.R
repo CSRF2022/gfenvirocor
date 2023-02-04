@@ -194,7 +194,7 @@ project_netcdf_values <- function(nc.rds.file,
         out
       }
       out <- tidyr::pivot_longer(out, 3:ncol(out), names_to = "year", values_to = variable_name)
-      out2 <- dplyr::left_join(grid, out) %>% dplyr::select(-X, -Y)
+      out2 <- dplyr::left_join(grid, out) #%>% dplyr::select(-X, -Y)
       out2
     }
   }
