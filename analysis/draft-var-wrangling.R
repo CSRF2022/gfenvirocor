@@ -154,6 +154,17 @@ bccoast <- bccoast %>% dplyr::select(-year, -geartype, -value, -offset) %>% dist
 # set_resolution <- 10000
 rds.file <- "data/annual_mean_tob_bc.rds"
 
+#simple example
+project_netcdf_values(
+  rds.file,
+  variable_name = "ann_mean",
+  print_test_plot = TRUE,
+  coord_df = sdmTMB::qcs_grid,
+  grid_xvar_name = "X",
+  grid_yvar_name = "Y"
+)
+
+
 # test plot with radius set
 grid <- project_netcdf_values(rds.file,
                       variable_name = "ann_mean",
@@ -167,6 +178,33 @@ grid <- project_netcdf_values(rds.file,
 
 
 saveRDS(grid, "data/grid_w_annual_mean_tob_bc.rds")
+
+# simple example
+
+
+load(file = "data/wcvi_grid.rda")
+
+wcvi_mean_tob <- project_netcdf_values(
+  rds.file,
+  variable_name = "ann_mean",
+  # print_test_plot = TRUE,
+  coord_df = wcvi_grid,
+  grid_xvar_name = "X",
+  grid_yvar_name = "Y"
+)
+
+df <- get_stock_enviro_var(
+  temporal_grid = wcvi_mean_tob,
+  variable_name = "ann_mean",
+  species = "yelloweye rockfish",
+  stock = "WCVI",
+  recruitment_age = 1,
+  depth_range = c(0, 200),
+  lon_range = NULL,
+  lat_range = c(5300, 5600),
+  lon_var_name = "X",
+  lat_var_name = "Y"
+)
 
 
 # # test that is works with only coords
@@ -183,6 +221,9 @@ saveRDS(grid, "data/grid_w_annual_mean_tob_bc.rds")
 grid <- readRDS("data/grid_w_annual_mean_tob_bc.rds")
 
 grid <- grid %>% mutate(depth = posdepth)
+
+
+
 
 
 df <- get_stock_enviro_var(  temporal_grid = grid,
@@ -230,14 +271,9 @@ df <- get_stock_enviro_var(  temporal_grid = grid,
 
 
 
-project_netcdf_values(
-  rds.file,
-  variable_name = "ann_mean",
-  print_test_plot = TRUE,
-  coord_df = sdmTMB::qcs_grid,
-  grid_xvar_name = "X",
-  grid_yvar_name = "Y"
-)
+
+
+
 # ## get major area from PBSmapping
 #
 # library(gfplot)
