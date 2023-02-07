@@ -159,6 +159,12 @@ get_stock_enviro_var <- function(temporal_grid = grid,
 
   dat <- dat %>% dplyr::arrange(time)
 
+  if (recruitment_age == 0) {
+    dat <- dat %>% mutate(
+      var_lag1 = lag(var, 1)
+    )
+  }
+
   if (recruitment_age == 1) {
     dat <- dat %>% mutate(
       var_lag1 = lag(var, 1),
@@ -183,7 +189,7 @@ get_stock_enviro_var <- function(temporal_grid = grid,
     )
   }
 
-  dat[[time_var]] <- dat$time
+  dat[[time_var]] <- as.numeric(dat$time)
   dat$time <- NULL
 
   names(dat) <- gsub("var", variable_name, names(dat))

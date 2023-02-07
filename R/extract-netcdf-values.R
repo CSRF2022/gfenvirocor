@@ -124,7 +124,7 @@ extract_netcdf_values <- function(
                      time_resolution_input, "-",
                      model_start_time, "-", model_end_time, "-",
                      agg_method, "-",
-                     whichtimes[1],
-                     whichtimes[max(whichtimes)], ".rds"))
+                     whichtimes[1], "-",
+                     max(whichtimes), ".rds"))
   return(df)
 }
