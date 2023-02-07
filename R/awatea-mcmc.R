@@ -1,4 +1,4 @@
-#' Convert Awatea mcmc output into dataframe of annual medians
+#' Convert mcmc outputs provided by Rowan into dataframe of annual medians
 #'
 #' @param csv csv file location and name
 #' @param species species label string
@@ -15,9 +15,8 @@
 #'
 awatea_mcmc <- function(csv, species, stock, var_name = "biomass") {
   .d <- readr::read_csv(csv)
-  .d <- .d %>%
-    dplyr::select(-Run.Sample) %>%
-    dplyr::summarise_all(median)
+  .d <- .d[,2:ncol(.d)]
+  .d <- .d %>% dplyr::summarise_all(median)
   .d <- t(.d)
   .d <- as.data.frame(.d)
   .d$year <- as.numeric(rownames(.d))
