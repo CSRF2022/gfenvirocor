@@ -31,14 +31,15 @@ calc_prod <- function(catchfile,
                       mcmcsuffix,
                       species,
                       stock,
-                      model_type = "awatea",
+                      model_type = "rowans",
                       start_year = NULL,
                       end_year = NULL,
                       recruitment_age = 1) {
 
   c <- readr::read_csv(catchfile)
-
+  # browser()
   if (model_type == "iscam") {
+
     b <- iscam_mcmc(
       csv = paste0(mcmcprefix, "sbt", mcmcsuffix),
       species,
@@ -67,7 +68,7 @@ calc_prod <- function(catchfile,
     )
   }
 
-  if (model_type == "awatea") {
+  if (model_type == "rowans") {
     b <- awatea_mcmc(
       csv = paste0(mcmcprefix, "B", mcmcsuffix),
       species,
@@ -104,40 +105,36 @@ calc_prod <- function(catchfile,
 
   if (recruitment_age == 1) {
     df <- df %>% mutate(
-      catch_lag1 = lag(catch),
-      biomass_lag1 = lag(biomass),
+      biomass_lead1 = lead(biomass),
+      biomass_lag1 = lag(biomass, 1),
       biomass_lag2 = lag(biomass, 2),
-      production = (biomass + catch_lag1 - biomass_lag1),
-      production1 = (biomass + catch_lag1 - biomass_lag1) / biomass_lag1,
-      production2 = (biomass + catch_lag1 - biomass_lag1) / biomass_lag2,
+      production = (biomass_lead1 + catch - biomass),
+      p_by_biomass = production / biomass
+      # Prod_by_biomass1 = production / biomass_lag1,
     )
   }
 
   if (recruitment_age == 2) {
     df <- df %>% mutate(
-      catch_lag1 = lag(catch),
-      biomass_lag1 = lag(biomass),
+      biomass_lead1 = lead(biomass),
+      biomass_lag1 = lag(biomass, 1),
       biomass_lag2 = lag(biomass, 2),
-      biomass_lag3 = lag(biomass, 3),
-      production = (biomass + catch_lag1 - biomass_lag1),
-      production1 = (biomass + catch_lag1 - biomass_lag1) / biomass_lag1,
-      production2 = (biomass + catch_lag1 - biomass_lag1) / biomass_lag2,
-      production3 = (biomass + catch_lag1 - biomass_lag1) / biomass_lag3
+      biomass_lag4 = lag(biomass, 3),
+      production = (biomass_lead1 + catch - biomass),
+      p_by_biomass = production / biomass
+      # Prod_by_biomass1 = production / biomass_lag1,
     )
   }
 
   if (recruitment_age == 3) {
     df <- df %>% mutate(
-      catch_lag1 = lag(catch),
-      biomass_lag1 = lag(biomass),
+      biomass_lead1 = lead(biomass),
+      biomass_lag1 = lag(biomass, 1),
       biomass_lag2 = lag(biomass, 2),
-      biomass_lag3 = lag(biomass, 3),
+      biomass_lag4 = lag(biomass, 3),
       biomass_lag4 = lag(biomass, 4),
-      production = (biomass + catch_lag1 - biomass_lag1),
-      production1 = (biomass + catch_lag1 - biomass_lag1) / biomass_lag1,
-      production2 = (biomass + catch_lag1 - biomass_lag1) / biomass_lag2,
-      production3 = (biomass + catch_lag1 - biomass_lag1) / biomass_lag3,
-      production4 = (biomass + catch_lag1 - biomass_lag1) / biomass_lag4
+      production = (biomass_lead1 + catch - biomass),
+      p_by_biomass = production / biomass
     )
   }
   df
