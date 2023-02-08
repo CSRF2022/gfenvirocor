@@ -5,16 +5,19 @@ library(tidyverse)
 library(sf)
 library(terra)
 
+variable <- "tob"
+
+
 rmonths <- readxl::read_xlsx(
   "data/GF_assessments.xlsx" # , col_type = "list"
 ) %>%
-  filter(Outputs == "Y") %>%
+  filter(Outputs == "Y" & R_variable == variable) %>%
   select(R_months) %>%
   distinct() %>%
   na.omit()
 
 all_layers <- expand.grid(method = c("mean", "min", "max"), months = rmonths$R_months)
-variable <- "tob"
+
 
 
 
