@@ -60,7 +60,7 @@ for (i in 1:nrow(gf)) {
     area_polygons <- sf::st_read("../BC_map/Shapes/majorOutline.shp") %>% filter(Name %in% areas)
   }
 
-  months <- as.numeric(unlist(strsplit(as.character(gf$SB_months[i]), ",")))
+  months <- as.numeric(unlist(strsplit(as.character(gf$R_months[i]), ",")))
   month_string <- paste0(months[1], "to", max(months))
 
   browser()
@@ -83,7 +83,7 @@ for (i in 1:nrow(gf)) {
 
     d[[i]] <- left_join(d[[i]], penv[[i]])
 
-    ann_variable_r <- paste0(variable, "_", month_string, "_", methods[j])
+    ann_variable_r <- paste0(gf$R_variable, "_", month_string, "_", methods[j])
     rgrid <- readRDS(paste0("data/grid_", ann_variable_r, ".rds")) %>% mutate(depth = posdepth)
 
     renv[[i]] <- get_stock_enviro_var(
@@ -92,7 +92,7 @@ for (i in 1:nrow(gf)) {
       species = gf$Species[i],
       stock = gf$Stock[i],
       recruitment_age = gf$age_recruited[i],
-      depth_range = c(gf$SB_depth_min[i], gf$SB_depth_max[i]),
+      depth_range = c(gf$R_depth_min[i], gf$R_depth_max[i]),
       polygon = area_polygons
     )
 

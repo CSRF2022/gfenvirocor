@@ -9,18 +9,21 @@ rmonths <- readxl::read_xlsx(
   "data/GF_assessments.xlsx" # , col_type = "list"
 ) %>%
   filter(Outputs == "Y") %>%
-  select(SB_months) %>%
+  select(R_months) %>%
   distinct() %>%
   na.omit()
 
-all_layers <- expand.grid(method = c("mean", "min", "max"), months = rmonths$SB_months)
+all_layers <- expand.grid(method = c("mean", "min", "max"), months = rmonths$R_months)
 variable <- "tob"
+
+
+
 
 # unlist(strsplit(as.character(all_layers$months[1]), ","))
 
 for (i in 1:nrow(all_layers)) {
   months <- as.numeric(unlist(strsplit(as.character(all_layers$months[i]), ",")))
-# can manually set a range of months not included in that vector, but right now will only get included for a species if it's in that SB_months vector or the full year
+# can manually set a range of months not included in that vector, but right now will only get included for a species if it's in that R_months vector or the full year
   # months <- c(1:12)
   method <- all_layers$method[i]
 
@@ -31,13 +34,15 @@ for (i in 1:nrow(all_layers)) {
   ann_variable <- paste0(variable, "_", month_string, "_", method)
 
 
-  file2 <- paste0("data/grid_", ann_variable, ".rds")
+  gridfile <- paste0("data/grid_", ann_variable, ".rds")
 
-  if (!file.exists(file2)) {
+  if (!file.exists(gridfile)) {
 
-    file1 <- paste0("data/", variable, "-", month_string, "-", method, ".rds")
+    ncdatafile <- paste0("data/", variable, "-", month_string, "-", method, ".rds")
 
-    if (!file.exists(file1)) {
+    if (!file.exists(ncdatafile)) {
+
+      if (variable == "tob") {
       df1 <- extract_netcdf_values(
         "data/bottom-temp/tob_Omon_BCC-CSM2-HR_hist-1950_r1i1p1f1_gn_195001-197912.nc",
         variable_name = variable,
@@ -57,8 +62,10 @@ for (i in 1:nrow(all_layers)) {
       )
 
       df <- left_join(df1, df2)
+      }
 
-      saveRDS(df, paste0("data/", variable, "-", month_string, "-", method, ".rds"))
+
+      saveRDS(df, ncdatafile)
     }
 
     # using lindsay's grid but could be updated to include inside waters
@@ -70,7 +77,7 @@ for (i in 1:nrow(all_layers)) {
 
     # browser()
     # project_netcdf_values(
-    #   paste0("data/", variable, "-", month_string, "-", method, ".rds"),
+    #   ncdatafile,
     #   variable_name = ann_variable,
     #   set_resolution = 10,
     #   print_test_plot = TRUE,
@@ -82,7 +89,7 @@ for (i in 1:nrow(all_layers)) {
     # )
 
     grid <- project_netcdf_values(
-      paste0("data/", variable, "-", month_string, "-", method, ".rds"),
+      ncdatafile,
       variable_name = ann_variable,
       set_resolution = 10,
       # print_test_plot = TRUE,
@@ -94,6 +101,6 @@ for (i in 1:nrow(all_layers)) {
     )
 
 
-    saveRDS(grid, paste0("data/grid_", ann_variable, ".rds"))
+    saveRDS(grid, gridfile)
   }
 }
