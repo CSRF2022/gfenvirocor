@@ -106,6 +106,7 @@ project_netcdf_values <- function(nc.rds.file,
           geom_sf(aes(colour = z)) +
           scale_colour_viridis_c() +
           labs(colour = variable_name)
+        print(g)
       } else {
 
         # coords to append to output
@@ -135,6 +136,7 @@ project_netcdf_values <- function(nc.rds.file,
           geom_sf(aes(colour = z)) +
           scale_colour_viridis_c() +
           labs(colour = variable_name)
+        print(g)
       } else {
 
         # coords to append to output
