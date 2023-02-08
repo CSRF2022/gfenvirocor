@@ -65,6 +65,31 @@ for (i in 1:nrow(all_layers)) {
       }
 
 
+      if (variable == "SST") {
+
+        stop( "TODO: Need to get this layer still." )
+        # df1 <- extract_netcdf_values(
+        #   ####,
+        #   variable_name = variable,
+        #   whichtimes = months,
+        #   agg_method = method,
+        #   model_start_time = ###,
+        #   model_end_time = ###
+        # )
+        #
+        # df2 <- extract_netcdf_values(
+        #   ####,
+        #   variable_name = variable,
+        #   whichtimes = months,
+        #   agg_method = method,
+        #   model_start_time = ###,
+        #   model_end_time = ###
+        # )
+        #
+        # df <- left_join(df1, df2)
+      }
+
+
       saveRDS(df, ncdatafile)
     }
 
@@ -75,7 +100,7 @@ for (i in 1:nrow(all_layers)) {
       dplyr::select(-year, -geartype, -value, -offset) %>%
       distinct()
 
-    # browser()
+    # browser() # if we need to see what's happening?
     # project_netcdf_values(
     #   ncdatafile,
     #   variable_name = ann_variable,
