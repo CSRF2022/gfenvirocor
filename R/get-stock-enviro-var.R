@@ -59,12 +59,15 @@ get_stock_enviro_var <- function(temporal_grid = grid,
                                  lon_var_name = "UTM.lon",
                                  lat_var_name = "UTM.lat",
                                  polygon = NULL,
-                                 grid_crs = "+proj=utm +zone=9 +datum=WGS84 +units=m",
+                                 grid_crs = "+proj=utm +zone=9 +datum=WGS84 +units=km +no_defs",
                                  polygon_crs = "+proj=utm +zone=9 +datum=WGS84 +units=km",
                                  bbox = NULL) {
+
   dat <- temporal_grid %>% dplyr::mutate(
-    time = .data[[time_var]]
+    time = as.numeric(.data[[time_var]])
   )
+
+  dat <- dat[!is.na(dat[variable_name]),]
 
   if (!is.null(lon_range)) {
     dat <- dat %>% dplyr::mutate(
@@ -81,7 +84,7 @@ get_stock_enviro_var <- function(temporal_grid = grid,
 
   if (!is.null(polygon)) {
     # "TODO: Polygons are not yet supported."
-    browser()
+    # browser()
     grid_crs2 <- st_crs(dat)$proj4string
 
     if (is.na(grid_crs2)) {
@@ -106,7 +109,7 @@ get_stock_enviro_var <- function(temporal_grid = grid,
     type <- attr(polygon, "class")
     # browser()
     if (type[1] == "sf") {
-      type <- attr(Area_3cd$geometry, "class")
+      type <- attr(polygon$geometry, "class")
     }
 
     if (type[1] %in% c("sfg_POLYGON", "sfc_POLYGON", "sfc_MULTIPOLYGON", "sfg_MULTIPOLYGON")) {
@@ -132,6 +135,17 @@ get_stock_enviro_var <- function(temporal_grid = grid,
 
     # transform into the same projection as your temporal grid
     polygon <- st_transform(polygon, crs = grid_crs)
+
+    # gridsf %>% filter(time == min(time, na.rm = TRUE)) %>%
+    #   ggplot() + geom_sf(aes(colour = depth))
+
+    g <- gridsf %>% filter(time == min(time, na.rm = TRUE)) %>%
+    ggplot() + geom_sf(aes(colour = .data[[variable_name]])) +
+      scale_colour_viridis_c()
+
+    print(g)
+    # browser()
+
     dat <- st_intersection(gridsf, polygon)
   }
 
@@ -144,13 +158,18 @@ get_stock_enviro_var <- function(temporal_grid = grid,
     dat <- dplyr::filter(dat, depth >= depth_range[1] & depth <= depth_range[2])
   }
 
-  print(
-    ggplot(dat) +
+
+    g <- dat %>% filter(time == min(time, na.rm = TRUE)) %>%
+    ggplot() +
       geom_point(aes(.data[[lon_var_name]], .data[[lat_var_name]],
         colour = .data[[variable_name]]
       )) +
       scale_colour_viridis_c()
-  )
+
+    print(g)
+
+    # remove geometry because next step is to summarize by time step
+    dat$geometry <- NULL
 
   # for now only using mean to aggregate environmental conditions within the spatial extent of interest
   dat <- dat %>%
@@ -194,5 +213,6 @@ get_stock_enviro_var <- function(temporal_grid = grid,
 
   names(dat) <- gsub("var", variable_name, names(dat))
   dat$species <- species
+  dat$stock <- stock
   dat
 }
