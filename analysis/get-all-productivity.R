@@ -12,9 +12,10 @@ d <- list()
 penv <- list()
 renv <- list()
 
-# i <- 1
 
-for (i in 1:nrow(gf)) {
+for (i in 1:3) { # test with just first 3 stocks
+# for (i in 1:nrow(gf)) {
+  # i <- 1 # test with just one stock
   model <- case_when(gf$model[i] == "iSCAM" ~ "iscam",
     gf$model[i] == "SS3" ~ "ss3",
     .default = "rowans"
@@ -63,10 +64,10 @@ for (i in 1:nrow(gf)) {
   months <- as.numeric(unlist(strsplit(as.character(gf$R_months[i]), ",")))
   month_string <- paste0(months[1], "to", max(months))
 
-  browser()
+  # browser()
 
   for (j in 1:3) {
-    # browser()
+
     ann_variable_p <- paste0(variable, "_ann_", methods[j])
     pgrid <- readRDS(paste0("data/grid_", ann_variable_p, ".rds")) %>% mutate(depth = posdepth)
 
@@ -83,7 +84,7 @@ for (i in 1:nrow(gf)) {
 
     d[[i]] <- left_join(d[[i]], penv[[i]])
 
-    ann_variable_r <- paste0(gf$R_variable, "_", month_string, "_", methods[j])
+    ann_variable_r <- paste0(gf$R_variable[i], "_", month_string, "_", methods[j])
     rgrid <- readRDS(paste0("data/grid_", ann_variable_r, ".rds")) %>% mutate(depth = posdepth)
 
     renv[[i]] <- get_stock_enviro_var(
@@ -98,6 +99,8 @@ for (i in 1:nrow(gf)) {
 
     d[[i]] <- left_join(d[[i]], renv[[i]])
   }
+  d
 }
 
 dat <- do.call(bind_rows, d)
+
