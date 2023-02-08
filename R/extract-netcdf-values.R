@@ -83,18 +83,19 @@ extract_netcdf_values <- function(
 
       yearsel <- years[i]
       xx <- selected_months %>% dplyr::filter(year == yearsel) %>% dplyr::select(layer_seq)
-      selection <- nc.array[,,xx[1:5,]]
+      # selection <- nc.array[,,xx[1:length(xx$layer_seq),]]
+      selection <- nc.array[,,xx$layer_seq]
 
       if(agg_method == "mean") {
-        value <- apply(selection, MARGIN=c(1, 2), mean) #margin, rows and columns
+        value <- apply(selection, MARGIN=c(1, 2), mean, na.rm=TRUE) #margin, rows and columns
       }
 
       if(agg_method == "max") {
-        value <- apply(selection, MARGIN=c(1, 2), max) #margin, rows and columns
+        value <- apply(selection, MARGIN=c(1, 2), max, na.rm=TRUE) #margin, rows and columns
       }
 
       if(agg_method == "min") {
-        value <- apply(selection, MARGIN=c(1, 2), min) #margin, rows and columns
+        value <- apply(selection, MARGIN=c(1, 2), min, na.rm=TRUE) #margin, rows and columns
       }
 
       df[[as.character(yearsel)]] <- c(value[,]) # most be character to use to name columns
@@ -118,6 +119,9 @@ extract_netcdf_values <- function(
         .data[["Y"]] < ybounds[2]
       )
   }
+
+  # not sure why, but extract_netcdf_values is returning Inf
+  df[sapply(df, is.infinite)] <- NA
 
   saveRDS(df, paste0(output.dir, "/",
                      variable_name, "-",
