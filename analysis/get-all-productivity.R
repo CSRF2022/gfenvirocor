@@ -103,4 +103,25 @@ for (i in 1:3) { # test with just first 3 stocks
 }
 
 dat <- do.call(bind_rows, d)
+date_stamp <- Sys.Date()
 
+# saveRDS(dat, paste0("data/all-productivity-and-covars-3spp.rds"))
+saveRDS(dat, paste0("data/all-productivity-and-covars-", date_stamp, ".rds"))
+
+dat2 <- dat %>% pivot_longer(13:ncol(dat), values_to = "value", names_to = "variable")
+
+
+out <- strsplit(as.character(dat2$variable),'_')
+out <- do.call(rbind, out)
+dat2$variable_type <- out[,1]
+dat2$months <- out[,2]
+dat2$agg_type <- out[,3]
+dat2$lag <- out[,4]
+dat2$lag <- as.numeric(gsub("lag", "", dat2$lag))
+
+dat2[is.na(dat2["lag"]),]$lag <- 0
+
+dat3 <- dat2[!is.na(dat2["value"]),]
+
+# saveRDS(dat3, paste0("data/all-productivity-longer-3spp.rds"))
+saveRDS(dat3, paste0("data/all-productivity-longer-", date_stamp, ".rds"))
