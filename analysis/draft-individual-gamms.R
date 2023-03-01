@@ -5,27 +5,41 @@ library(gratia)
 
 dat <- readRDS(paste0("data/all-productivity-longer-3spp.rds"))
 
+# just plot biomass ~ time w catch, P ~ time, P/B ~ time, P/B ~ B
+# no lag
+dat0 <- filter(dat, months == "ann" &
+                 agg_type == "max"  &
+                 lag == 0) %>%
+  group_by(species, stock) %>%
+  mutate(max_biomass = max(biomass, na.rm = TRUE),
+         max_production = max(production, na.rm = TRUE)
+  ) %>%
+  arrange(species, stock, year)
 
-dat4 <- filter(dat3, months == "ann" &
-               agg_type == "max"  &
-               lag == 0) %>%
-  mutate(variable = paste(agg_type, months, variable_type, "lag =", lag))
+glimpse(dat0)
+
+# add variable name
+dat0 <- dat0 %>% mutate(variable = paste(agg_type, months, variable_type, "lag =", lag))
 
 
 
-dat4 <- filter(dat3, months == "ann" &
-                 agg_type == "max" ) %>%
-  group_by(species,stock,year,variable_type, months, agg_type) %>% summarise_all(mean) %>%
-  mutate(variable = paste(agg_type, months, variable_type))
+# # mean of all lags
+# dat1 <- filter(dat, months == "ann" &
+#                  agg_type == "max" ) %>%
+#   drop_na() %>%
+#   group_by(species, stock, year, variable, variable_type, months, agg_type) %>%
+#
+#   summarise_all(mean) %>%
+#   mutate(variable = paste(agg_type, months, variable_type))
 
 
-ggplot(dat4, aes(value, p_by_biomass)) + geom_point() +
+ggplot(dat0, aes(value, p_by_biomass)) + geom_point() +
   geom_smooth(method = "lm") +
   facet_wrap(~paste(species, stock), scales = "free")
 
 
-ggplot(dat4, aes(year, value, colour = paste(species, stock))) +
-  geom_point()
+ggplot(dat0, aes(year, value, colour = paste(species, stock))) +
+  geom_line()
 
 
 
@@ -55,7 +69,10 @@ R_agg_type <- "mean"
 d <- dat %>% filter(species == Species & stock == Stock)
 
 d1 <- filter(d, months == "ann" & agg_type == prod_agg_type & lag %in% prod_lag) %>%
-  group_by(species,stock,year,variable_type, months, agg_type) %>% summarise_all(mean) %>%
+  # drop_na() %>%
+  select(-variable) %>%
+  group_by(species, stock, year, variable_type, months, agg_type) %>%
+  summarise_all(mean) %>%
   mutate(variable = paste(agg_type, months, variable_type, "lag =", prod_lag_string))
 
 # hist(d1$production)
