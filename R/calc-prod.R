@@ -100,8 +100,20 @@ calc_prod <- function(catchfile,
     left_join(r) %>%
     left_join(d)
 
-  df <- df %>% select(species, stock, year, catch, biomass, recruits, rdev)
+  df <- df %>% select(species, stock, year, catch, biomass, recruits, rdev) %>%
+    mutate(model_type = model_type,
+           recruitment_age = recruitment_age
+    )
 
+  if (recruitment_age == 0) {
+    df <- df %>% mutate(
+      biomass_lead1 = lead(biomass),
+      biomass_lag1 = lag(biomass, 1),
+      production = (biomass_lead1 + catch - biomass),
+      p_by_biomass = production / biomass
+      # Prod_by_biomass1 = production / biomass_lag1,
+    )
+  }
 
   if (recruitment_age == 1) {
     df <- df %>% mutate(
