@@ -12,9 +12,12 @@ d <- list()
 penv <- list()
 renv <- list()
 
+add_enviro_vars <- FALSE
+# add_enviro_vars <- TRUE
 
-for (i in 1:3) { # test with just first 3 stocks
-# for (i in 1:nrow(gf)) {
+
+# for (i in 1:3) { # test with just first 3 stocks
+for (i in 1:nrow(gf)) {
   # i <- 1 # test with just one stock
   model <- case_when(gf$model[i] == "iSCAM" ~ "iscam",
     gf$model[i] == "SS3" ~ "ss3",
@@ -48,6 +51,9 @@ for (i in 1:3) { # test with just first 3 stocks
     recruitment_age = gf$age_recruited[i]
   )
 
+  d[[i]]$group <- gf$Group[i]
+
+  if(add_enviro_vars){
   # currently calculating using 3 methods but might focus on different ones for each time period and loop over variable types instead
   methods <- c("mean", "min", "max")
 
@@ -58,7 +64,8 @@ for (i in 1:3) { # test with just first 3 stocks
   if (gf$Stock[i] == "Coastwide") {
     area_polygons <- NULL
   } else {
-    area_polygons <- sf::st_read("../BC_map/Shapes/majorOutline.shp") %>% filter(Name %in% areas)
+    area_polygons <- sf::st_read("../BC_map/Shapes/majorOutline.shp") %>%
+      filter(Name %in% areas)
   }
 
   months <- as.numeric(unlist(strsplit(as.character(gf$R_months[i]), ",")))
@@ -69,7 +76,8 @@ for (i in 1:3) { # test with just first 3 stocks
   for (j in 1:3) {
 
     ann_variable_p <- paste0(variable, "_ann_", methods[j])
-    pgrid <- readRDS(paste0("data/grid_", ann_variable_p, ".rds")) %>% mutate(depth = posdepth)
+    pgrid <- readRDS(paste0("data/grid_", ann_variable_p, ".rds")) %>%
+      mutate(depth = posdepth)
 
     penv[[i]] <- get_stock_enviro_var(
       temporal_grid = pgrid,
@@ -85,7 +93,8 @@ for (i in 1:3) { # test with just first 3 stocks
     d[[i]] <- left_join(d[[i]], penv[[i]])
 
     ann_variable_r <- paste0(gf$R_variable[i], "_", month_string, "_", methods[j])
-    rgrid <- readRDS(paste0("data/grid_", ann_variable_r, ".rds")) %>% mutate(depth = posdepth)
+    rgrid <- readRDS(paste0("data/grid_", ann_variable_r, ".rds")) %>%
+      mutate(depth = posdepth)
 
     renv[[i]] <- get_stock_enviro_var(
       temporal_grid = rgrid,
@@ -99,12 +108,14 @@ for (i in 1:3) { # test with just first 3 stocks
 
     d[[i]] <- left_join(d[[i]], renv[[i]])
   }
+  }
   d
 }
 
 dat <- do.call(bind_rows, d)
 date_stamp <- Sys.Date()
 
+if(add_enviro_vars){
 # saveRDS(dat, paste0("data/all-productivity-and-covars-3spp.rds"))
 saveRDS(dat, paste0("data/all-productivity-and-covars-", date_stamp, ".rds"))
 
@@ -125,3 +136,6 @@ dat3 <- dat2[!is.na(dat2["value"]),]
 
 # saveRDS(dat3, paste0("data/all-productivity-longer-3spp.rds"))
 saveRDS(dat3, paste0("data/all-productivity-longer-", date_stamp, ".rds"))
+} else {
+  saveRDS(dat, paste0("data/all-productivity-", date_stamp, ".rds"))
+}
