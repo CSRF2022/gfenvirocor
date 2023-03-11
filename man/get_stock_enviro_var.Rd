@@ -17,7 +17,7 @@ get_stock_enviro_var(
   lon_var_name = "UTM.lon",
   lat_var_name = "UTM.lat",
   polygon = NULL,
-  grid_crs = "+proj=utm +zone=9 +datum=WGS84 +units=m",
+  grid_crs = "+proj=utm +zone=9 +datum=WGS84 +units=km +no_defs",
   polygon_crs = "+proj=utm +zone=9 +datum=WGS84 +units=km",
   bbox = NULL
 )
@@ -58,7 +58,19 @@ A data frame of time steps and variable values summarized for a specific geograp
 Get stock specific environmental variables from any larger scale spatiotemporal grid
 }
 \examples{
-df <- get_stock_enviro_vars(
+rds.file <- "data/annual_mean_tob_bc.rds"
+load(file = "data/wcvi_grid.rda")
+
+grid <- project_netcdf_values(
+  rds.file,
+  variable_name = "ann_mean",
+  print_test_plot = TRUE,
+  coord_df = wcvi_grid,
+  grid_xvar_name = "X",
+  grid_yvar_name = "Y"
+)
+
+df <- get_stock_enviro_var(
   temporal_grid = grid,
   variable_name = "ann_mean",
   species = "yelloweye rockfish",

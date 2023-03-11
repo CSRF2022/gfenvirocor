@@ -2,7 +2,7 @@
 % Please edit documentation in R/awatea-mcmc.R
 \name{awatea_mcmc}
 \alias{awatea_mcmc}
-\title{Convert Awatea mcmc output into dataframe of annual medians}
+\title{Convert mcmc outputs provided by Rowan into dataframe of annual medians}
 \usage{
 awatea_mcmc(csv, species, stock, var_name = "biomass")
 }
@@ -16,7 +16,7 @@ awatea_mcmc(csv, species, stock, var_name = "biomass")
 \item{var_name}{what to call parameter output}
 }
 \description{
-Convert Awatea mcmc output into dataframe of annual medians
+Convert mcmc outputs provided by Rowan into dataframe of annual medians
 }
 \examples{
 d <- awatea_mcmc(

@@ -10,10 +10,11 @@ calc_prod(
   mcmcsuffix,
   species,
   stock,
-  model_type = "awatea",
+  model_type = "rowans",
   start_year = NULL,
   end_year = NULL,
-  recruitment_age = 1
+  recruitment_age = 1,
+  maturity_age = 1
 )
 }
 \arguments{

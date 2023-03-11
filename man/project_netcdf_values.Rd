@@ -51,6 +51,7 @@ The grid expanded to include all years and the netcdf derived variables.
 Get aggregated netcdf values for specific locations or grid cells
 }
 \examples{
+rds.file <- "data/annual_mean_tob_bc.rds"
 project_netcdf_values(
   rds.file,
   variable_name = "ann_mean",
