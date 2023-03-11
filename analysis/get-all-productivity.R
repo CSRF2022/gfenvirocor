@@ -48,7 +48,8 @@ for (i in 1:nrow(gf)) {
     model_type = model,
     start_year = gf$start[i],
     end_year = gf$end[i],
-    recruitment_age = gf$age_recruited[i]
+    recruitment_age = gf$age_recruited[i],
+    maturity_age = round(gf$age50mature[i])
   )
 
   d[[i]]$group <- gf$Group[i]
@@ -117,7 +118,8 @@ date_stamp <- Sys.Date()
 
 if(add_enviro_vars){
 # saveRDS(dat, paste0("data/all-productivity-and-covars-3spp.rds"))
-saveRDS(dat, paste0("data/all-productivity-and-covars-", date_stamp, ".rds"))
+  saveRDS(dat, paste0("data/all-productivity-", date_stamp, ".rds"))
+# saveRDS(dat, paste0("data/all-productivity-and-covars-", date_stamp, ".rds"))
 
 dat2 <- dat %>% pivot_longer(13:ncol(dat), values_to = "value", names_to = "variable")
 
