@@ -3,16 +3,16 @@ library(tidyverse)
 library(gratia)
 library(patchwork)
 
-dat <- readRDS(paste0("data/all-productivity-2023-03-01.rds"))
+dat <- readRDS(paste0("data/all-productivity-2023-03-09.rds"))
 # just plot biomass ~ time w catch, P ~ time, P/B ~ time, P/B ~ B
 # no lag
 
 unique(dat$group)
 
-# groups <- "Flatfish"
-# groups <- "Round"
-# groups <- "Rockfish-Shelf"
-groups <- "Rockfish-Slope"
+groups <- "Flatfish"
+groups <- "Round"
+groups <- "Rockfish-Shelf"
+# groups <- "Rockfish-Slope"
 
 
 dat0 <- filter(dat) %>%
@@ -20,6 +20,7 @@ dat0 <- filter(dat) %>%
   group_by(species, stock, model_type, recruitment_age) %>%
   mutate(max_biomass = max(biomass, na.rm = TRUE),
          max_production = max(production, na.rm = TRUE),
+         # recruitment_lag = lag(recruits, 8),
          model_name = paste0(species, " \n",
                             stock, " \n",
                             "(recruit age = ", recruitment_age, ")"
@@ -37,6 +38,9 @@ glimpse(dat0)
 #   facet_wrap(~ species + stock, scales = "free_x") +
 #   ggsidekick::theme_sleek()
 
+dat0 <- filter(dat0, !(species == "Bocaccio" & year > 2019)) %>%
+  filter(year >= 1986)
+
 (p1 <- ggplot(dat0) +
     geom_path(aes(year, biomass),
               # size = 1,
@@ -46,7 +50,11 @@ glimpse(dat0)
               # size = 1,
               # lty = "dashed",
               colour = "blue") +
-    ylab("Biomass (black), Production (blue) and Catch (bars) \n ") +
+    geom_path(aes(year, recruits_lag), alpha = 0.75,
+              # size = 1,
+              # lty = "dashed",
+              colour = "red") +
+    ylab("Biomass (black), Production (blue), Recruits (red) and Catch (bars) \n ") +
     xlab("Year") +
     facet_wrap(~model_name,
                scales = "free_y",
@@ -77,8 +85,9 @@ glimpse(dat0)
 )
 
 (p3 <- ggplot(dat0) +
-    geom_path(aes(biomass/max_biomass, p_by_biomass)) +
-    geom_point(aes(biomass/max_biomass, p_by_biomass, colour = year)) +
+    geom_path(aes(biomass/max_biomass, p_by_biomass, colour = year),
+              arrow=arrow(angle=30,length=unit(0.1,"inches"),type="open")) +
+    # geom_point(aes(biomass/max_biomass, p_by_biomass, colour = year)) +
     ylab("Production/Biomass") + xlab("Biomass") +
     scale_colour_viridis_c() +
     facet_wrap(~ model_name,
@@ -95,5 +104,5 @@ p1 + p2 + p3 + plot_layout(ncol = 3)
 
 length(unique(dat0$model_name))
 
-ggsave(paste0(groups, "-stock-assess-output-fig-draft.png"),
+ggsave(paste0("figs/", groups, "-stock-assess-output-fig-all.png"),
        width = 8, height = length(unique(dat0$model_name))*1.5)
