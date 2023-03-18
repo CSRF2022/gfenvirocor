@@ -85,7 +85,7 @@ dat <- left_join(dat, minor_areas) %>%
 
 # prep maturity data into better format for plotting that contains "Maturity" and an associated "prop_catch_weight"
 
-d <- dat %>%
+d1 <- dat %>%
   filter(year > year_cutoff) %>%
   mutate(Maturity = case_when(maturity_code %in% c(NA, 0, 9, 37) ~ NA,
                               maturity_code %in% c(1, 2) ~ "1/2 = immature",
@@ -97,24 +97,53 @@ d <- dat %>%
                               maturity_code == 7 ~ "7 = resting",
   )) %>%
   filter(catch_weight > 0) %>%
-  filter(best_depth > 0)
+  filter(best_depth > 0) %>%
+  distinct() # needed because about 300 records are duplicated
+
 
 # dat %>% filter(!is.na(maturity_code)) %>%
 #   group_by(year, maturity_code) %>% summarise(n = n()) %>% View()
 # d %>% filter(!is.na(Maturity)) %>% group_by(year, maturity_code) %>%
 #   summarise(n = n()) %>% View()
 
-dp <- d %>%
+# half of samples are missing weights, so need a way to scale from counts to weight
+# .d$catch_count*f$coefficients[2] + f$coefficients[1]
+
+# generate simple linear model formula
+
+dp <- d1 %>%
   filter(!is.na(Maturity)) %>%
-  filter(sex %in% c(1,2)) %>% group_by(fishing_event_id) %>%
-  mutate(N = n()) %>%
-  group_by(sex, Maturity, fishing_event_id, N) %>%
-  summarise(n = n(), prop = n/N) %>% distinct()
+  filter(sex %in% c(1,2)) %>%
+  group_by(sex, Maturity) %>%
+  mutate(weight_est = mean(weight, na.rm = TRUE)) %>%
+  ungroup() %>%
+  group_by(fishing_event_id)%>%
+  mutate(N = n(),
+         fe_sampled_weight_true = sum(weight/1000),
+         fe_sampled_weight = ifelse(is.na(fe_sampled_weight_true), sum(weight_est/1000), fe_sampled_weight_true)
+  ) %>%
+  ungroup() %>%
+  group_by(fishing_event_id, sex, Maturity) %>%
+  mutate(n = n(),
+         sm_sampled_weight_true = sum(weight/1000),
+         sm_sampled_weight = ifelse(is.na(sm_sampled_weight_true), n*weight_est/1000, sm_sampled_weight_true),
+         prop_sampled_weight = ifelse(sm_sampled_weight>0, sm_sampled_weight/fe_sampled_weight, NA),
+         prop_catch_weight = ifelse(n>0 & !is.na(prop_sampled_weight), prop_sampled_weight*catch_weight/n, NA)
+         ) %>%
+  ungroup()
 
-d <- left_join(d, dp) %>% mutate(prop_catch_weight = prop*catch_weight/N)
+d_fe <- dp %>% select(fishing_event_id, N, fe_sampled_weight_true, fe_sampled_weight) %>%
+  distinct()
 
-range(dp$prop)
-range(d$n, na.rm = TRUE)
+dp <- dp %>% select(fishing_event_id, sex, Maturity, n,
+                    sm_sampled_weight_true, sm_sampled_weight,
+                    prop_sampled_weight, prop_catch_weight) %>%
+  distinct()
+
+d <- left_join(d1, d_fe) %>% left_join(., dp)
+
+# range(dp$prop)
+# range(d$n, na.rm = TRUE)
 range(d$prop_catch_weight, na.rm = TRUE)
 
 
@@ -127,16 +156,16 @@ d %>%
             mean_depth = weighted.mean(best_depth, prop_catch_weight, na.rm = TRUE),
             depth_2.5 = wtd.quantile(best_depth, 0.025, na.rm = TRUE, weight = prop_catch_weight),
             depth_97.5 = wtd.quantile(best_depth, 0.975, na.rm = TRUE, weight = prop_catch_weight),
+            depth_25 = wtd.quantile(best_depth, 0.25, na.rm = TRUE, weight = prop_catch_weight),
+            depth_75 = wtd.quantile(best_depth, 0.75, na.rm = TRUE, weight = prop_catch_weight),
             mean_month = weighted.mean(month, prop_catch_weight, na.rm = TRUE),
             month_25 = wtd.quantile(month, 0.25, na.rm = TRUE, weight = prop_catch_weight),
             month_75 = wtd.quantile(month, 0.75, na.rm = TRUE, weight = prop_catch_weight)
             )
 
 d %>%
-  filter(sex %in% c(1)) %>% group_by(fishing_event_id) %>%
-  mutate(N = n()) %>% ungroup() %>%
-  group_by(sex, fishing_event_id) %>%
-  mutate(n = n(), prop = n/N, prop_catch_weight = prop*catch_weight/N) %>% ungroup() %>%
+  filter(sex %in% c(1)) %>%
+  filter(prop_catch_weight > 0) %>%
   group_by(sex, month) %>%
   summarise(n = n(),
             mean_depth = weighted.mean(best_depth, prop_catch_weight, na.rm = TRUE),
@@ -145,10 +174,8 @@ d %>%
   )
 
 d %>%
-  filter(sex %in% c(2)) %>% group_by(fishing_event_id) %>%
-  mutate(N = n()) %>% ungroup() %>%
-  group_by(sex, fishing_event_id) %>%
-  mutate(n = n(), prop = n/N, prop_catch_weight = prop*catch_weight/n) %>% ungroup() %>%
+  filter(sex %in% c(2)) %>%
+  filter(prop_catch_weight > 0) %>%
   group_by(sex, month) %>%
   summarise(n = n(),
             mean_depth = weighted.mean(best_depth, prop_catch_weight, na.rm = TRUE),
@@ -165,69 +192,96 @@ plot_maturity_by_month <- function(
   months = c(1:12),
   maturity_codes = c(1, 2, 3, 4, 5, 6,7),
   bin_width = 20,
-  scale_weights = 100,
+  scale_weights = 1000,
   ylimits = NULL,
   text_placement_x = 60
   ){
 
   d1 <- mat_data %>%
     filter(month %in% months) %>%
-    filter(sex %in% c(1,2))
+    filter(sex %in% c(1,2))  %>%
+    # droplevels() %>%
+    group_by(sex, month) %>%
+    mutate(N = n())
 
   d1$sex <- factor(d1$sex, labels = c("Male", "Female"))
 
   m <- d1 %>% filter(sex %in% which_sex) %>%
-    filter(catch_weight > 0) %>% # not clear why this is needed
-    filter(month %in% months) %>% group_by(fishing_event_id) %>%
-    mutate(N = n()) %>% ungroup() %>%
-    group_by(sex, fishing_event_id) %>%
-    mutate(n = n(), prop = n/N, prop_catch_weight = prop*catch_weight/N) %>% ungroup() %>%
+    filter(prop_catch_weight > 0) %>% # not clear why this is needed
+    filter(month %in% months) %>%
+    filter(maturity_code %in% maturity_codes) %>%
+    droplevels() %>%
+    # group_by(fishing_event_id) %>% mutate(N = n()) %>% ungroup() %>%
+    # group_by(sex, fishing_event_id) %>%
+    # mutate(n = n(), prop = n/N, prop_catch_weight = prop*catch_weight/N) %>% ungroup() %>%
     group_by(sex, month) %>%
-    summarise(n = n(),
+    summarise(N = mean(N),
               mean_depth = weighted.mean(best_depth, prop_catch_weight, na.rm = TRUE),
               depth_2.5 = wtd.quantile(best_depth, 0.025, na.rm = TRUE, weight = prop_catch_weight),
               depth_97.5 = wtd.quantile(best_depth, 0.975, na.rm = TRUE, weight = prop_catch_weight)
-    )
+    ) %>% distinct()
 
   m2 <- d1 %>% filter(sex %in% which_sex) %>%
     filter(maturity_code %in% maturity_codes) %>%
     filter(month %in% months) %>%
+    droplevels() %>%
     group_by(sex, month) %>%
-    summarise(n = n())
+    summarise(n = n()) %>% distinct()
 
+  # all2 <- all_catch %>% filter(month %in% months)
+
+# browser()
   d1 %>% filter(maturity_code %in% maturity_codes) %>%
+    filter(!is.na(Maturity)) %>%
     filter(sex %in% which_sex) %>%
+    droplevels() %>%
     ggplot() +
-    geom_histogram(data = d1 %>% filter(sex %in% which_sex),
-                   aes(best_depth,
-                       weight = catch_weight/N/scale_weights
-                   ), binwidth = bin_width,
-                   alpha = 0.25
-    ) +
+    # # geom_histogram(data = d1 %>% filter(sex %in% which_sex),
+    # #                aes(best_depth,
+    # #                    weight = catch_weight/N/scale_weights
+    # #                ), binwidth = bin_width,
+    # #                alpha = 0.25
+    # # ) +
+    # geom_histogram(
+    #   data = all_catch %>% filter(month %in% months),
+    #   aes(best_depth, after_stat(scaled), weight = total_catch)
+    # ) +
+
     geom_histogram(aes(best_depth,
+                       # after_stat(count),
                        weight = prop_catch_weight/scale_weights,
                        fill = Maturity),
                    binwidth = bin_width,
                    alpha = 0.9
     ) +
+
+    # geom_density(aes(best_depth, after_stat(count),
+    #                  weight = prop_catch_weight/scale_weights,
+    #                  fill = Maturity), position = "stack") +
+
     geom_vline(data = m, aes(xintercept = mean_depth), colour = "grey", linetype = "solid") +
     geom_vline(data = m, aes(xintercept = depth_2.5), colour = "grey", linetype = "dotted") +
     geom_vline(data = m, aes(xintercept = depth_97.5), colour = "grey", linetype = "dotted") +
     geom_text(data = m, aes(x = text_placement_x, y = Inf,
-                            label = paste0("N = ", n)), vjust   = 3.75, colour = "grey") +
+                            label = paste0("N = ", N)), vjust   = 3.75, colour = "grey") +
     geom_text(data = m2, aes(x = text_placement_x, y = Inf,
                              label = paste0("n = ", n)
                              ), vjust   = 1.75, colour = "grey30") +
     geom_density(
-      data = d_all %>% filter(month %in% months),
-      aes(best_depth, after_stat(count), weight = total_catch)
+      data = all_catch %>% filter(month %in% months),
+      aes(best_depth,
+          after_stat(count),
+          # after_stat(scaled),
+          weight = total_catch)
     ) +
-    facet_grid(month~sex, switch = "y") +
-    coord_cartesian(xlim = c(0, quantile(mat_data$best_depth, 0.995)),
-                    ylim = ylimits,
-                    expand = FALSE) +
+    facet_grid(month~sex, switch = "y", scales = "free_y") +
+    coord_cartesian(
+      # expand = FALSE,
+      xlim = c(0, quantile(mat_data$best_depth, 0.995)),
+                    ylim = ylimits) +
     scale_fill_viridis_d() +
-    labs(y = "Weighted commercial catch (solid line) and samples weighted by catch (grey bars = all sexed samples)",
+    labs(y = "Weighted commercial catch (solid line) and samples weighted by catch
+         (grey text and lines = all sexed samples)",
          x = "Depth (m)") +
     gfplot::theme_pbs() + theme(axis.ticks.y = element_blank(),
                                 axis.text.y = element_blank())
@@ -251,9 +305,15 @@ ggsave(paste0("figs/", species, "-maturity-by-month-depth-long.png"), width = 8,
 
 # split by sex first
 p1 <- plot_maturity_by_month(d, d_all, which_sex = c("Male")) + theme(legend.position = "none") +
-  facet_wrap(~month, ncol = 2, strip.position = "left",dir="v") + ggtitle("A. Male")
-p2 <- plot_maturity_by_month(d, d_all, which_sex = c("Female"), ylimits = layer_scales(p1)$y$range$range) +
-  facet_wrap(~month, ncol = 2, strip.position = "left",dir="v")  + ggtitle("B. Female")+
+  facet_wrap(~month, ncol = 2, strip.position = "left",
+             # scales = "free_y",
+             dir="v") + ggtitle("A. Male")
+# p2 <- plot_maturity_by_month(d, d_all, which_sex = c("Female"), ylimits = layer_scales(p1)$y$range$range) +
+
+p2 <- plot_maturity_by_month(d, d_all, which_sex = c("Female")) +
+  facet_wrap(~month, ncol = 2,
+             # scales = "free_y",
+             strip.position = "left", dir="v")  + ggtitle("B. Female")+
   theme(axis.title.y = element_blank())
 
 p1 + p2 + plot_layout()
@@ -264,27 +324,34 @@ ggsave(paste0("figs/", species, "-maturity-by-month-depth.png"), width = 12, hei
 # see how these samples are distributed spatially ----
 d2 <- d %>%
   filter(!is.na(Maturity)) %>%
-  filter(sex %in% c(1,2)) %>% group_by(latitude, longitude, month, catch_weight) %>%
-  mutate(N = n()) %>%
-  group_by(sex, Maturity, latitude, longitude, month, catch_weight) %>%
-  summarise(n = n(), prop = n/N) %>% distinct()
+  filter(sex %in% c(1,2)) %>%
+  select(fishing_event_id, sex, Maturity, latitude, longitude, month,
+         catch_weight, n, N, prop_sampled_weight) %>%
+  distinct() %>%
+  mutate(catch_by_mat = prop_sampled_weight*catch_weight/1000)
+
 
 # d2 %>% View()
 d2$sex <- factor(d2$sex, labels = c("Male", "Female"))
 
 plot_maturity_map <- function(mat_data, d_all, months = c(1:12)){
-  mat_data %>%
-    filter(month %in% months) %>%
+  mat_data %>% filter(month %in% months) %>%
   ggplot() +
-    geom_jitter(data = d_all %>%
-                  filter(month %in% months), aes(longitude, latitude), alpha = 0.1, size = 0.1) +
-    geom_jitter(aes(longitude, latitude, colour = Maturity, size = prop*catch_weight),
-                height = 0.2, width = 0.2, alpha = 0.8) +
+    geom_point(data = d_all %>% filter(month %in% months),
+                aes(longitude, latitude), alpha = 0.1, size = 0.1) +
+    geom_jitter(aes(longitude, latitude, colour = Maturity, size = catch_by_mat),
+                height = 0.3, width = 0.3, alpha = 0.8) +
     scale_colour_viridis_d() +
-    scale_size_continuous(name = "Sampled catches", limits = c(0, max(d2$catch_weight))) +
+    scale_size_continuous(name = "Sampled catches",
+                          trans = "sqrt",
+                          breaks = c(0,5,10,20,40),
+                          range = c(0.75,4),
+                          limits = c(0, max(d2$catch_by_mat))) +
     facet_grid(month~sex) +
-    coord_cartesian(xlim = c(min(d2$longitude, na.rm = TRUE), max(d2$longitude, na.rm = TRUE)),
-                    ylim = c(min(d2$latitude, na.rm = TRUE), max(d2$latitude, na.rm = TRUE))) +
+    coord_cartesian(xlim = c(min(d2$longitude, na.rm = TRUE),
+                             max(d2$longitude, na.rm = TRUE)),
+                    ylim = c(min(d2$latitude, na.rm = TRUE),
+                             max(d2$latitude, na.rm = TRUE))) +
     labs(x = "Longitude", y = "Latitude") +
     gfplot::theme_pbs()
 }
@@ -297,5 +364,5 @@ p2 <- plot_maturity_map(d2, d_all, months = c(7:12))
 
 p2 + p1 + plot_layout(guides = "collect")
 
-ggsave(paste0("figs/", species, "-maturity-mapped.png"), width = 10, height = 8)
+ggsave(paste0("figs/", species, "-maturity-mapped.png"), width = 11, height = 9)
 
