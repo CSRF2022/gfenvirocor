@@ -37,7 +37,8 @@ extract_netcdf_values <- function(
   time_name = "time",
   time_resolution_input = "monthly",
   time_resolution_output = "annual",
-  variable_name = "tob",
+  nc_variable_name = "tob",
+  out_variable_name = "tob",
   model_start_time = 1950,
   model_end_time = 1979,
   xbounds = c(-133.85254, -123.21362), # default all BC coast
@@ -53,11 +54,11 @@ extract_netcdf_values <- function(
   # browser()
 
   t <- ncvar_get(nc_data, time_name)
-  nc.array <- ncvar_get(nc_data, variable_name) # store the data in a 3-dimensional array
+  nc.array <- ncvar_get(nc_data, nc_variable_name) # store the data in a 3-dimensional array
   # dim(nc.array)
 
   # see what fill value was used for missing data.
-  fillvalue <- ncatt_get(nc_data, variable_name, "_FillValue")
+  fillvalue <- ncatt_get(nc_data, nc_variable_name, "_FillValue")
   # fillvalue # The fill value is 1e+20.
 
   # All done reading in the data. We can close the netCDF file.
@@ -124,7 +125,7 @@ extract_netcdf_values <- function(
   df[sapply(df, is.infinite)] <- NA
 
   saveRDS(df, paste0(output.dir, "/",
-                     variable_name, "-",
+                     out_variable_name, "-",
                      time_resolution_input, "-",
                      model_start_time, "-", model_end_time, "-",
                      agg_method, "-",
