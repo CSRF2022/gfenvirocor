@@ -5,19 +5,40 @@ library(tidyverse)
 library(sf)
 library(terra)
 
+# temperature vars
+climate_model <- "bcc"
 variable <- "tob"
 
+
+climate_model <- "roms"
+variable <- "tob"
+# variable <- "SST"
 
 rmonths <- readxl::read_xlsx(
   "data/GF_assessments.xlsx" # , col_type = "list"
 ) %>%
-  filter(Outputs == "Y" & R_variable == variable) %>%
-  select(R_months) %>%
+  filter(Outputs == "Y" & R_T_variable == variable) %>%
+  select(R_T_months) %>%
   distinct() %>%
   na.omit()
 
-all_layers <- expand.grid(method = c("mean", "min", "max"), months = rmonths$R_months)
+all_layers <- expand.grid(method = c("mean", "min", "max"), months = rmonths$R_T_months)
 
+
+
+# O2 vars
+climate_model <- "roms"
+variable <- "O2"
+
+rmonths <- readxl::read_xlsx(
+  "data/GF_assessments.xlsx" # , col_type = "list"
+) %>%
+  filter(Outputs == "Y" & R_O_variable == variable) %>%
+  select(R_O_months) %>%
+  distinct() %>%
+  na.omit()
+
+all_layers <- expand.grid(method = c("mean", "min", "max"), months = rmonths$R_O_months)
 
 
 
@@ -35,21 +56,22 @@ for (i in 1:nrow(all_layers)) {
   if (month_string == "1to12") {
     month_string <- "ann"
   }
-  ann_variable <- paste0(variable, "_", month_string, "_", method)
-
-
+# browser()
+  ann_variable <- paste0(variable, "_", month_string, "_", climate_model, "_", method)
   gridfile <- paste0("data/grid_", ann_variable, ".rds")
 
   if (!file.exists(gridfile)) {
 
-    ncdatafile <- paste0("data/", variable, "-", month_string, "-", method, ".rds")
+    ncdatafile <- paste0("data/", variable, "-", month_string, "-", climate_model, "-", method, ".rds")
 
     if (!file.exists(ncdatafile)) {
 
-      if (variable == "tob") {
+      if (variable == "tob" & climate_model == "bcc") {
       df1 <- extract_netcdf_values(
         "data/bottom-temp/tob_Omon_BCC-CSM2-HR_hist-1950_r1i1p1f1_gn_195001-197912.nc",
-        variable_name = variable,
+        # variable_name = variable,
+        nc_variable_name = "tob",
+        out_variable_name = "tob",
         whichtimes = c(months),
         agg_method = method,
         model_start_time = 1950,
@@ -58,7 +80,9 @@ for (i in 1:nrow(all_layers)) {
 
       df2 <- extract_netcdf_values(
         "data/bottom-temp/tob_Omon_BCC-CSM2-HR_hist-1950_r1i1p1f1_gn_198001-201412.nc",
-        variable_name = variable,
+        # variable_name = variable,
+        nc_variable_name = "tob",
+        out_variable_name = "tob",
         whichtimes = c(months),
         agg_method = method,
         model_start_time = 1980,
@@ -68,31 +92,74 @@ for (i in 1:nrow(all_layers)) {
       df <- left_join(df1, df2)
       }
 
+      if (variable == "tob" & climate_model == "roms") {
 
-      if (variable == "SST") {
-
-        stop( "TODO: Need to get this layer still." )
-        # df1 <- extract_netcdf_values(
-        #   ####,
-        #   variable_name = variable,
-        #   whichtimes = months,
-        #   agg_method = method,
-        #   model_start_time = ###,
-        #   model_end_time = ###
-        # )
-        #
-        # df2 <- extract_netcdf_values(
-        #   ####,
-        #   variable_name = variable,
-        #   whichtimes = months,
-        #   agg_method = method,
-        #   model_start_time = ###,
-        #   model_end_time = ###
-        # )
-        #
-        # df <- left_join(df1, df2)
+        file1 <- 'data/roms-hindcast/bcc42_era5b37r1_mon1981to2018_botTSO'
+        df <- extract_netcdf_values(paste0(file1,'.nc'),
+                                    model_start_time = 1981,
+                                    model_end_time = 2018,
+                                    whichtimes = c(months),
+                                    agg_method = method,
+                                    xvar_name = "lon_rho",
+                                    yvar_name = "lat_rho",
+                                    time_name = "ocean_time",
+                                    nc_variable_name = "temp",
+                                    out_variable_name = "tob"
+        )
       }
 
+      if (variable == "SST" & climate_model == "roms") {
+
+        file2 <- 'data/roms-hindcast/bcc42_era5b37r1_mon1981to2018_surTSO'
+
+        df <- extract_netcdf_values(paste0(file2,'.nc'),
+                                    model_start_time = 1981,
+                                    model_end_time = 2018,
+                                    whichtimes = c(months),
+                                    agg_method = method,
+                                    xvar_name = "lon_rho",
+                                    yvar_name = "lat_rho",
+                                    time_name = "ocean_time",
+                                    nc_variable_name = "temp",
+                                    out_variable_name = "SST"
+        )
+      }
+
+      if (variable == "O2" & climate_model == "roms") {
+
+        file1 <- 'data/roms-hindcast/bcc42_era5b37r1_mon1981to2018_botTSO'
+
+        df <- extract_netcdf_values(paste0(file1,'.nc'),
+                                    model_start_time = 1981,
+                                    model_end_time = 2018,
+                                    whichtimes = c(months),
+                                    agg_method = method,
+                                    xvar_name = "lon_rho",
+                                    yvar_name = "lat_rho",
+                                    time_name = "ocean_time",
+                                    nc_variable_name = "Oxygen",
+                                    out_variable_name = "O2"
+        )
+      }
+
+      # # not using yet
+      # if (variable == "salinity" & climate_model == "roms") {
+      #
+      #   file1 <- 'data/roms-hindcast/bcc42_era5b37r1_mon1981to2018_botTSO'
+      #
+      #   df <- extract_netcdf_values(paste0(file1,'.nc'),
+      #                               model_start_time = 1981,
+      #                               model_end_time = 2018,
+      #                               whichtimes = c(months),
+      #                               agg_method = method,
+      #                               xvar_name = "lon_rho",
+      #                               yvar_name = "lat_rho",
+      #                               time_name = "ocean_time",
+      #                               nc_variable_name = "salt",
+      #                               out_variable_name = "salinity"
+      #   )
+      # }
+      #
       # not sure why, but extract_netcdf_values is returning Inf
       df[sapply(df, is.infinite)] <- NA
 
