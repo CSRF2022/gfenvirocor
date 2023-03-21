@@ -72,13 +72,14 @@ project_netcdf_values <- function(nc.rds.file,
   # mx[2,1] <- NA  # will loose a couple peripheral cells
   xf <- terra::focal(xx, w = mx, fun = mean, na.policy = "only", na.rm = T)
   # raster::plot(xf)
-
+  if(length(names(spdf))>=2){
   for (i in (2:length(names(spdf)))) {
     xx <- terra::rasterize(x = terra::vect(spdf), y = r, field = names(spdf)[i], na.rm = T)
     xf2 <- terra::focal(xx, w = mx, fun = mean, na.policy = "only", na.rm = T)
     xf <- c(xf, xf2)
   }
-
+  }
+  # browser()
   names(xf) <- names(spdf)
 
   # Overlay rasters with prediction points ----------------------------------
@@ -195,7 +196,14 @@ project_netcdf_values <- function(nc.rds.file,
           dplyr::bind_cols(out, .)
         out
       }
-      out <- tidyr::pivot_longer(out, 3:ncol(out), names_to = "year", values_to = variable_name)
+
+      if(ncol(out)>3){
+        out <- tidyr::pivot_longer(out, 3:ncol(out), names_to = "year", values_to = variable_name)
+      } else {
+        out[variable_name] <- out[, 3]
+        out$year <- colnames(out)[3]
+      }
+
       out2 <- dplyr::left_join(grid, out) #%>% dplyr::select(-X, -Y)
       out2
     }
