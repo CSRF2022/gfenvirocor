@@ -5,6 +5,11 @@ library(tidyverse)
 library(sf)
 library(terra)
 
+# full annual
+all_layers1 <- expand.grid(method = c("mean", "min", "max"),
+                          months = c("1,2,3,4,5,6,7,8,9,10,11,12"))
+
+
 # temperature vars
 climate_model <- "bcc"
 variable <- "tob"
@@ -22,8 +27,11 @@ rmonths <- readxl::read_xlsx(
   distinct() %>%
   na.omit()
 
-all_layers <- expand.grid(method = c("mean", "min", "max"), months = rmonths$R_T_months)
 
+all_layers <- expand.grid(method = c("mean", "min", "max"),
+                          months = rmonths$R_T_months)
+
+all_layers <- bind_rows(all_layers1, all_layers)
 
 
 # O2 vars
@@ -38,7 +46,8 @@ rmonths <- readxl::read_xlsx(
   distinct() %>%
   na.omit()
 
-all_layers <- expand.grid(method = c("mean", "min", "max"), months = rmonths$R_O_months)
+all_layers <- expand.grid(method = c("mean", "min", "max"),
+                          months = rmonths$R_O_months)
 
 
 
@@ -202,3 +211,4 @@ for (i in 1:nrow(all_layers)) {
     saveRDS(grid, gridfile)
   }
 }
+
