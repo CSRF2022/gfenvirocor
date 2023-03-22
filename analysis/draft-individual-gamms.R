@@ -3,7 +3,7 @@ library(tidyverse)
 library(mgcv)
 library(gratia)
 
-dat <- readRDS(paste0("data/all-productivity-longer-3spp.rds"))
+dat <- readRDS(paste0("data/all-productivity-longer-2023-03-21.rds"))
 
 # just plot biomass ~ time w catch, P ~ time, P/B ~ time, P/B ~ B
 # no lag
@@ -33,14 +33,75 @@ dat0 <- dat0 %>% mutate(variable = paste(agg_type, months, variable_type, "lag =
 #   mutate(variable = paste(agg_type, months, variable_type))
 
 
-ggplot(dat0, aes(value, p_by_biomass)) + geom_point() +
+ggplot(dat0, aes(value, p_by_biomass,
+                 colour = paste(species, stock), fill = paste(species, stock))) +
+  geom_point() +
   geom_smooth(method = "lm") +
-  facet_wrap(~paste(species, stock), scales = "free")
+  facet_wrap(~paste(species, stock), scales = "free_y", nrow = 3) +
+  ylab("Production by biomass") +
+  xlab("ROMs annual maximum bottom temperature") +
+  gfplot::theme_pbs()+
+  theme(legend.position = "none",
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank()
+        )
+
+ggsave("figs/Flatfish-production-by-temp.png", width = 4, height = 6)
 
 
 ggplot(dat0, aes(year, value, colour = paste(species, stock))) +
-  geom_line()
+  geom_line() +
+  labs(colour = "Stock") +
+  xlab("Year") +
+  ylab("ROMs annual maximum bottom temperature") +
+  gfplot::theme_pbs() +
+  theme(legend.position = c(0.2, 0.2))
 
+ggsave("figs/Flatfish-ann-temp-through-time.png", width = 5.5, height = 4)
+
+
+
+
+dat1 <- filter(dat, months != "ann" &
+                 variable_type == "O2" &
+                 agg_type == "min") %>%
+  group_by(species, stock) %>%
+  filter(lag == recruitment_age) %>%
+  mutate(max_biomass = max(biomass, na.rm = TRUE),
+         max_production = max(production, na.rm = TRUE)
+  ) %>%
+  arrange(species, stock, year)
+
+
+# add variable name
+dat1 <- dat1 %>% mutate(variable = paste(agg_type, months, variable_type, "lag =", lag))
+
+
+ggplot(dat1, aes(value, recruits/biomass_for_recruits,
+                 colour = paste(species, stock), fill = paste(species, stock))) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  facet_wrap(~paste(species, stock), scales = "free_y", nrow = 3) +
+  ylab("Recruits per unit biomass") +
+  xlab("Minimum oxygen during spawning") +
+  gfplot::theme_pbs()+
+  theme(legend.position = "none",
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank()
+  )
+
+ggsave("figs/Flatfish-recruits-by-02.png", width = 4, height = 6)
+
+
+ggplot(dat1, aes(year, value, colour = paste(species, stock))) +
+  geom_line() +
+  labs(colour = "Stock") +
+  xlab("Year") +
+  ylab("Minimum oxygen during spawning") +
+  gfplot::theme_pbs() +
+  theme(legend.position = c(0.2, 0.2))
+
+ggsave("figs/Flatfish-spawing-O2-through-time.png", width = 5.5, height = 4)
 
 
 # choose a species and stock
