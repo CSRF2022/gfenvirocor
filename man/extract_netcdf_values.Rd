@@ -12,7 +12,8 @@ extract_netcdf_values(
   time_name = "time",
   time_resolution_input = "monthly",
   time_resolution_output = "annual",
-  variable_name = "tob",
+  nc_variable_name = "tob",
+  out_variable_name = "tob",
   model_start_time = 1950,
   model_end_time = 1979,
   xbounds = c(-133.85254, -123.21362),
@@ -36,8 +37,6 @@ extract_netcdf_values(
 
 \item{time_resolution_output}{Currently only working for annual values}
 
-\item{variable_name}{What is the variable of interest called? Default "tob"}
-
 \item{model_start_time}{Starting time in the output units. Currently on working for years}
 
 \item{model_end_time}{Ending time in the output units. Currently on working for years}
@@ -51,6 +50,8 @@ Default is latitude for all BC coast}
 \item{whichtimes}{A vector of integers representing times of interest. Default is \code{c(1:12)} for annual mean from monthly data}
 
 \item{agg_method}{Method for aggregating data. Default "mean", other options include "min" and "max"}
+
+\item{variable_name}{What is the variable of interest called? Default "tob"}
 }
 \value{
 A data frame with columns X, Y, and for each time step output.
