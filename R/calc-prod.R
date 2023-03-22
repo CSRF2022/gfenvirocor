@@ -8,7 +8,9 @@
 #' @param model_type which stock assessment platform was used to produce mcmc outputs
 #' @param start_year default `NULL`; integer value required for iscam outputs
 #' @param end_year default `NULL`; integer value required for iscam outputs
+#' @param proportion_female default to `0.5`; used to scale catch to match female biomass
 #' @param recruitment_age default `1`; integer value
+#' @param maturity_age default `1`; integer value
 #'
 #' @return dataframe
 #' @export
@@ -34,11 +36,13 @@ calc_prod <- function(catchfile,
                       model_type = "rowans",
                       start_year = NULL,
                       end_year = NULL,
+                      proportion_female = 0.5,
                       recruitment_age = 1,
                       maturity_age = 1
                       ){
 
   c <- readr::read_csv(catchfile)
+
   # browser()
   if (model_type == "iscam") {
 
@@ -94,13 +98,26 @@ calc_prod <- function(catchfile,
 
     c <- c %>% rename(year = `...1`) %>%
       pivot_longer(2:ncol(c), names_to = "fleet", values_to = "value") %>%
-      group_by(year) %>% summarise(catch = sum(value, na.rm = TRUE))
+      group_by(year) %>% summarise(catch = sum(value, na.rm = TRUE)*proportion_female)
   }
 
+  if (model_type == "landmark") {
+    df <- c %>% mutate(species = species,
+                       stock = stock,
+                       year = Year,
+                       catch = Landings*proportion_female, # tonnes
+                       biomass = SSBt_p50*1000, # tonnes
+                       recruits = Rt_p50*1000, # 1000 fish
+                       rdev = Rdev_p50
+                       )
+
+  } else {
 
   df <- left_join(c, b) %>%
     left_join(r) %>%
     left_join(d)
+
+  }
 
   df <- df %>% select(species, stock, year, catch, biomass, recruits, rdev) %>%
     mutate(model_type = model_type,
@@ -116,6 +133,7 @@ calc_prod <- function(catchfile,
       production = (biomass_lead1 + catch - biomass),
       p_by_biomass = production / biomass,
       recruits_lag = lag(recruits, recruitment_lag[1]),
+      biomass_for_recruits = lag(biomass, 0),
       biomass_lag1 = lag(biomass, 1)
       # Prod_by_biomass1 = production / biomass_lag1,
     )
@@ -127,6 +145,7 @@ calc_prod <- function(catchfile,
       production = (biomass_lead1 + catch - biomass),
       p_by_biomass = production / biomass,
       recruits_lag = lag(recruits, recruitment_lag[1]),
+      biomass_for_recruits = lag(biomass, 1),
       biomass_lag1 = lag(biomass, 1),
       biomass_lag2 = lag(biomass, 2)
       # Prod_by_biomass1 = production / biomass_lag1,
@@ -139,6 +158,7 @@ calc_prod <- function(catchfile,
       production = (biomass_lead1 + catch - biomass),
       p_by_biomass = production / biomass,
       recruits_lag = lag(recruits, recruitment_lag[1]),
+      biomass_for_recruits = lag(biomass, 2),
       biomass_lag1 = lag(biomass, 1),
       biomass_lag2 = lag(biomass, 2),
       biomass_lag4 = lag(biomass, 3)
@@ -152,6 +172,7 @@ calc_prod <- function(catchfile,
       production = (biomass_lead1 + catch - biomass),
       p_by_biomass = production / biomass,
       recruits_lag = lag(recruits, recruitment_lag[1]),
+      biomass_for_recruits = lag(biomass, 3),
       biomass_lag1 = lag(biomass, 1),
       biomass_lag2 = lag(biomass, 2),
       biomass_lag4 = lag(biomass, 3),
