@@ -6,20 +6,23 @@ library(sf)
 
 gf <- readxl::read_xlsx("data/GF_assessments.xlsx") %>% filter(Outputs == "Y")
 
-gf$Species
+unique(gf$Species)
 
 d <- list()
 penv <- list()
-renv <- list()
+rT <- list()
+rO2 <- list()
 
-add_enviro_vars <- FALSE
-# add_enviro_vars <- TRUE
+# add_enviro_vars <- FALSE
+add_enviro_vars <- TRUE
+climate_model <- "roms"
 
-
-# for (i in 1:3) { # test with just first 3 stocks
-for (i in 1:nrow(gf)) {
+for (i in 1:3) { # test with just first 3 stocks
+# for (i in 1:nrow(gf)) {
   # i <- 1 # test with just one stock
-  model <- case_when(gf$model[i] == "iSCAM" ~ "iscam",
+  model <- case_when(
+    gf$model[i] == "iSCAM" ~ "iscam",
+    gf$model[i] == "landmark" ~ "landmark",
     gf$model[i] == "SS3" ~ "ss3",
     .default = "rowans"
   )
@@ -34,10 +37,13 @@ for (i in 1:nrow(gf)) {
     suffix <- gf$filesuffix[i]
   }
 
+
   print(paste(
     gf$Species[i],
     gf$Stock[i], model
   ))
+  # browser()
+  # if(gf$age_recruited[i] == 1){ age_recruits <- 1L}
 
   d[[i]] <- calc_prod(
     catchfile = catchdata,
@@ -69,14 +75,18 @@ for (i in 1:nrow(gf)) {
       filter(Name %in% areas)
   }
 
-  months <- as.numeric(unlist(strsplit(as.character(gf$R_months[i]), ",")))
+  months <- as.numeric(unlist(strsplit(as.character(gf$R_T_months[i]), ",")))
   month_string <- paste0(months[1], "to", max(months))
+
+
+  months2 <- as.numeric(unlist(strsplit(as.character(gf$R_O_months[i]), ",")))
+  month_string2 <- paste0(months2[1], "to", max(months2))
 
   # browser()
 
   for (j in 1:3) {
 
-    ann_variable_p <- paste0(variable, "_ann_", methods[j])
+    ann_variable_p <- paste0(variable, "_ann_", climate_model, "_", methods[j])
     pgrid <- readRDS(paste0("data/grid_", ann_variable_p, ".rds")) %>%
       mutate(depth = posdepth)
 
@@ -93,11 +103,11 @@ for (i in 1:nrow(gf)) {
 
     d[[i]] <- left_join(d[[i]], penv[[i]])
 
-    ann_variable_r <- paste0(gf$R_variable[i], "_", month_string, "_", methods[j])
+    ann_variable_r <- paste0(gf$R_T_variable[i], "_", month_string, "_", climate_model, "_", methods[j])
     rgrid <- readRDS(paste0("data/grid_", ann_variable_r, ".rds")) %>%
       mutate(depth = posdepth)
 
-    renv[[i]] <- get_stock_enviro_var(
+    rT[[i]] <- get_stock_enviro_var(
       temporal_grid = rgrid,
       variable_name = ann_variable_r,
       species = gf$Species[i],
@@ -107,7 +117,23 @@ for (i in 1:nrow(gf)) {
       polygon = area_polygons
     )
 
-    d[[i]] <- left_join(d[[i]], renv[[i]])
+    d[[i]] <- left_join(d[[i]], rT[[i]])
+
+    ann_variable_r2 <- paste0(gf$R_O_variable[i], "_", month_string2, "_", climate_model, "_", methods[j])
+    rgrid2 <- readRDS(paste0("data/grid_", ann_variable_r2, ".rds")) %>%
+      mutate(depth = posdepth)
+
+    rO2[[i]] <- get_stock_enviro_var(
+      temporal_grid = rgrid2,
+      variable_name = ann_variable_r2,
+      species = gf$Species[i],
+      stock = gf$Stock[i],
+      recruitment_age = gf$age_recruited[i],
+      depth_range = c(gf$R_depth_min[i], gf$R_depth_max[i]),
+      polygon = area_polygons
+    )
+
+    d[[i]] <- left_join(d[[i]], rO2[[i]])
   }
   }
   d
@@ -118,18 +144,21 @@ date_stamp <- Sys.Date()
 
 if(add_enviro_vars){
 # saveRDS(dat, paste0("data/all-productivity-and-covars-3spp.rds"))
-  saveRDS(dat, paste0("data/all-productivity-", date_stamp, ".rds"))
+  saveRDS(dat, paste0("data/all-productivity-and-covars-", date_stamp, ".rds"))
 # saveRDS(dat, paste0("data/all-productivity-and-covars-", date_stamp, ".rds"))
 
-dat2 <- dat %>% pivot_longer(13:ncol(dat), values_to = "value", names_to = "variable")
+# match("group",names(dat))
+
+dat2 <- dat %>% pivot_longer((match("group",names(dat))+1):ncol(dat), values_to = "value", names_to = "variable")
 
 
 out <- strsplit(as.character(dat2$variable),'_')
 out <- do.call(rbind, out)
 dat2$variable_type <- out[,1]
 dat2$months <- out[,2]
-dat2$agg_type <- out[,3]
-dat2$lag <- out[,4]
+dat2$climate_model <- out[,3]
+dat2$agg_type <- out[,4]
+dat2$lag <- out[,5]
 dat2$lag <- as.numeric(gsub("lag", "", dat2$lag))
 
 dat2[is.na(dat2["lag"]),]$lag <- 0
