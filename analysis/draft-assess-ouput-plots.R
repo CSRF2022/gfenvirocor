@@ -3,16 +3,18 @@ library(tidyverse)
 library(gratia)
 library(patchwork)
 
-dat <- readRDS(paste0("data/all-productivity-2023-03-21.rds"))
+# dat <- readRDS(paste0("data/all-productivity-2023-03-21.rds"))
+
+dat <- readRDS(paste0("data/all-productivity-2023-04-05.rds"))
 # just plot biomass ~ time w catch, P ~ time, P/B ~ time, P/B ~ B
 # no lag
 
 unique(dat$group)
 
-# groups <- "Flatfish"
-groups <- "Round"
-groups <- "Rockfish-Shelf"
-groups <- "Rockfish-Slope"
+groups <- "Flatfish"
+# groups <- "Round"
+# groups <- "Rockfish-Shelf"
+# groups <- "Rockfish-Slope"
 year_range <- "all"
 # year_range <- "pre-1985"
 # year_range <- "post-1985"
@@ -22,7 +24,7 @@ dat0 <- filter(dat) %>%
   filter(!(species == "Pacific Cod" & recruitment_age == 2)) %>%
   # filter(species != "Walleye Pollock") %>%
   # filter(species == "Pacific Ocean Perch") %>%
-  filter(species %in% c("Canary Rockfish", "Widow Rockfish", "Yellowtail Rockfish")) %>%
+  # filter(species %in% c("Canary Rockfish", "Widow Rockfish", "Yellowtail Rockfish")) %>%
   filter(group %in% groups) %>%
   group_by(species, stock, model_type, recruitment_age) %>%
   mutate(max_biomass = max(biomass, na.rm = TRUE),
@@ -68,16 +70,25 @@ if(year_range == "post-1985") {
     geom_path(aes(year, biomass),
               # size = 1,
               alpha = 0.75) +
+    geom_path(aes(year, vbiomass),
+              # size = 1,
+              linetype = "dotted",
+              alpha = 0.75) +
     geom_col(aes(year, catch), alpha = 0.5) +
     geom_path(aes(year, production), alpha = 0.75,
               # size = 1,
               # lty = "dashed",
               colour = "blue") +
+    geom_path(aes(year, v_production), alpha = 0.75,
+              # size = 1,
+              linetype = "dotted",
+              colour = "blue") +
     geom_path(aes(year, recruits), alpha = 0.75,
               # size = 1,
               # lty = "dashed",
               colour = "red") +
-    ylab("Biomass (black), Production (blue), Recruits (red), Catch (bars) \n ") +
+    ylab("Biomass (black), Production (blue), Recruits (red), Catch (bars) \n
+         Female only = solid, Vulnerable = dotted") +
     xlab("Year") +
     facet_wrap(~model_name,
                scales = "free_y",
@@ -94,6 +105,8 @@ if(year_range == "post-1985") {
 (p2 <- ggplot(dat1) +
     geom_path(aes(year, p_by_biomass)) +
     geom_point(aes(year, p_by_biomass, colour = year)) +
+    geom_path(aes(year, vp_by_biomass), linetype = "dotted") +
+    # geom_point(aes(year, vp_by_biomass, colour = year)) +
     scale_colour_viridis_c() +
     # geom_path(aes(year, production/max_production), lty = "dotted") +
     # ylab("Production/Biomass (solid line) \n \nProduction (scaled to max, dotted line) \n ") +
@@ -109,6 +122,11 @@ if(year_range == "post-1985") {
 
 (p3 <- ggplot(dat1) +
     geom_path(aes(biomass/max_biomass, p_by_biomass, colour = year),
+              size = 0.75,
+              arrow=arrow(angle=30,length=unit(0.1,"inches"),type="open")) +
+    geom_path(aes(biomass/max_biomass, vp_by_biomass),
+              size = 0.25,
+              linetype = "dotted",
               arrow=arrow(angle=30,length=unit(0.1,"inches"),type="open")) +
     # geom_point(aes(biomass/max_biomass, p_by_biomass, colour = year)) +
     ylab("Production/Biomass") + xlab("Biomass") +
@@ -149,10 +167,10 @@ if(year_range == "post-1985") {
           strip.text.y = element_blank()
     ))
 
-
 p1 + p4 + p2 + p3 + plot_layout(ncol = 4, widths = c(1,0.5,1,0.5))
 
 length(unique(dat1$model_name))
-groups <- paste0(groups, "-trimmed")
+# groups <- paste0(groups, "-trimmed")
+groups <- paste0(groups, "-vb")
 ggsave(paste0("figs/", groups, "-stock-assess-output-fig-all.png"),
        width = 12, height = length(unique(dat0$model_name))*1.65)

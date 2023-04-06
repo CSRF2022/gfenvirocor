@@ -19,7 +19,8 @@ awatea_mcmc <- function(csv, species, stock, var_name = "biomass") {
   .d <- .d %>% dplyr::summarise_all(median)
   .d <- t(.d)
   .d <- as.data.frame(.d)
-  .d$year <- as.numeric(rownames(.d))
+  .d$year <- as.numeric(gsub("_1", "", rownames(.d))) # if multiple fleets: "_1" is removed
+  # result is only the first fleet gets a year value, others will have NAs that can be filtered
   rownames(.d) <- NULL
   .d <- .d %>% dplyr::rename(!!var_name := V1)
   .d$species <- species

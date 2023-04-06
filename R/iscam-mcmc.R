@@ -26,8 +26,9 @@ iscam_mcmc <- function(csv, species, stock, start_year, end_year, var_name = "bi
   .d <- t(.d)
   year <- start_year:end_year
   .d <- as.data.frame(.d)
-  .d <- cbind(year, .d)
-  .d <- .d %>% dplyr::rename(!!var_name := V1)
+  .d$year <- as.numeric(gsub(".*\\_", "", rownames(.d)))
+  .d <- .d[1:length(year),] %>% dplyr::rename(!!var_name := V1)
+  # browser()
   .d$species <- species
   .d$stock <- stock
   .d

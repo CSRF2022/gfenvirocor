@@ -55,6 +55,15 @@ calc_prod <- function(catchfile,
       var_name = "biomass"
     )
 
+   try(v <- iscam_mcmc(
+      csv = paste0(mcmcprefix, "vbt", mcmcsuffix),
+      species,
+      stock,
+      start_year = start_year,
+      end_year = end_year + 1,
+      var_name = "vbiomass"
+    ))
+
     r <- iscam_mcmc(
       csv = paste0(mcmcprefix, "rt", mcmcsuffix),
       species,
@@ -82,6 +91,13 @@ calc_prod <- function(catchfile,
       var_name = "biomass"
     )
 
+    try(v <- awatea_mcmc(
+      csv = paste0(mcmcprefix, "VB", ")-forPhilina.csv"),
+      species,
+      stock,
+      var_name = "vbiomass"
+    ))
+
     r <- awatea_mcmc(
       csv = paste0(mcmcprefix, "R", mcmcsuffix),
       species,
@@ -107,20 +123,30 @@ calc_prod <- function(catchfile,
                        year = Year,
                        catch = Landings*proportion_female, # tonnes
                        biomass = SSBt_p50*1000, # tonnes
+                       vbiomass = NA,
                        recruits = Rt_p50*1000, # 1000 fish
                        rdev = Rdev_p50
                        )
 
   } else {
-
+  if(exists("v")){
+    # for now this code only extracts vulnerable biomass for the first fleet
+    v <- na.omit(v) # additional fleets will have NA for year, so this removes them
+    df <- left_join(c, b) %>%
+      left_join(r) %>%
+      left_join(d) %>%
+      left_join(v)
+  } else {
   df <- left_join(c, b) %>%
     left_join(r) %>%
     left_join(d)
-
+  df$vbiomass <- NA
+  }
   }
 
-  df <- df %>% select(species, stock, year, catch, biomass, recruits, rdev) %>%
+  df <- df %>% select(species, stock, year, catch, biomass, vbiomass, recruits, rdev) %>%
     mutate(model_type = model_type,
+           proportion_female = proportion_female,
            recruitment_age = recruitment_age,
            maturity_age = maturity_age
     )
@@ -179,6 +205,15 @@ calc_prod <- function(catchfile,
       biomass_lag4 = lag(biomass, 4)
     )
   }
+
+  if(exists("v")){
+    df <- df %>% mutate(
+      vbiomass_lead1 = lead(vbiomass),
+      v_production = (vbiomass_lead1 + (catch/proportion_female) - vbiomass),
+      vp_by_biomass = v_production / vbiomass
+    )
+  }
+
   df
 }
 
