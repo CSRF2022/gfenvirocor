@@ -13,12 +13,13 @@ penv <- list()
 rT <- list()
 rO2 <- list()
 
-# add_enviro_vars <- FALSE
-add_enviro_vars <- TRUE
+add_enviro_vars <- FALSE
+# add_enviro_vars <- TRUE
 climate_model <- "roms"
 
-for (i in 1:3) { # test with just first 3 stocks
-# for (i in 1:nrow(gf)) {
+# for (i in 1:3) { # test with just first 3 stocks
+# for (i in 5:8) { # test with just 3 POP stocks + boccacio
+for (i in 1:nrow(gf)) {
   # i <- 1 # test with just one stock
   model <- case_when(
     gf$model[i] == "iSCAM" ~ "iscam",
@@ -54,6 +55,7 @@ for (i in 1:3) { # test with just first 3 stocks
     model_type = model,
     start_year = gf$start[i],
     end_year = gf$end[i],
+    proportion_female = gf$prop_catch[i],
     recruitment_age = gf$age_recruited[i],
     maturity_age = round(gf$age50mature[i])
   )
@@ -170,3 +172,4 @@ saveRDS(dat3, paste0("data/all-productivity-longer-", date_stamp, ".rds"))
 } else {
   saveRDS(dat, paste0("data/all-productivity-", date_stamp, ".rds"))
 }
+
