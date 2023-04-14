@@ -69,6 +69,8 @@ get_stock_enviro_var <- function(temporal_grid = grid,
     time = as.numeric(.data[[time_var]])
   )
 
+  # browser()
+
   dat <- dat[!is.na(dat[variable_name]),]
 
   if (!is.null(lon_range)) {
@@ -166,7 +168,8 @@ get_stock_enviro_var <- function(temporal_grid = grid,
       geom_point(aes(.data[[lon_var_name]], .data[[lat_var_name]],
         colour = .data[[variable_name]]
       )) +
-      scale_colour_viridis_c()
+      scale_colour_viridis_c() +
+      ggtitle(paste(species, stock))
 
     print(g)
 
