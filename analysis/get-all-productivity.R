@@ -12,9 +12,11 @@ d <- list()
 penv <- list()
 rT <- list()
 rO2 <- list()
+lT <- list()
+l2 <- list()
 
-add_enviro_vars <- FALSE
-# add_enviro_vars <- TRUE
+# add_enviro_vars <- FALSE
+add_enviro_vars <- TRUE
 climate_model <- "roms"
 
 # for (i in 1:3) { # test with just first 3 stocks
@@ -55,7 +57,7 @@ for (i in 1:nrow(gf)) {
     model_type = model,
     start_year = gf$start[i],
     end_year = gf$end[i],
-    proportion_female = gf$prop_catch[i],
+    proportion_catch = gf$prop_catch[i],
     recruitment_age = gf$age_recruited[i],
     maturity_age = round(gf$age50mature[i])
   )
@@ -69,6 +71,7 @@ for (i in 1:nrow(gf)) {
   variable <- "tob"
 
   areas <- unlist(strsplit(as.character(gf$Areas[i]), ","))
+  spawn_areas <- unlist(strsplit(as.character(gf$Spawn_areas[i]), ","))
 
   if (gf$Stock[i] == "Coastwide") {
     area_polygons <- NULL
@@ -76,6 +79,7 @@ for (i in 1:nrow(gf)) {
     area_polygons <- sf::st_read("../BC_map/Shapes/majorOutline.shp") %>%
       filter(Name %in% areas)
   }
+
 
   months <- as.numeric(unlist(strsplit(as.character(gf$R_T_months[i]), ",")))
   month_string <- paste0(months[1], "to", max(months))
@@ -88,7 +92,7 @@ for (i in 1:nrow(gf)) {
 
   for (j in 1:3) {
 
-    ann_variable_p <- paste0(variable, "_ann_", climate_model, "_", methods[j])
+    ann_variable_p <- paste0(variable, "_1to12_", climate_model, "_", methods[j])
     pgrid <- readRDS(paste0("data/grid_", ann_variable_p, ".rds")) %>%
       mutate(depth = posdepth)
 
@@ -97,6 +101,7 @@ for (i in 1:nrow(gf)) {
       variable_name = ann_variable_p,
       species = gf$Species[i],
       stock = gf$Stock[i],
+      stage = "Adult",
       # get for all lags up to the summer before spawn/birth would have occurred
       recruitment_age = gf$age_recruited[i] + 1,
       depth_range = c(gf$depth_0.025[i], gf$depth_0.975[i]),
@@ -104,7 +109,21 @@ for (i in 1:nrow(gf)) {
     )
 
     d[[i]] <- left_join(d[[i]], penv[[i]])
+# browser()
 
+    if(is.na(spawn_areas)) {
+       # will default to coastwide like for adults in coastwide stocks
+       spawn_polygons <- NULL
+    } else {
+    if(spawn_areas == "custom"){
+      warning("Custom spawn areas not coded in yet.")
+    } else {
+    spawn_polygons <- sf::st_read("../BC_map/Shapes/majorOutline.shp") %>%
+        filter(Name %in% spawn_areas)
+    }
+    }
+
+    if(!is.na(gf$R_T_variable[i])){
     ann_variable_r <- paste0(gf$R_T_variable[i], "_", month_string, "_", climate_model, "_", methods[j])
     rgrid <- readRDS(paste0("data/grid_", ann_variable_r, ".rds")) %>%
       mutate(depth = posdepth)
@@ -114,13 +133,16 @@ for (i in 1:nrow(gf)) {
       variable_name = ann_variable_r,
       species = gf$Species[i],
       stock = gf$Stock[i],
+      stage = "Eggs/gestation",
       recruitment_age = gf$age_recruited[i],
       depth_range = c(gf$R_depth_min[i], gf$R_depth_max[i]),
-      polygon = area_polygons
+      polygon = spawn_polygons
     )
 
     d[[i]] <- left_join(d[[i]], rT[[i]])
+}
 
+    if(!is.na(gf$R_O_variable[i])){
     ann_variable_r2 <- paste0(gf$R_O_variable[i], "_", month_string2, "_", climate_model, "_", methods[j])
     rgrid2 <- readRDS(paste0("data/grid_", ann_variable_r2, ".rds")) %>%
       mutate(depth = posdepth)
@@ -130,12 +152,57 @@ for (i in 1:nrow(gf)) {
       variable_name = ann_variable_r2,
       species = gf$Species[i],
       stock = gf$Stock[i],
+      stage = "Eggs/gestation",
       recruitment_age = gf$age_recruited[i],
       depth_range = c(gf$R_depth_min[i], gf$R_depth_max[i]),
-      polygon = area_polygons
+      polygon = spawn_polygons
     )
 
     d[[i]] <- left_join(d[[i]], rO2[[i]])
+    }
+
+
+    # pelagic larval stage and/or early juvenile stages
+    # assume similar geographic distribution to the stock, but distinct depth range
+
+    if(!is.na(gf$Larval_T_variable[i])){
+    ann_variable_l <- paste0(gf$Larval_T_variable[i], "_", month_string, "_", climate_model, "_", methods[j])
+    lgrid <- readRDS(paste0("data/grid_", ann_variable_l, ".rds")) %>%
+      mutate(depth = posdepth)
+
+    lT[[i]] <- get_stock_enviro_var(
+      temporal_grid = lgrid,
+      variable_name = ann_variable_l,
+      species = gf$Species[i],
+      stock = gf$Stock[i],
+      stage = "Larval",
+      recruitment_age = gf$age_recruited[i],
+      depth_range = c(gf$Larval_depth_min[i], gf$Larval_depth_max[i]),
+      polygon = area_polygons
+    )
+
+    d[[i]] <- left_join(d[[i]], lT[[i]])
+}
+
+    if(!is.na(gf$Larval_2_variable[i])){
+    # currently the second variable is always O2, but could be other things like currents or productivity
+    ann_variable_l2 <- paste0(gf$Larval_2_variable[i], "_", month_string2, "_", climate_model, "_", methods[j])
+    lgrid2 <- readRDS(paste0("data/grid_", ann_variable_l2, ".rds")) %>%
+      mutate(depth = posdepth)
+
+    l2[[i]] <- get_stock_enviro_var(
+      temporal_grid = lgrid2,
+      variable_name = ann_variable_l2,
+      species = gf$Species[i],
+      stock = gf$Stock[i],
+      stage = "Larval",
+      recruitment_age = gf$age_recruited[i],
+      depth_range = c(gf$Larval_depth_min[i], gf$Larval_depth_max[i]),
+      polygon = area_polygons
+    )
+
+    d[[i]] <- left_join(d[[i]], l2[[i]])
+}
   }
   }
   d
@@ -156,11 +223,12 @@ dat2 <- dat %>% pivot_longer((match("group",names(dat))+1):ncol(dat), values_to 
 
 out <- strsplit(as.character(dat2$variable),'_')
 out <- do.call(rbind, out)
-dat2$variable_type <- out[,1]
-dat2$months <- out[,2]
-dat2$climate_model <- out[,3]
-dat2$agg_type <- out[,4]
-dat2$lag <- out[,5]
+dat2$stage <- out[,1]
+dat2$variable_type <- out[,2]
+dat2$months <- out[,3]
+dat2$climate_model <- out[,4]
+dat2$agg_type <- out[,5]
+dat2$lag <- out[,6]
 dat2$lag <- as.numeric(gsub("lag", "", dat2$lag))
 
 dat2[is.na(dat2["lag"]),]$lag <- 0
