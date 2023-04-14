@@ -14,7 +14,7 @@ library(terra)
 climate_model <- "roms"
 variable <- "TOB"
 # variable <- "SST"
-
+# variable <- "O2"
 
 if (variable == "SST" | variable == "TOB") {
 rmonths <- readxl::read_xlsx(
@@ -37,12 +37,8 @@ all_month_sets <- unique(c("1,2,3,4,5,6,7,8,9,10,11,12", rmonths$R_T_months, lmo
 
 all_layers <- expand.grid(method = c("mean", "min", "max"),
                           months = all_month_sets)
-# all_layers <- bind_rows(all_layers1, all_layers)
 }
 
-# O2 vars
-# climate_model <- "roms"
-variable <- "O2"
 if (variable == "O2") {
 
 rmonths <- readxl::read_xlsx(

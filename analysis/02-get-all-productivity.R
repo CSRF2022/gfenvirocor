@@ -64,11 +64,13 @@ for (i in 1:nrow(gf)) {
 
   d[[i]]$group <- gf$Group[i]
 
+  # browser()
+
   if(add_enviro_vars){
   # currently calculating using 3 methods but might focus on different ones for each time period and loop over variable types instead
   methods <- c("mean", "min", "max")
 
-  variable <- "tob"
+  variable <- "TOB"
 
   areas <- unlist(strsplit(as.character(gf$Areas[i]), ","))
   spawn_areas <- unlist(strsplit(as.character(gf$Spawn_areas[i]), ","))
@@ -87,6 +89,9 @@ for (i in 1:nrow(gf)) {
 
   months2 <- as.numeric(unlist(strsplit(as.character(gf$R_O_months[i]), ",")))
   month_string2 <- paste0(months2[1], "to", max(months2))
+
+  months3 <- as.numeric(unlist(strsplit(as.character(gf$Larval_months[i]), ",")))
+  month_string3 <- paste0(months3[1], "to", max(months3))
 
   # browser()
 
@@ -109,8 +114,8 @@ for (i in 1:nrow(gf)) {
     )
 
     d[[i]] <- left_join(d[[i]], penv[[i]])
-# browser()
 
+    # browser()
     if(is.na(spawn_areas)) {
        # will default to coastwide like for adults in coastwide stocks
        spawn_polygons <- NULL
@@ -166,7 +171,7 @@ for (i in 1:nrow(gf)) {
     # assume similar geographic distribution to the stock, but distinct depth range
 
     if(!is.na(gf$Larval_T_variable[i])){
-    ann_variable_l <- paste0(gf$Larval_T_variable[i], "_", month_string, "_", climate_model, "_", methods[j])
+    ann_variable_l <- paste0(gf$Larval_T_variable[i], "_", month_string3, "_", climate_model, "_", methods[j])
     lgrid <- readRDS(paste0("data/grid_", ann_variable_l, ".rds")) %>%
       mutate(depth = posdepth)
 
@@ -186,7 +191,7 @@ for (i in 1:nrow(gf)) {
 
     if(!is.na(gf$Larval_2_variable[i])){
     # currently the second variable is always O2, but could be other things like currents or productivity
-    ann_variable_l2 <- paste0(gf$Larval_2_variable[i], "_", month_string2, "_", climate_model, "_", methods[j])
+    ann_variable_l2 <- paste0(gf$Larval_2_variable[i], "_", month_string3, "_", climate_model, "_", methods[j])
     lgrid2 <- readRDS(paste0("data/grid_", ann_variable_l2, ".rds")) %>%
       mutate(depth = posdepth)
 
