@@ -9,6 +9,7 @@ get_stock_enviro_var(
   variable_name = "ann_mean",
   species = "NA",
   stock = "NA",
+  stage = "NA",
   time_var = "year",
   recruitment_age = 1,
   depth_range = c(0, 200),
@@ -30,6 +31,8 @@ get_stock_enviro_var(
 \item{species}{Optional argument to provide a variable indicating the species. Default is "NA"}
 
 \item{stock}{Optional argument to provide a variable indicating the stock. Default is "NA"}
+
+\item{stage}{Optional argument to provide a variable indicating the relevant life history stage. Default is "NA"}
 
 \item{time_var}{Which variable contains the time steps of interest. Must be evenly spaced integers}
 

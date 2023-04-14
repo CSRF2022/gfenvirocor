@@ -4,6 +4,7 @@
 #' @param variable_name Which variable to extract and summarize
 #' @param species Optional argument to provide a variable indicating the species. Default is "NA"
 #' @param stock Optional argument to provide a variable indicating the stock. Default is "NA"
+#' @param stage Optional argument to provide a variable indicating the relevant life history stage. Default is "NA"
 #' @param time_var Which variable contains the time steps of interest. Must be evenly spaced integers
 #' @param recruitment_age The age at recruitment used in the stock assessments in same units as time_var
 #'   This controls which lags (up to age + 1) are included.
@@ -51,6 +52,7 @@ get_stock_enviro_var <- function(temporal_grid = grid,
                                  variable_name = "ann_mean",
                                  species = "NA",
                                  stock = "NA",
+                                 stage = "NA",
                                  time_var = "year",
                                  recruitment_age = 1,
                                  depth_range = c(0, 200),
@@ -210,8 +212,11 @@ get_stock_enviro_var <- function(temporal_grid = grid,
 
   dat[[time_var]] <- as.numeric(dat$time)
   dat$time <- NULL
-
+  if(!is.na(stage)){
+  names(dat) <- gsub("var", paste0(stage, "_", variable_name), names(dat))
+  } else {
   names(dat) <- gsub("var", variable_name, names(dat))
+  }
   dat$species <- species
   dat$stock <- stock
   dat
