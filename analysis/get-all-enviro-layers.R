@@ -5,20 +5,18 @@ library(tidyverse)
 library(sf)
 library(terra)
 
-# full annual
-all_layers1 <- expand.grid(method = c("mean", "min", "max"),
-                          months = c("1,2,3,4,5,6,7,8,9,10,11,12"))
-
 
 # temperature vars
-climate_model <- "bcc"
-variable <- "tob"
+# climate_model <- "bcc"
+# variable <- "tob"
 
 
 climate_model <- "roms"
-variable <- "tob"
+variable <- "TOB"
 # variable <- "SST"
 
+
+if (variable == "SST" | variable == "TOB") {
 rmonths <- readxl::read_xlsx(
   "data/GF_assessments.xlsx" # , col_type = "list"
 ) %>%
@@ -27,16 +25,25 @@ rmonths <- readxl::read_xlsx(
   distinct() %>%
   na.omit()
 
+lmonths <- readxl::read_xlsx(
+  "data/GF_assessments.xlsx" # , col_type = "list"
+) %>%
+  filter(Outputs == "Y" & Larval_T_variable == variable) %>%
+  select(Larval_months) %>%
+  distinct() %>%
+  na.omit()
+
+all_month_sets <- unique(c("1,2,3,4,5,6,7,8,9,10,11,12", rmonths$R_T_months, lmonths$Larval_months))
 
 all_layers <- expand.grid(method = c("mean", "min", "max"),
-                          months = rmonths$R_T_months)
-
-all_layers <- bind_rows(all_layers1, all_layers)
-
+                          months = all_month_sets)
+# all_layers <- bind_rows(all_layers1, all_layers)
+}
 
 # O2 vars
-climate_model <- "roms"
+# climate_model <- "roms"
 variable <- "O2"
+if (variable == "O2") {
 
 rmonths <- readxl::read_xlsx(
   "data/GF_assessments.xlsx" # , col_type = "list"
@@ -46,10 +53,23 @@ rmonths <- readxl::read_xlsx(
   distinct() %>%
   na.omit()
 
+lmonths <- readxl::read_xlsx(
+  "data/GF_assessments.xlsx" # , col_type = "list"
+) %>%
+  filter(Outputs == "Y" & Larval_2_variable == variable) %>%
+  select(Larval_months) %>%
+  distinct() %>%
+  na.omit()
+
+all_month_sets <- unique(c("1,2,3,4,5,6,7,8,9,10,11,12", rmonths$R_O_months, lmonths$Larval_months))
 all_layers <- expand.grid(method = c("mean", "min", "max"),
-                          months = rmonths$R_O_months)
+                          months = all_month_sets)
 
+}
 
+# to run full annual only
+# all_layers <- expand.grid(method = c("mean", "min", "max"),
+#                           months = c("1,2,3,4,5,6,7,8,9,10,11,12"))
 
 
 # unlist(strsplit(as.character(all_layers$months[1]), ","))
@@ -62,9 +82,9 @@ for (i in 1:nrow(all_layers)) {
   method <- all_layers$method[i]
 
   month_string <- paste0(months[1], "to", max(months))
-  if (month_string == "1to12") {
-    month_string <- "ann"
-  }
+  # if (month_string == "1to12") {
+  #   month_string <- "ann"
+  # }
 # browser()
   ann_variable <- paste0(variable, "_", month_string, "_", climate_model, "_", method)
   gridfile <- paste0("data/grid_", ann_variable, ".rds")
@@ -75,7 +95,7 @@ for (i in 1:nrow(all_layers)) {
 
     if (!file.exists(ncdatafile)) {
 
-      if (variable == "tob" & climate_model == "bcc") {
+      if (variable == "TOB" & climate_model == "bcc") {
       df1 <- extract_netcdf_values(
         "data/bottom-temp/tob_Omon_BCC-CSM2-HR_hist-1950_r1i1p1f1_gn_195001-197912.nc",
         # variable_name = variable,
@@ -101,7 +121,7 @@ for (i in 1:nrow(all_layers)) {
       df <- left_join(df1, df2)
       }
 
-      if (variable == "tob" & climate_model == "roms") {
+      if (variable == "TOB" & climate_model == "roms") {
 
         file1 <- 'data/roms-hindcast/bcc42_era5b37r1_mon1981to2018_botTSO'
         df <- extract_netcdf_values(paste0(file1,'.nc'),
