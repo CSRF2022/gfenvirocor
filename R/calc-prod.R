@@ -8,7 +8,8 @@
 #' @param model_type which stock assessment platform was used to produce mcmc outputs
 #' @param start_year default `NULL`; integer value required for iscam outputs
 #' @param end_year default `NULL`; integer value required for iscam outputs
-#' @param proportion_female default to `0.5`; used to scale catch to match female biomass
+#' @param proportion_catch default to `0.5`; used to scale catch to match female biomass.
+#'   Use `1` for two sex biomass estimates.
 #' @param recruitment_age default `1`; integer value
 #' @param maturity_age default `1`; integer value
 #'
@@ -36,7 +37,7 @@ calc_prod <- function(catchfile,
                       model_type = "rowans",
                       start_year = NULL,
                       end_year = NULL,
-                      proportion_female = 0.5,
+                      proportion_catch = 0.5,
                       recruitment_age = 1,
                       maturity_age = 1
                       ){
@@ -114,14 +115,14 @@ calc_prod <- function(catchfile,
 
     c <- c %>% rename(year = `...1`) %>%
       pivot_longer(2:ncol(c), names_to = "fleet", values_to = "value") %>%
-      group_by(year) %>% summarise(catch = sum(value, na.rm = TRUE)*proportion_female)
+      group_by(year) %>% summarise(catch = sum(value, na.rm = TRUE)*proportion_catch)
   }
 
   if (model_type == "landmark") {
     df <- c %>% mutate(species = species,
                        stock = stock,
                        year = Year,
-                       catch = Landings*proportion_female, # tonnes
+                       catch = Landings*proportion_catch, # tonnes
                        biomass = SSBt_p50*1000, # tonnes
                        vbiomass = NA,
                        recruits = Rt_p50*1000, # 1000 fish
@@ -146,7 +147,7 @@ calc_prod <- function(catchfile,
 
   df <- df %>% select(species, stock, year, catch, biomass, vbiomass, recruits, rdev) %>%
     mutate(model_type = model_type,
-           proportion_female = proportion_female,
+           prop_catch = proportion_catch,
            recruitment_age = recruitment_age,
            maturity_age = maturity_age
     )
@@ -209,7 +210,7 @@ calc_prod <- function(catchfile,
   if(exists("v")){
     df <- df %>% mutate(
       vbiomass_lead1 = lead(vbiomass),
-      v_production = (vbiomass_lead1 + (catch/proportion_female) - vbiomass),
+      v_production = (vbiomass_lead1 + catch - vbiomass),
       vp_by_biomass = v_production / vbiomass
     )
   }

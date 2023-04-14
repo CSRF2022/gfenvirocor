@@ -13,7 +13,7 @@ calc_prod(
   model_type = "rowans",
   start_year = NULL,
   end_year = NULL,
-  proportion_female = 0.5,
+  proportion_catch = 0.5,
   recruitment_age = 1,
   maturity_age = 1
 )
@@ -35,7 +35,8 @@ calc_prod(
 
 \item{end_year}{default \code{NULL}; integer value required for iscam outputs}
 
-\item{proportion_female}{default to \code{0.5}; used to scale catch to match female biomass}
+\item{proportion_catch}{default to \code{0.5}; used to scale catch to match female biomass.
+Use \code{1} for two sex biomass estimates.}
 
 \item{recruitment_age}{default \code{1}; integer value}
 
