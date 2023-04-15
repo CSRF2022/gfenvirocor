@@ -99,6 +99,8 @@ calc_prod <- function(catchfile,
       var_name = "vbiomass"
     ))
 
+
+
     r <- awatea_mcmc(
       csv = paste0(mcmcprefix, "R", mcmcsuffix),
       species,
@@ -113,9 +115,41 @@ calc_prod <- function(catchfile,
       var_name = "rdev"
     )
 
-    c <- c %>% rename(year = `...1`) %>%
-      pivot_longer(2:ncol(c), names_to = "fleet", values_to = "value") %>%
-      group_by(year) %>% summarise(catch = sum(value, na.rm = TRUE)*proportion_catch)
+    c <- c %>% rename(year = `...1`)
+    c$catch <- rowSums(c[,2:ncol(c)])
+
+
+    u <- awatea_mcmc(
+      csv = paste0(mcmcprefix, "U", mcmcsuffix),
+      species,
+      stock,
+      var_name = "harvest_rate"
+    )
+
+    # browser()
+    if(exists("u")) {
+      if(max(u$fleet, na.rm = TRUE) == 1 | min(u$fleet, na.rm = TRUE)>1){
+      u$fleet <- NA
+
+     if(!exists("v")) {
+      v <- left_join(c, u)
+      v$vbiomass <- v$catch/v$harvest_rate
+     }
+     } else {
+       if(!exists("v")) {
+        # warning("More than one fleet, so vulnerable biomass not calculated from u.")
+         # browser()
+         c2 <- c
+         names(c2)[2] <- "fleet_1_catch"
+         v <- filter(u, fleet == 1)
+         c2 <- select(c2, year, fleet_1_catch)
+         v <- left_join(v, c2)
+         v$vbiomass <- v$fleet_1_catch/v$harvest_rate
+         v <- select(v, year, fleet, vbiomass)
+
+       }
+      }
+    }
   }
 
   if (model_type == "landmark") {
@@ -125,27 +159,57 @@ calc_prod <- function(catchfile,
                        catch = Landings*proportion_catch, # tonnes
                        biomass = SSBt_p50*1000, # tonnes
                        vbiomass = NA,
+                       vbiomass2 = NA,
+                       harvest_rate = NA,
+                       harvest_rate2 = NA,
                        recruits = Rt_p50*1000, # 1000 fish
                        rdev = Rdev_p50
                        )
 
   } else {
-  if(exists("v")){
-    # for now this code only extracts vulnerable biomass for the first fleet
-    v <- na.omit(v) # additional fleets will have NA for year, so this removes them
+
     df <- left_join(c, b) %>%
       left_join(r) %>%
-      left_join(d) %>%
-      left_join(v)
+      left_join(d)
+
+  if(exists("v")){
+
+    if(max(v$fleet, na.rm = TRUE) == 1 | min(v$fleet, na.rm = TRUE)>1){
+      v <- v %>% select(year, vbiomass)
+      df <- df %>% left_join(v)
+      df$vbiomass2 <- NA
+    } else {
+    # for now this code only keeps vulnerable biomass for the first 2 fleets
+    v2 <- filter(v, fleet == 2) %>% rename(vbiomass2 = vbiomass) %>% select(-fleet)
+    v <- filter(v, fleet == 1) %>% select(-fleet)
+    df <- df %>% left_join(v) %>% left_join(v2)
+    }
+
   } else {
-  df <- left_join(c, b) %>%
-    left_join(r) %>%
-    left_join(d)
   df$vbiomass <- NA
+  df$vbiomass2 <- NA
+  }
+
+  if(exists("u")){
+    if(max(u$fleet, na.rm = TRUE)>1) {
+      u2 <- filter(u, fleet == 2) %>% rename(harvest_rate2 = harvest_rate) %>% select(-fleet)
+      u <- filter(u, fleet == 1) %>% select(-fleet)
+      df <- df %>% left_join(u)%>% left_join(u2)
+    } else {
+
+    u <- u %>% select(year, harvest_rate)
+    df <- df %>% left_join(u)
+    df$harvest_rate2 <- NA
+    }
+  } else {
+    df$harvest_rate <- NA
+    df$harvest_rate2 <- NA
   }
   }
 
-  df <- df %>% select(species, stock, year, catch, biomass, vbiomass, recruits, rdev) %>%
+  df <- df %>%
+    select(species, stock, year, biomass, vbiomass, vbiomass2,
+           catch, harvest_rate, harvest_rate2, recruits, rdev) %>%
     mutate(model_type = model_type,
            prop_catch = proportion_catch,
            recruitment_age = recruitment_age,
@@ -157,8 +221,8 @@ calc_prod <- function(catchfile,
   if (recruitment_age == 0) {
     df <- df %>% mutate(
       biomass_lead1 = lead(biomass),
-      production = (biomass_lead1 + catch - biomass),
-      p_by_biomass = production / biomass,
+      # production = (biomass_lead1 + catch - biomass),
+      # p_by_biomass = production / biomass,
       recruits_lag = lag(recruits, recruitment_lag[1]),
       biomass_for_recruits = lag(biomass, 0),
       biomass_lag1 = lag(biomass, 1)
@@ -169,8 +233,8 @@ calc_prod <- function(catchfile,
   if (recruitment_age == 1) {
     df <- df %>% mutate(
       biomass_lead1 = lead(biomass),
-      production = (biomass_lead1 + catch - biomass),
-      p_by_biomass = production / biomass,
+      # production = (biomass_lead1 + catch - biomass),
+      # p_by_biomass = production / biomass,
       recruits_lag = lag(recruits, recruitment_lag[1]),
       biomass_for_recruits = lag(biomass, 1),
       biomass_lag1 = lag(biomass, 1),
@@ -182,8 +246,8 @@ calc_prod <- function(catchfile,
   if (recruitment_age == 2) {
     df <- df %>% mutate(
       biomass_lead1 = lead(biomass),
-      production = (biomass_lead1 + catch - biomass),
-      p_by_biomass = production / biomass,
+      # production = (biomass_lead1 + catch - biomass),
+      # p_by_biomass = production / biomass,
       recruits_lag = lag(recruits, recruitment_lag[1]),
       biomass_for_recruits = lag(biomass, 2),
       biomass_lag1 = lag(biomass, 1),
@@ -196,8 +260,8 @@ calc_prod <- function(catchfile,
   if (recruitment_age == 3) {
     df <- df %>% mutate(
       biomass_lead1 = lead(biomass),
-      production = (biomass_lead1 + catch - biomass),
-      p_by_biomass = production / biomass,
+      # production = (biomass_lead1 + catch - biomass),
+      # p_by_biomass = production / biomass,
       recruits_lag = lag(recruits, recruitment_lag[1]),
       biomass_for_recruits = lag(biomass, 3),
       biomass_lag1 = lag(biomass, 1),
@@ -210,8 +274,8 @@ calc_prod <- function(catchfile,
   if(exists("v")){
     df <- df %>% mutate(
       vbiomass_lead1 = lead(vbiomass),
-      v_production = (vbiomass_lead1 + catch - vbiomass),
-      vp_by_biomass = v_production / vbiomass
+      production = (vbiomass_lead1 + catch - vbiomass),
+      p_by_biomass = production / vbiomass
     )
   }
 
