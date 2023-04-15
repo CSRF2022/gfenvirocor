@@ -29,7 +29,7 @@ iscam_mcmc <- function(csv, species, stock, start_year, end_year, var_name = "bi
   .d$year <- as.numeric(gsub(".*\\_", "", rownames(.d)))
 
   if(var_name %in% c("harvest_rate","vbiomass")){
-    browser()
+    # browser()
     .d$fleet <- gsub("vbt_fleet", "", rownames(.d))
     .d$fleet <- as.numeric(gsub("_.*", "", .d$fleet))
     # .d <- .d[.d$fleet == 1,] %>% dplyr::rename(!!var_name := V1)
