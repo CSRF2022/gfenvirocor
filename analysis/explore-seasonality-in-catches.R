@@ -26,7 +26,7 @@ d <- d %>% mutate(month = lubridate::month(best_date))
 
 glimpse(d)
 
-ggplot(d) + geom_histogram(aes(month))
+# ggplot(d) + geom_histogram(aes(month))
 
 unique(d$fishery_sector)
 # d %>% group_by(year, fishery_sector) %>%
@@ -61,8 +61,45 @@ d2 %>% filter(year > 1986 & year < 2023) %>%
 ggsave(paste0("figs/", species,"-catch-w-trips-seasonality.png"))
 
 
-d3 <- d %>% group_by(year, month, fishery_sector) %>%
-  summarise(total_catch = sum(landed_kg, na.rm = TRUE) + sum(discarded_kg, na.rm = TRUE))
+unique(d$major_stat_area_name)
+
+d_catch <- d %>%
+  filter(fishery_sector == "GROUNDFISH TRAWL") %>%
+  filter(year == "2021") %>%
+  filter(
+    !(major_stat_area_name %in% c(
+      "4B: STRAIT OF GEORGIA",
+      "UNKNOWN: NO POSITION INFORMATION",
+      "ALASKA",  "3A:CAPE FALCON TO CAPE ELIZABETH (45 46' TO 47 20')",
+      "4A:PUGET SOUND", "3B: CAPE FLATTERY (47 20' to 220 T)"
+    ))
+  ) %>%
+  select(fishing_event_id, year, month, fishery_sector, landed_kg, discarded_kg)
+
+
+
+d3 <- d %>%
+  filter(
+    !(major_stat_area_name %in% c(
+      # "4B: STRAIT OF GEORGIA",
+      # "UNKNOWN: NO POSITION INFORMATION",
+      "ALASKA",  "3A:CAPE FALCON TO CAPE ELIZABETH (45 46' TO 47 20')",
+      "4A:PUGET SOUND", "3B: CAPE FLATTERY (47 20' to 220 T)"
+      ))
+    ) %>%
+  select(trip_id, fishing_event_id, year, month, fishery_sector, landed_kg, discarded_kg) %>%
+  distinct() %>% group_by(year, month, fishery_sector) %>%
+  summarise(
+    landed_catch = sum(landed_kg, na.rm = TRUE),
+    total_catch = sum(landed_kg, na.rm = TRUE) + sum(discarded_kg, na.rm = TRUE))
+
+d3 %>% filter(year > 1986 & year < 2023) %>%
+  filter(fishery_sector == "GROUNDFISH TRAWL") %>%
+  ggplot() + geom_col(aes(as.factor(month), landed_catch, fill = as.factor(month))) +
+  scale_fill_manual(values = rainbow2)  +
+  facet_wrap(~year) + gfplot::theme_pbs()
+
+
 
 d3 %>% filter(year > 1986 & year < 2023) %>%
   filter(fishery_sector == "GROUNDFISH TRAWL") %>%
@@ -85,17 +122,33 @@ dx %>% filter(trip_id == 82252) %>% View() # 3 good events
 
 
 
-d0 <- readRDS("data/yellowtail-cpue-historical.rds") %>% select(-target_species) %>% distinct()
+d0 <- readRDS("data/yellowtail-cpue-historical.rds") %>%
+  select(-target_species) %>% distinct()
+
+
+d_cpue <- d0 %>%
+  filter(year == "2021") %>%
+  select(fishing_event_id, year, month, landed_kg, discarded_kg)
+
+d_test <- anti_join(d_catch, d_cpue)
+
+
 d4 <- d0 %>% group_by(year, month) %>%
-  summarise(total_catch = sum(landed_kg, na.rm = TRUE) + sum(discarded_kg, na.rm = TRUE),
+  summarise(
+    landed_catch = sum(landed_kg, na.rm = TRUE),
+    total_catch = sum(landed_kg, na.rm = TRUE) + sum(discarded_kg, na.rm = TRUE),
             n = n()
   )
+
+d4 %>% filter(year > 1986 & year < 2023) %>% ggplot() +
+  geom_col(aes(as.factor(month), landed_catch, fill = as.factor(month))) +
+  scale_fill_manual(values = rainbow2)  +
+  facet_wrap(~year) + gfplot::theme_pbs()
 
 d4 %>% filter(year > 1986 & year < 2023) %>% ggplot() +
   geom_col(aes(as.factor(month), total_catch, fill = as.factor(month))) +
   scale_fill_manual(values = rainbow2)  +
   facet_wrap(~year) + gfplot::theme_pbs()
-
 
 d5 <- d0 %>% select(trip_id, fishing_event_id, latitude, longitude, best_date, best_depth_m, landed_kg, discarded_kg, major_stat_area_code, minor_stat_area_code, database_name2 = database_name, vessel_registration_number = vessel)
 
