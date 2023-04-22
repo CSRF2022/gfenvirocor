@@ -4,16 +4,20 @@ library(tidyverse)
 library(patchwork)
 options(scipen=999)
 year_cutoff <- 1995 # greater than
-species <- "yellowtail"
+# species <- "yellowtail"
+# species <- "silvergray"
+# species <- "pcod"
+# species <- "yellowmouth"
+# species <- "redstripe"
+# species <- "rougheye"
+# species <- "bocaccio"
+# species <- "widow"
 
-readRDS("data/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 1) # ROCKFISH
-readRDS("data/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 11) # PORTSAMPLES
-readRDS("data/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 13) # AMR
-
+species <- "canary"
 
 # get all catch for overall depth profiles by month
 
-d_all <- readRDS("data/yellowtail-get-catch.rds") %>%
+d_all <- readRDS(paste0("sample-data/", species, "-get-catch.rds")) %>%
   filter(year > year_cutoff) %>%
   mutate(month = lubridate::month(best_date),
          total_catch = landed_kg + discarded_kg)
@@ -32,16 +36,47 @@ minor_areas <- get_minor_coords() %>%
   mutate(minor_stat_area_code = as.character(minor_stat_area_code))
 
 
-d_all <- left_join(d_all, minor_areas) %>% mutate(longitude = ifelse(is.na(lon), longitude2, lon),
-                                              latitude = ifelse(is.na(lat), latitude2, lat))
+d_all <- left_join(d_all, minor_areas) %>% mutate(
+  longitude = ifelse(is.na(lon), longitude2, lon),
+  latitude = ifelse(is.na(lat), latitude2, lat)
+  )
 
 
 # d <- readRDS("../../gfsynopsis/report/data-cache/yellowtail-rockfish.rds")
 # dat <- d$commercial_samples
 # dat1 <- gfdata::get_commercial_samples("yellowtail rockfish", unsorted_only = FALSE)
 # saveRDS(dat1, "data/yellowtail-comm-samples.rds")
-dat1 <- readRDS("data/yellowtail-comm-samples.rds") # cached data is missing lat, lon, and depth
-dat2 <- readRDS("../../gfsynopsis/report/data-cache/yellowtail-rockfish.rds")
+dat1 <- readRDS(paste0("sample-data/", species, "-comm-samples.rds")) # cached data is missing lat, lon, and depth
+
+dat1 %>% group_by(maturity_convention_code, maturity_convention_desc) %>% summarize(n = n()) %>% distinct()
+
+if (species == "pcod") {
+  dat2 <- readRDS("../../gfsynopsis/report/data-cache/pacific-cod.rds")
+
+  readRDS("sample-data/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 6) # PACIFIC COD (1973-75)
+  readRDS("sample-data/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 7) # PCOD
+  readRDS("sample-data/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 11) # PORTSAMPLES
+  readRDS("sample-data/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 22) # old
+} else{
+
+  readRDS("sample-data/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 1) # ROCKFISH
+  readRDS("sample-data/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 11) # PORTSAMPLES
+  readRDS("sample-data/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 13) # AMR
+
+  if (species == "rougheye") {
+    dat2 <- readRDS(paste0("../../gfsynopsis/report/data-cache/rougheye-blackspotted-rockfish-complex.rds"))
+  } else{
+    if (species == "bocaccio") {
+      dat2 <- readRDS(paste0("../../gfsynopsis/report/data-cache/bocaccio.rds"))
+    } else{
+      dat2 <- readRDS(paste0("../../gfsynopsis/report/data-cache/", species, "-rockfish.rds"))
+  }
+}
+}
+
+
+
+
 
 # dat2$survey_samples %>% View()
 # range(dat2$survey_sets$catch_weight)
@@ -85,20 +120,44 @@ dat <- left_join(dat, minor_areas) %>%
 
 # prep maturity data into better format for plotting that contains "Maturity" and an associated "prop_catch_weight"
 
-d1 <- dat %>%
+d0 <- dat %>%
   filter(year > year_cutoff) %>%
-  mutate(Maturity = case_when(maturity_code %in% c(NA, 0, 9, 37) ~ NA,
-                              maturity_code %in% c(1, 2) ~ "1/2 = immature",
-                              # maturity_code == 2 ~ "2 = maturing",
-                              maturity_code == 3 ~ "3/4M = mature",
-                              maturity_code == 4 & sex == 1 ~ "3/4M = mature",
-                              maturity_code %in% c(4, 5) & sex == 2 ~ "4F/5F = fertilized/embryos",
-                              maturity_code == 6 ~ "6 = spent",
-                              maturity_code == 7 ~ "7 = resting",
-  )) %>%
   filter(catch_weight > 0) %>%
   filter(best_depth > 0) %>%
   distinct() # needed because about 300 records are duplicated
+
+if(species == "pcod"){
+d1 <- d0 %>%
+  mutate(Maturity = case_when(
+     maturity_code %in% c(NA, 0, 9, 37) ~ NA,
+    maturity_convention_code != 6 & maturity_code %in% c(1, 2) ~ "1/2 = immature",
+    maturity_convention_code != 6 & maturity_code == 3 ~ "3/4 = mature",
+    maturity_convention_code != 6 & maturity_code == 4 ~ "3/4 = mature",
+    maturity_convention_code != 6 & maturity_code %in% c(5) ~ "5 = ripe",
+    maturity_convention_code != 6 & maturity_code == 6 ~ "6 = spent",
+    maturity_convention_code != 6 & maturity_code == 7 ~ "7 = resting",
+    maturity_convention_code == 6 & maturity_code %in% c(1) ~ "1/2 = immature",
+    maturity_convention_code == 6 & maturity_code == 2 ~ "3/4 = mature",
+    maturity_convention_code == 6 & maturity_code %in% c(3) ~ "5 = ripe",
+    maturity_convention_code == 6 & maturity_code == 4 ~ "7 = resting",
+    maturity_convention_code == 22 & maturity_code %in% c(1) ~ "1/2 = immature",
+    maturity_convention_code == 22 & maturity_code == 2 ~ "3/4 = mature",
+    maturity_convention_code == 22 & maturity_code %in% c(3) ~ "7 = resting",
+  ))
+
+} else {
+  # for rockfish
+  d1 <- d0 %>%
+    mutate(Maturity = case_when(maturity_code %in% c(NA, 0, 9, 37) ~ NA,
+                                maturity_code %in% c(1, 2) ~ "1/2 = immature",
+                                # maturity_code == 2 ~ "2 = maturing",
+                                maturity_code == 3 ~ "3/4M = mature",
+                                maturity_code == 4 & sex == 1 ~ "3/4M = mature",
+                                maturity_code %in% c(4, 5) & sex == 2 ~ "4F/5F = fertilized/embryos",
+                                maturity_code == 6 ~ "6 = spent",
+                                maturity_code == 7 ~ "7 = resting",
+    ))
+}
 
 
 # dat %>% filter(!is.na(maturity_code)) %>%
@@ -163,25 +222,6 @@ d %>%
             month_75 = wtd.quantile(month, 0.75, na.rm = TRUE, weight = prop_catch_weight)
             )
 
-d %>%
-  filter(sex %in% c(1)) %>%
-  filter(prop_catch_weight > 0) %>%
-  group_by(sex, month) %>%
-  summarise(n = n(),
-            mean_depth = weighted.mean(best_depth, prop_catch_weight, na.rm = TRUE),
-            depth_2.5 = wtd.quantile(best_depth, 0.025, na.rm = TRUE, weight = prop_catch_weight),
-            depth_97.5 = wtd.quantile(best_depth, 0.975, na.rm = TRUE, weight = prop_catch_weight)
-  )
-
-d %>%
-  filter(sex %in% c(2)) %>%
-  filter(prop_catch_weight > 0) %>%
-  group_by(sex, month) %>%
-  summarise(n = n(),
-            mean_depth = weighted.mean(best_depth, prop_catch_weight, na.rm = TRUE),
-            depth_2.5 = wtd.quantile(best_depth, 0.025, na.rm = TRUE, weight = prop_catch_weight),
-            depth_97.5 = wtd.quantile(best_depth, 0.975, na.rm = TRUE, weight = prop_catch_weight)
-            )
 
 
 # plotting function ----
@@ -274,22 +314,22 @@ plot_maturity_by_month <- function(
           # after_stat(scaled),
           weight = total_catch)
     ) +
-    facet_grid(month~sex, switch = "y", scales = "free_y") +
+    facet_grid(month~sex, switch = "y", scales = "free_y"
+               ) +
     coord_cartesian(
       # expand = FALSE,
-      xlim = c(0, quantile(mat_data$best_depth, 0.995)),
+      xlim = c(0, quantile(mat_data$best_depth, 0.998)),
                     ylim = ylimits) +
     scale_fill_viridis_d() +
     labs(y = "Weighted commercial catch (solid line) and samples weighted by catch
          (grey text and lines = all sexed samples)",
          x = "Depth (m)") +
-    gfplot::theme_pbs() + theme(axis.ticks.y = element_blank(),
-                                axis.text.y = element_blank())
+    gfplot::theme_pbs() #+ theme(axis.ticks.y = element_blank(), axis.text.y = element_blank())
 }
 
 
 # default test
-plot_maturity_by_month(d, d_all)
+plot_maturity_by_month(d, d_all, scale_weights = 100)
 ggsave(paste0("figs/", species, "-maturity-by-month-depth-long.png"), width = 8, height = 14)
 
 # # split by month sequence but feels a bit akward
@@ -304,15 +344,15 @@ ggsave(paste0("figs/", species, "-maturity-by-month-depth-long.png"), width = 8,
 
 
 # split by sex first
-p1 <- plot_maturity_by_month(d, d_all, which_sex = c("Male")) + theme(legend.position = "none") +
+p1 <- plot_maturity_by_month(d, d_all, scale_weights = 1, which_sex = c("Male")) + theme(legend.position = "none") +
   facet_wrap(~month, ncol = 2, strip.position = "left",
-             # scales = "free_y",
+             scales = "free_y",
              dir="v") + ggtitle("A. Male")
 # p2 <- plot_maturity_by_month(d, d_all, which_sex = c("Female"), ylimits = layer_scales(p1)$y$range$range) +
 
-p2 <- plot_maturity_by_month(d, d_all, which_sex = c("Female")) +
+p2 <- plot_maturity_by_month(d, d_all, scale_weights = 1, which_sex = c("Female")) +
   facet_wrap(~month, ncol = 2,
-             # scales = "free_y",
+             scales = "free_y",
              strip.position = "left", dir="v")  + ggtitle("B. Female")+
   theme(axis.title.y = element_blank())
 
@@ -366,3 +406,23 @@ p2 + p1 + plot_layout(guides = "collect")
 
 ggsave(paste0("figs/", species, "-maturity-mapped.png"), width = 11, height = 9)
 
+
+d %>%
+  filter(sex %in% c(1)) %>%
+  filter(prop_catch_weight > 0) %>%
+  group_by(sex, month) %>%
+  summarise(n = n(),
+            mean_depth = weighted.mean(best_depth, prop_catch_weight, na.rm = TRUE),
+            depth_2.5 = wtd.quantile(best_depth, 0.025, na.rm = TRUE, weight = prop_catch_weight),
+            depth_97.5 = wtd.quantile(best_depth, 0.975, na.rm = TRUE, weight = prop_catch_weight)
+  )
+
+d %>%
+  filter(sex %in% c(2)) %>%
+  filter(prop_catch_weight > 0) %>%
+  group_by(sex, month) %>%
+  summarise(n = n(),
+            mean_depth = weighted.mean(best_depth, prop_catch_weight, na.rm = TRUE),
+            depth_2.5 = wtd.quantile(best_depth, 0.025, na.rm = TRUE, weight = prop_catch_weight),
+            depth_97.5 = wtd.quantile(best_depth, 0.975, na.rm = TRUE, weight = prop_catch_weight)
+  )
