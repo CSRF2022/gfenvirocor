@@ -153,18 +153,21 @@ calc_prod <- function(catchfile,
   }
 
   if (model_type == "landmark") {
+    # browser()
     df <- c %>% mutate(species = species,
                        stock = stock,
                        year = Year,
                        catch = Landings*proportion_catch, # tonnes
                        biomass = SSBt_p50*1000, # tonnes
-                       vbiomass = NA,
+                       vbiomass = legBt_p50*1000,
                        vbiomass2 = NA,
                        harvest_rate = NA,
                        harvest_rate2 = NA,
                        recruits = Rt_p50*1000, # 1000 fish
                        rdev = Rdev_p50
-                       )
+                       ) %>%
+      select(species, stock, year, biomass, vbiomass, vbiomass2,
+             catch, harvest_rate, harvest_rate2, recruits, rdev)
 
   } else {
 
@@ -271,7 +274,7 @@ calc_prod <- function(catchfile,
     )
   }
 
-  if(exists("v")){
+  if(exists("v")|model_type == "landmark"){
     df <- df %>% mutate(
       vbiomass_lead1 = lead(vbiomass),
       production = (vbiomass_lead1 + catch - vbiomass),
