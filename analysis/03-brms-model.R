@@ -7,7 +7,8 @@ library(bayesplot)
 
 date_stamp <- Sys.Date()
 
-dat <- readRDS(paste0("data/all-productivity-longer-2023-04-21.rds"))  %>%
+# dat <- readRDS(paste0("data/all-productivity-longer-2023-04-24.rds"))  %>%
+dat <- readRDS(paste0("data/all-productivity-longer-2023-06-07.rds"))  %>%
   filter(!(species == "Pacific Cod" & recruitment_age == 3))
 
 # select hypothesis
@@ -16,12 +17,25 @@ climate_model <- "ROMS"
 response <- "Production"
 # response <- "Recruitment"
 
+
+# # climate_component <- c("TOB")
+# # climate_component <- c("SST")
+# climate_component <- c("temp")
+# summary_type <- "max"
+
+# climate_component <- c("O2")
+climate_component <- c("salinity")
+
+summary_type <- "min"
+# summary_type <- "mean"
+# summary_type <- "max"
+
 if(response == "Recruitment"){
-  # life_stage <- "Eggs/gestation"
-  # life_stage2 <- "eggs/gestation"
-  # life_stage3 <- "eggs"
-  life_stage <- "Larval"
-  life_stage2 <- life_stage3 <- "larval"
+  life_stage <- "Eggs/gestation"
+  life_stage2 <- "eggs/gestation"
+  life_stage3 <- "eggs"
+  # life_stage <- "Larval"
+  # life_stage2 <- life_stage3 <- "larval"
 } else {
   life_stage <- "Adult"
   life_stage2 <- life_stage3 <- "adult"
@@ -29,16 +43,20 @@ if(response == "Recruitment"){
   # life_stage2 <- "eggs/gestation"
   # life_stage3 <- "eggs"
   # life_stage <- "Larval"
+  # life_stage2 <- life_stage3 <- "larval"
 }
 
-# climate_component <- c("TOB")
-# climate_component <- c("SST")
-climate_component <- c("temp")
-summary_type <- "max"
+if (climate_component == "O2" & response == "Recruitment"){
+  life_stage <- "Eggs/gestation"
+  life_stage2 <- "eggs/gestation"
+  life_stage3 <- "eggs"
+}
 
-# climate_component <- c("O2")
-# summary_type <- "min"
-# summary_type <- "mean"
+if (climate_component == "salinity" & response == "Recruitment"){
+  life_stage <- "Eggs/gestation"
+  life_stage2 <- "eggs/gestation"
+  life_stage3 <- "eggs"
+}
 
 climate_component_name <- climate_component
 
@@ -82,6 +100,31 @@ if(climate_component == "O2" & summary_type == "mean" & climate_model == "ROMS")
     x_label <- paste("ROMS mean seafloor O2 in deviation mmol/m3 at", life_stage2, "stage")
   }
 }
+
+if(climate_component == "O2" & summary_type == "max" & climate_model == "ROMS") {
+  if(life_stage == "Adult"){
+    x_label <- "ROMS annual minimum seafloor O2 deviation in mmol/m3"
+  } else {
+    x_label <- paste("ROMS max seafloor O2 in deviation mmol/m3 at", life_stage2, "stage")
+  }
+}
+
+if(climate_component == "salinity" & summary_type == "min" & climate_model == "ROMS") {
+  if(life_stage == "Adult"){
+    x_label <- "ROMS annual minimum seafloor salinity deviation"
+  } else {
+    x_label <- paste("ROMS minimum seafloor salinity deviation", life_stage2, "stage")
+  }
+}
+
+if(climate_component == "salinity" & summary_type == "max" & climate_model == "ROMS") {
+  if(life_stage == "Adult"){
+    x_label <- "ROMS annual maximum seafloor salinity deviation"
+  } else {
+    x_label <- paste("ROMS maximum seafloor salinity deviation", life_stage2, "stage")
+  }
+}
+
 if(life_stage == "Adult") {
 
   # # could use a mean of all lags, but for now just just using current year
@@ -95,7 +138,7 @@ if(life_stage == "Adult") {
 
   dat0 <- filter(dat,
                  agg_type == summary_type &
-                 variable_type %in% climate_component &
+                 # variable_type %in% climate_component &
                  stage == life_stage &
                  climate_model == "roms",
                  lag == 0)
@@ -170,7 +213,8 @@ ggplot(dat0, aes(value, response_raw,
 ggplot(dat0, aes(value, response,
                  colour = paste(species, stock), fill = paste(species, stock))) +
   geom_point() +
-  geom_smooth(method = "lm") +
+  # geom_smooth(method = "lm") +
+  geom_smooth(method = "lm", formula = y ~ x + I(x^2)) +
   facet_wrap(~paste(species), scales = "free", nrow = 3) +
   ylab(y_label) +
   xlab(x_label) +
@@ -179,15 +223,15 @@ ggplot(dat0, aes(value, response,
         axis.text.y = element_blank(),
         axis.ticks.y = element_blank()
   )
-
-
-ggsave(paste0("figs/", response, "-rate-", life_stage3, "-", climate_component_name, "-", summary_type, "-corplot.png"),
+ggsave(paste0("figs/", response, "-rate-", life_stage3, "-", climate_component_name,
+              "-", summary_type, "-corplot.png"),
        width = 8, height = 5)
 
 ggplot(dat0, aes(value_c, response,
                  colour = paste(species, stock), fill = paste(species, stock))) +
   geom_point() +
   geom_smooth(method = "lm") +
+  # geom_smooth(method = "lm", formula = y ~ x + I(x^2)) +
   facet_wrap(~paste(species), scales = "free_y", nrow = 3) +
   ylab(y_label) +
   xlab(x_label) +
@@ -197,7 +241,6 @@ ggplot(dat0, aes(value_c, response,
         # axis.text.y = element_blank(),
         axis.ticks.y = element_blank()
   )
-
 
 ggsave(paste0("figs/", response, "-rate-", life_stage3, "-", climate_component_name, "-", summary_type, "-deviations-corplot.png"),
        width = 9, height = 5)
@@ -210,7 +253,16 @@ d <- dat0 %>%
 
 
 if(length(unique(d$variable_type)) == 1) {
-
+# if(unique(d$variable_type) == "O2") {
+#   priors1 <-
+#     prior(normal(0, 2), class = "b") +
+#     prior(normal(0, 0.1), coef = "Ivalue_cE2") +
+#     prior(normal(0, 20), class = "Intercept") +
+#     prior(student_t(3, 0, 2.5), class = "sd") +
+#     prior(student_t(3, 0, 0.1), class = "sd", group = "spp_stock", coef = "Ivalue_cE2") +
+#     prior(lkj_corr_cholesky(1), class = "L") +
+#     prior(student_t(3, 0, 2.5), class = "sigma")
+# } else {
   priors1 <-
     prior(normal(0, 2), class = "b") +
     prior(normal(-0.15, 0.15), coef = "Ivalue_cE2") +
@@ -218,7 +270,7 @@ if(length(unique(d$variable_type)) == 1) {
     prior(student_t(3, 0, 2.5), class = "sd") +
     prior(lkj_corr_cholesky(1), class = "L") +
     prior(student_t(3, 0, 2.5), class = "sigma")
-
+# }
 
 m1 <- brm(
   response ~
@@ -230,6 +282,7 @@ m1 <- brm(
           chains = 3, #4
           iter = 2000, #2000
           prior = priors1,
+          # sample_prior = "only",
           data = d
 )
 
@@ -273,12 +326,14 @@ m1 <- brm(
     chains = 3, #4
     iter = 2000, #2000
     prior = priors1,
+    # sample_prior = "only",
     data = d
   )
 
 }
 
-saveRDS(m1, paste0("models/", response, "-rate-", life_stage3, "-", climate_component_name, "-",summary_type, "-", date_stamp, ".rds"))
+saveRDS(m1, paste0("models/", response, "-rate-", life_stage3, "-",
+                   climate_component_name, "-",summary_type, "-", date_stamp, ".rds"))
 
 
 # m2 <- brm(
@@ -295,15 +350,19 @@ saveRDS(m1, paste0("models/", response, "-rate-", life_stage3, "-", climate_comp
 #
 # saveRDS(m2, paste0("models/", response, "-raw-", life_stage3, "-", climate_component_name, "-",summary_type, "-", date_stamp, ".rds"))
 
-
+prior_summary(m1)
 
 m <- m1
 # m <- m2
 # get_variables(m)
 
-data_labels <- select(d, species, stock, spp_stock, Stock, group) %>% distinct() %>%
+data_labels <- select(d, species, stock, spp_stock, Stock, group, value_c) %>%
+  group_by(spp_stock) %>%
   mutate(group = ifelse(group %in% c("Rockfish-Slope", "Rockfish-Shelf"), "Rockfish", group),
-         group = ifelse(group %in% c("Round"), "Cods and allies", group))
+         group = ifelse(group %in% c("Round"), "Cods and allies", group),
+         min_value = min(value_c, na.rm = TRUE),
+         max_value = max(value_c, na.rm = TRUE)
+         ) %>% select(-value_c) %>% distinct()
 
 
 
@@ -342,12 +401,12 @@ out <- purrr::map_dfr(post, function(.x) {
   data.frame(x = x, lwr, med, upr)
 }, .id = "Stock")
 
-
+out <- out |> left_join(labels) |> group_by(spp_stock) |> filter(x >= min_value & x <= max_value) |> ungroup()
 # browser()
 ymin <- min(out$med, na.rm = TRUE)
 ymax <- max(out$med, na.rm = TRUE)
 
-out |> left_join(labels) |>
+out |>
   # filter(group == "Flatfish") %>%
   ggplot(aes(x, y = med,
              ymin = lwr, ymax = upr,
@@ -356,9 +415,9 @@ out |> left_join(labels) |>
   geom_ribbon(aes(fill = spp_stock), alpha = 0.03) +
   geom_smooth(method = "lm", formula = y ~ x + I(x^2), aes(colour = spp_stock), se = FALSE) +
   facet_wrap(~group,
-             # scales = "free",
+             scales = "free_x",
              ncol = 3) +
-  coord_cartesian(ylim = c(ymin + ymin*0.1, ymax + ymax*0.1)) +
+  coord_cartesian(ylim = c(ymin + ymin*0.01, ymax + ymax*0.01)) +
   labs(y = y_lab, x = x_lab, colour = "", fill = ""
       ) +
   gfplot::theme_pbs() + theme(
