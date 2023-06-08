@@ -12,11 +12,17 @@ library(terra)
 
 
 climate_model <- "roms"
-variable <- "TOB"
+# variable <- "TOB"
 # variable <- "SST"
-# variable <- "O2"
+variable <- "O2"
+# variable <- "salinity"
 
+
+# for temperature variables the time frames of interest are stored in variables named:
+# R_T_months and Larval_months
 if (variable == "SST" | variable == "TOB") {
+
+# get vector of unique R_T_months
 rmonths <- readxl::read_xlsx(
   "data/GF_assessments.xlsx" # , col_type = "list"
 ) %>%
@@ -25,6 +31,7 @@ rmonths <- readxl::read_xlsx(
   distinct() %>%
   na.omit()
 
+# get vector of unique Larval_months
 lmonths <- readxl::read_xlsx(
   "data/GF_assessments.xlsx" # , col_type = "list"
 ) %>%
@@ -33,18 +40,23 @@ lmonths <- readxl::read_xlsx(
   distinct() %>%
   na.omit()
 
+# add full year two above vectors
 all_month_sets <- unique(c("1,2,3,4,5,6,7,8,9,10,11,12", rmonths$R_T_months, lmonths$Larval_months))
 
+# for now generate mean, min, and max for all of these time periods
 all_layers <- expand.grid(method = c("mean", "min", "max"),
                           months = all_month_sets)
 }
 
-if (variable == "O2") {
+
+# for O2 variables the time frames of interest are stored in variables named:
+# R_O_months and Larval_months
+if (variable == "O2" | variable == "salinity") {
 
 rmonths <- readxl::read_xlsx(
   "data/GF_assessments.xlsx" # , col_type = "list"
 ) %>%
-  filter(Outputs == "Y" & R_O_variable == variable) %>%
+  filter(Outputs == "Y" & R_O_variable == "O2") %>%
   select(R_O_months) %>%
   distinct() %>%
   na.omit()
@@ -52,15 +64,17 @@ rmonths <- readxl::read_xlsx(
 lmonths <- readxl::read_xlsx(
   "data/GF_assessments.xlsx" # , col_type = "list"
 ) %>%
-  filter(Outputs == "Y" & Larval_2_variable == variable) %>%
+  filter(Outputs == "Y" & Larval_2_variable == "O2") %>%
   select(Larval_months) %>%
   distinct() %>%
   na.omit()
 
+# add full year two above vectors
 all_month_sets <- unique(c("1,2,3,4,5,6,7,8,9,10,11,12", rmonths$R_O_months, lmonths$Larval_months))
+
+# for now generate mean, min, and max for all of these time periods
 all_layers <- expand.grid(method = c("mean", "min", "max"),
                           months = all_month_sets)
-
 }
 
 # to run full annual only
@@ -168,23 +182,23 @@ for (i in 1:nrow(all_layers)) {
       }
 
       # # not using yet
-      # if (variable == "salinity" & climate_model == "roms") {
-      #
-      #   file1 <- 'data/roms-hindcast/bcc42_era5b37r1_mon1981to2018_botTSO'
-      #
-      #   df <- extract_netcdf_values(paste0(file1,'.nc'),
-      #                               model_start_time = 1981,
-      #                               model_end_time = 2018,
-      #                               whichtimes = c(months),
-      #                               agg_method = method,
-      #                               xvar_name = "lon_rho",
-      #                               yvar_name = "lat_rho",
-      #                               time_name = "ocean_time",
-      #                               nc_variable_name = "salt",
-      #                               out_variable_name = "salinity"
-      #   )
-      # }
-      #
+      if (variable == "salinity" & climate_model == "roms") {
+
+        file1 <- 'data/roms-hindcast/bcc42_era5b37r1_mon1981to2018_botTSO'
+
+        df <- extract_netcdf_values(paste0(file1,'.nc'),
+                                    model_start_time = 1981,
+                                    model_end_time = 2018,
+                                    whichtimes = c(months),
+                                    agg_method = method,
+                                    xvar_name = "lon_rho",
+                                    yvar_name = "lat_rho",
+                                    time_name = "ocean_time",
+                                    nc_variable_name = "salt",
+                                    out_variable_name = "salinity"
+        )
+      }
+
       # not sure why, but extract_netcdf_values is returning Inf
       df[sapply(df, is.infinite)] <- NA
 
