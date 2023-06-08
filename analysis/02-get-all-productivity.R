@@ -1,4 +1,5 @@
 # wrangle all assessments together
+# restart if you have just run 01-get-all-eviro-layers
 devtools::load_all(".")
 library(tidyverse)
 library(sf)
@@ -12,6 +13,7 @@ d <- list()
 penv <- list()
 rT <- list()
 rO2 <- list()
+rS <- list()
 lT <- list()
 l2 <- list()
 
@@ -69,8 +71,8 @@ for (i in 1:nrow(gf)) {
   if(add_enviro_vars){
   # currently calculating using 3 methods but might focus on different ones for each time period and loop over variable types instead
   methods <- c("mean", "min", "max")
-
-  variable <- "TOB"
+#
+#   variable <- "TOB"
 
   areas <- unlist(strsplit(as.character(gf$Areas[i]), ","))
   spawn_areas <- unlist(strsplit(as.character(gf$Spawn_areas[i]), ","))
@@ -97,10 +99,11 @@ for (i in 1:nrow(gf)) {
 
   for (j in 1:3) {
 
-    ann_variable_p <- paste0(variable, "_1to12_", climate_model, "_", methods[j])
-    pgrid <- readRDS(paste0("data/grid_", ann_variable_p, ".rds")) %>%
-      mutate(depth = posdepth)
+    ann_variable_p <- paste0("TOB", "_1to12_", climate_model, "_", methods[j])
 
+    f <- paste0("data/grid_", ann_variable_p, ".rds")
+    if(file.exists(f)){
+      pgrid <- readRDS(f) %>% mutate(depth = posdepth)
     penv[[i]] <- get_stock_enviro_var(
       temporal_grid = pgrid,
       variable_name = ann_variable_p,
@@ -114,8 +117,54 @@ for (i in 1:nrow(gf)) {
     )
 
     d[[i]] <- left_join(d[[i]], penv[[i]])
+    } else {
+      print(paste(f, "is missing"))
+    }
 
-    # browser()
+    ann_variable_p2 <- paste0("salinity", "_1to12_", climate_model, "_", methods[j])
+
+    f2 <- paste0("data/grid_", ann_variable_p2, ".rds")
+    if(file.exists(f2)){
+      pgrid <- readRDS(f2) %>% mutate(depth = posdepth)
+      penv[[i]] <- get_stock_enviro_var(
+        temporal_grid = pgrid,
+        variable_name = ann_variable_p2,
+        species = gf$Species[i],
+        stock = gf$Stock[i],
+        stage = "Adult",
+        # get for all lags up to the summer before spawn/birth would have occurred
+        recruitment_age = gf$age_recruited[i] + 1,
+        depth_range = c(gf$depth_0.025[i], gf$depth_0.975[i]),
+        polygon = area_polygons
+      )
+
+      d[[i]] <- left_join(d[[i]], penv[[i]])
+    } else {
+      print(paste(f2, "is missing"))
+    }
+
+    ann_variable_p3 <- paste0("O2", "_1to12_", climate_model, "_", methods[j])
+
+    f3 <- paste0("data/grid_", ann_variable_p3, ".rds")
+    if(file.exists(f3)){
+      pgrid <- readRDS(f3) %>% mutate(depth = posdepth)
+      penv[[i]] <- get_stock_enviro_var(
+        temporal_grid = pgrid,
+        variable_name = ann_variable_p3,
+        species = gf$Species[i],
+        stock = gf$Stock[i],
+        stage = "Adult",
+        # get for all lags up to the summer before spawn/birth would have occurred
+        recruitment_age = gf$age_recruited[i] + 1,
+        depth_range = c(gf$depth_0.025[i], gf$depth_0.975[i]),
+        polygon = area_polygons
+      )
+
+      d[[i]] <- left_join(d[[i]], penv[[i]])
+    } else {
+      print(paste(f3, "is missing"))
+    }
+
     if(is.na(spawn_areas)) {
        # will default to coastwide like for adults in coastwide stocks
        spawn_polygons <- NULL
@@ -130,9 +179,10 @@ for (i in 1:nrow(gf)) {
 
     if(!is.na(gf$R_T_variable[i])){
     ann_variable_r <- paste0(gf$R_T_variable[i], "_", month_string, "_", climate_model, "_", methods[j])
-    rgrid <- readRDS(paste0("data/grid_", ann_variable_r, ".rds")) %>%
-      mutate(depth = posdepth)
 
+    frT <- paste0("data/grid_", ann_variable_r, ".rds")
+    if(file.exists(frT)){
+      rgrid <- readRDS(frT) %>% mutate(depth = posdepth)
     rT[[i]] <- get_stock_enviro_var(
       temporal_grid = rgrid,
       variable_name = ann_variable_r,
@@ -143,14 +193,18 @@ for (i in 1:nrow(gf)) {
       depth_range = c(gf$R_depth_min[i], gf$R_depth_max[i]),
       polygon = spawn_polygons
     )
-
     d[[i]] <- left_join(d[[i]], rT[[i]])
-}
+    } else {
+      print(paste(frT, "is missing"))
+    }
+    }
 
     if(!is.na(gf$R_O_variable[i])){
     ann_variable_r2 <- paste0(gf$R_O_variable[i], "_", month_string2, "_", climate_model, "_", methods[j])
-    rgrid2 <- readRDS(paste0("data/grid_", ann_variable_r2, ".rds")) %>%
-      mutate(depth = posdepth)
+
+    fr2 <- paste0("data/grid_", ann_variable_r2, ".rds")
+    if(file.exists(fr2)){
+      rgrid2 <- readRDS(fr2) %>% mutate(depth = posdepth)
 
     rO2[[i]] <- get_stock_enviro_var(
       temporal_grid = rgrid2,
@@ -164,6 +218,32 @@ for (i in 1:nrow(gf)) {
     )
 
     d[[i]] <- left_join(d[[i]], rO2[[i]])
+    } else {
+      print(paste(fr2, "is missing"))
+    }
+    }
+
+    if(!is.na(gf$R_O_variable[i])){
+      ann_variable_r3 <- paste0("salinity", "_", month_string2, "_", climate_model, "_", methods[j])
+      fr3 <- paste0("data/grid_", ann_variable_r3, ".rds")
+      if(file.exists(fr3)){
+        rgrid3 <- readRDS(fr3) %>% mutate(depth = posdepth)
+
+      rS[[i]] <- get_stock_enviro_var(
+        temporal_grid = rgrid3,
+        variable_name = ann_variable_r3,
+        species = gf$Species[i],
+        stock = gf$Stock[i],
+        stage = "Eggs/gestation",
+        recruitment_age = gf$age_recruited[i],
+        depth_range = c(gf$R_depth_min[i], gf$R_depth_max[i]),
+        polygon = spawn_polygons
+      )
+
+      d[[i]] <- left_join(d[[i]], rS[[i]])
+      } else {
+        print(paste(fr3, "is missing"))
+      }
     }
 
 
@@ -172,8 +252,10 @@ for (i in 1:nrow(gf)) {
 
     if(!is.na(gf$Larval_T_variable[i])){
     ann_variable_l <- paste0(gf$Larval_T_variable[i], "_", month_string3, "_", climate_model, "_", methods[j])
-    lgrid <- readRDS(paste0("data/grid_", ann_variable_l, ".rds")) %>%
-      mutate(depth = posdepth)
+
+    fl <- paste0("data/grid_", ann_variable_l, ".rds")
+    if(file.exists(fl)){
+    lgrid <- readRDS(fl) %>% mutate(depth = posdepth)
 
     lT[[i]] <- get_stock_enviro_var(
       temporal_grid = lgrid,
@@ -187,13 +269,18 @@ for (i in 1:nrow(gf)) {
     )
 
     d[[i]] <- left_join(d[[i]], lT[[i]])
+    }else {
+      print(paste(fl, "is missing"))
+    }
 }
 
     if(!is.na(gf$Larval_2_variable[i])){
     # currently the second variable is always O2, but could be other things like currents or productivity
     ann_variable_l2 <- paste0(gf$Larval_2_variable[i], "_", month_string3, "_", climate_model, "_", methods[j])
-    lgrid2 <- readRDS(paste0("data/grid_", ann_variable_l2, ".rds")) %>%
-      mutate(depth = posdepth)
+
+    fl2 <- paste0("data/grid_", ann_variable_l2, ".rds")
+    if(file.exists(fl2)){
+    lgrid2 <- readRDS(fl2) %>% mutate(depth = posdepth)
 
     l2[[i]] <- get_stock_enviro_var(
       temporal_grid = lgrid2,
@@ -207,6 +294,9 @@ for (i in 1:nrow(gf)) {
     )
 
     d[[i]] <- left_join(d[[i]], l2[[i]])
+    }else {
+      print(paste(fl2, "is missing"))
+    }
 }
   }
   }
