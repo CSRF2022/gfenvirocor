@@ -51,7 +51,6 @@ plot_enviro_layers(readRDS("data/grid_O2_ann_roms_min.rds"), "Min\noxygen", "D")
 
 
 
-
 plot_enviro_layers(readRDS("data/grid_O2_1to2_roms_max.rds"),
                    "Max\nwinter\noxygen", "D")
 plot_enviro_layers(readRDS("data/grid_O2_1to2_roms_min.rds"),
@@ -65,3 +64,22 @@ plot_enviro_layers(readRDS("data/grid_tob_ann_bcc_max.rds"), "Max\nbottom\ntemp"
                    start_year = 1950,
                    end_year = 1995)
 ggsave("figs/map_tob_ann_bcc_max.png", width = 12, height = 6)
+
+
+plot_enviro_layers(readRDS("data/grid_salinity_1to12_roms_mean.rds"), "Mean\nsalinity")
+ggsave("figs/map_S_ann_roms_mean.png", width = 12, height = 6)
+
+plot_enviro_layers(readRDS("data/grid_salinity_1to12_roms_min.rds"), "Min\nsalinity")
+ggsave("figs/map_S_ann_roms_min.png", width = 12, height = 6)
+
+plot_enviro_layers(readRDS("data/grid_salinity_1to12_roms_max.rds"), "Min\nsalinity")
+ggsave("figs/map_S_ann_roms_max.png", width = 12, height = 6)
+
+plot_enviro_layers(readRDS("data/grid_salinity_1to2_roms_mean.rds"), "Min\nsalinity")
+ggsave("figs/map_S_1to2_roms_mean.png", width = 12, height = 6)
+
+plot_enviro_layers(readRDS("data/grid_salinity_1to2_roms_min.rds"), "Min\nsalinity")
+ggsave("figs/map_S_1to2_roms_min.png", width = 12, height = 6)
+
+plot_enviro_layers(readRDS("data/grid_salinity_1to2_roms_max.rds"), "Min\nsalinity")
+ggsave("figs/map_S_1to2_roms_max.png", width = 12, height = 6)
