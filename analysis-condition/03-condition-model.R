@@ -96,10 +96,8 @@ if (mat_class == "mature") {
       ggplot() +
         inlabru::gg(mesh$mesh) +
         coord_fixed() +
-        # geom_point(aes(X, Y), data = d, alpha = 0.2, size = 0.5) +
-        geom_point(aes(X, Y, colour = group_catch_weight, size = total_weight),
-          data = filter(d2, group_catch_weight >= 0)
-        ) +
+        geom_point(aes(X, Y, size = total_weight), data = d2) +
+        geom_point(aes(X, Y, colour = group_catch_weight),data = d) +
         facet_wrap(~year) +
         scale_color_viridis_c(trans = "fourth_root_power")
 
