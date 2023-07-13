@@ -87,9 +87,9 @@ if (!file.exists(fm)) {
   sanity(m)
 
   dir.create(paste0("data-generated/density-models/"), showWarnings = FALSE)
-  saveRDS(m, paste0("data-generated/density-models/", spp, "-m", dens_model_name, ".rds"))
+  saveRDS(m, fm)
 } else {
-  m <- readRDS(paste0("data-generated/density-models/", spp, "-m", dens_model_name, ".rds"))
+  m <- readRDS(fm)
 }
 
 p <- predict(m, newdata = grid, return_tmb_object = TRUE)

@@ -6,7 +6,6 @@ library(ggsidekick)
 theme_set(theme_sleek())
 
 just_females <- TRUE
-
 mat_class <- "mature"
 mat_threshold <- 0.5
 # mat_class <- "immature"
@@ -21,10 +20,10 @@ spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species_list)))
 
 # load condition data and attach lagged density estimates
 
-f <- paste0("data-generated/condition-data-w-lag-density/", spp, "-condition-density.rds")
+f <- paste0("data-generated/condition-data-w-lag-density/", spp, "-mat-", mat_threshold, "-condition-density.rds")
 
 if (!file.exists(f)) {
-  ds <- readRDS(paste0("data-generated/condition-data/", spp, "mat-", mat_threshold, "-condition.rds")) %>% ungroup()
+  ds <- readRDS(paste0("data-generated/condition-data/", spp, "-mat-", mat_threshold, "-condition.rds")) %>% ungroup()
 
   # ds$year_smooth <- ds$year
   ds <- ds %>% filter(!is.na(depth_m))
@@ -57,7 +56,7 @@ if (!file.exists(f)) {
 
   d2 <- left_join(d, pd2)
   dir.create(paste0("data-generated/condition-data-w-lag-density/"), showWarnings = FALSE)
-  saveRDS(d2, paste0("data-generated/condition-data-w-lag-density/", spp, "-condition-density.rds"))
+  saveRDS(d2, f)
 } else {
   d2 <- readRDS(f)
 }
@@ -82,11 +81,12 @@ if (mat_class == "mature") {
 
     # TODO: I don't think density needs centering, but depth might?
     hist(d$depth_m)
-    d$log_depth_c <- d$log_depth - log()
+    # d$log_depth_c <- d$log_depth - log()
     ## name this model version (knot distance added for file name later)
 
     # model_name <- "-mat-fem-d0-dlag1" # should current density be included?
     model_name <- "-mat-fem-dlag1"
+    # model_name <- "-mat-fem-dlag1-no-extra-time"
 
     mf <- paste0("data-generated/condition-models-mat-fem/", spp, "-c", model_name, "-", knot_distance, "-km.rds")
 
@@ -116,7 +116,7 @@ if (mat_class == "mature") {
       data = d,
       spatial = "on",
       spatiotemporal = "rw",
-      # extra_time = c(2020),
+      extra_time = c(2020),
       share_range = FALSE,
       silent = FALSE,
       time = "year",
@@ -134,12 +134,10 @@ if (mat_class == "mature") {
       m2
 
       dir.create(paste0("data-generated/condition-models-mat-fem/"), showWarnings = FALSE)
-      saveRDS(m2, paste0("data-generated/condition-models-mat-fem/", spp, "-c", model_name, "-", knot_distance, "-km.rds"))
+      saveRDS(m2, mf)
     } else {
-      m2 <- readRDS(paste0("data-generated/condition-models-mat-fem/", spp, "-c", model_name, "-", knot_distance, "-km.rds"))
+      m2 <- readRDS(mf)
     }
-
-
 
     # load density predictions for full survey grid
     grid2 <- readRDS(paste0("data-generated/density-predictions/", spp, "-p", dens_model_name, ".rds")) %>%

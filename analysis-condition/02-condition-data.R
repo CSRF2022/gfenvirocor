@@ -360,4 +360,4 @@ plot(log(ds$sample_multiplier_by_weight) ~ log(ds$sample_multiplier))
 spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species_list)))
 
 dir.create(paste0("data-generated/condition-data/"), showWarnings = FALSE)
-saveRDS(ds, paste0("data-generated/condition-data/", spp, "mat-", mat_threshold, "-condition.rds"))
+saveRDS(ds, paste0("data-generated/condition-data/", spp, "-mat-", mat_threshold, "-condition.rds"))
