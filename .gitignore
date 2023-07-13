@@ -2,3 +2,9 @@
 .Rhistory
 .RData
 .Ruserdata
+
+data-generated/
+data-raw/
+data/
+models/
+figs/
