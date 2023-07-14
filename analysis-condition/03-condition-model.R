@@ -109,7 +109,7 @@ if (mat_class == "mature") {
       # s(log_density_lag1, k = 3) +
       # s(log_density, k = 3) +
       # s(log_depth, k = 3),
-      weights = ds$sample_multiplier,
+      weights = d$sample_multiplier,
       mesh = mesh,
       data = d,
       spatial = "on",
@@ -138,7 +138,7 @@ if (mat_class == "mature") {
     }
 
     # load density predictions for full survey grid
-    grid2 <- readRDS(paste0("data-generated/density-predictions/", spp, "-p", dens_model_name, ".rds")) %>%
+    gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p", dens_model_name, ".rds")) %>%
       select(year, X, Y, survey, depth, log_depth, density) %>%
       mutate(
         year_density = year,
@@ -153,12 +153,12 @@ if (mat_class == "mature") {
       )
 
     # get current year density to scale condition index with
-    grid3 <- readRDS(paste0("data-generated/density-predictions/", spp, "-p", dens_model_name, ".rds")) %>%
+    gridB <- readRDS(paste0("data-generated/density-predictions/", spp, "-p", dens_model_name, ".rds")) %>%
       select(year, X, Y, survey, depth, log_depth, density) %>%
       group_by(year) %>%
       mutate(sum_density = sum(density), prop_density = density / sum_density)
 
-    grid <- left_join(grid2, grid3)
+    grid <- left_join(gridA, gridB)
 
     sort(unique(m2$data$year))
     sort(unique(grid$year))
