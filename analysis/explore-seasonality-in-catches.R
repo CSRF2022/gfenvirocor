@@ -8,7 +8,7 @@ library(tidyverse)
 species <- "yellowtail"
 # d <- get_catch("yellowtail rockfish") # run march 6th 2023
 # saveRDS(d, "data/yellowtail-get-catch.rds")
-d <- readRDS("data/yellowtail-get-catch.rds")
+d <- readRDS("data-raw/yellowtail-get-catch.rds")
 
 # species <- "silvergray"
 # # d <- get_catch("silvergray rockfish") # run march 6th 2023
@@ -114,15 +114,15 @@ ggsave(paste0("figs/", species,"-catch-seasonality-just-trawl.png"))
 # first check particular trip with problems
 d %>% filter(trip_id == 82252) %>% View() # 3 good events
 
-d0 <- readRDS("data/yellowtail-cpue-historical.rds")
+d0 <- readRDS("data-raw/yellowtail-cpue-historical.rds")
 d0 %>% filter(trip_id == 82252) %>% View() # duplications
 
-dx <- readRDS("data/yellowtail-cpue-spatial.rds")
+dx <- readRDS("data-raw/yellowtail-cpue-spatial.rds")
 dx %>% filter(trip_id == 82252) %>% View() # 3 good events
 
 
 
-d0 <- readRDS("data/yellowtail-cpue-historical.rds") %>%
+d0 <- readRDS("data-raw/yellowtail-cpue-historical.rds") %>%
   select(-target_species) %>% distinct()
 
 

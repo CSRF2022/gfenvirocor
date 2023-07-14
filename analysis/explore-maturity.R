@@ -17,7 +17,7 @@ species <- "canary"
 
 # get all catch for overall depth profiles by month
 
-d_all <- readRDS(paste0("sample-data/", species, "-get-catch.rds")) %>%
+d_all <- readRDS(paste0("data-raw/", species, "-get-catch.rds")) %>%
   filter(year > year_cutoff) %>%
   mutate(month = lubridate::month(best_date),
          total_catch = landed_kg + discarded_kg)
@@ -46,22 +46,22 @@ d_all <- left_join(d_all, minor_areas) %>% mutate(
 # dat <- d$commercial_samples
 # dat1 <- gfdata::get_commercial_samples("yellowtail rockfish", unsorted_only = FALSE)
 # saveRDS(dat1, "data/yellowtail-comm-samples.rds")
-dat1 <- readRDS(paste0("sample-data/", species, "-comm-samples.rds")) # cached data is missing lat, lon, and depth
+dat1 <- readRDS(paste0("data-raw/", species, "-comm-samples.rds")) # cached data is missing lat, lon, and depth
 
 dat1 %>% group_by(maturity_convention_code, maturity_convention_desc) %>% summarize(n = n()) %>% distinct()
 
 if (species == "pcod") {
   dat2 <- readRDS("../../gfsynopsis/report/data-cache/pacific-cod.rds")
 
-  readRDS("sample-data/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 6) # PACIFIC COD (1973-75)
-  readRDS("sample-data/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 7) # PCOD
-  readRDS("sample-data/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 11) # PORTSAMPLES
-  readRDS("sample-data/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 22) # old
+  readRDS("data-raw/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 6) # PACIFIC COD (1973-75)
+  readRDS("data-raw/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 7) # PCOD
+  readRDS("data-raw/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 11) # PORTSAMPLES
+  readRDS("data-raw/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 22) # old
 } else{
 
-  readRDS("sample-data/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 1) # ROCKFISH
-  readRDS("sample-data/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 11) # PORTSAMPLES
-  readRDS("sample-data/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 13) # AMR
+  readRDS("data-raw/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 1) # ROCKFISH
+  readRDS("data-raw/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 11) # PORTSAMPLES
+  readRDS("data-raw/maturities.rds") %>% filter(MATURITY_CONVENTION_CODE == 13) # AMR
 
   if (species == "rougheye") {
     dat2 <- readRDS(paste0("../../gfsynopsis/report/data-cache/rougheye-blackspotted-rockfish-complex.rds"))
