@@ -2,6 +2,7 @@
 library(tidyverse)
 library(sdmTMB)
 library(ggsidekick)
+devtools::load_all(".")
 
 theme_set(theme_sleek())
 
@@ -104,7 +105,7 @@ m2$sd_report
 tidy(m2, "ran_pars", conf.int = TRUE)
 
 saveRDS(m2, mf2)
-# m2 <- readRDS(mf2)
+m2 <- readRDS(mf2)
 
 # load density predictions for full survey grid
 gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p", dens_model_name, ".rds")) %>%
@@ -126,29 +127,28 @@ gridB <- readRDS(paste0("data-generated/density-predictions/", spp, "-p", dens_m
 
 grid <- left_join(gridA, gridB)
 
+# trim grid containing density to include only 99% of predicted mean total abundance across years
+grid <- trim_predictions(grid, 0.01)
+
 sort(unique(m$data$year))
 sort(unique(grid$year))
 
 
 
 # results of model 1
+sort(unique(m$data$year))
+sort(unique(grid$year))
 
 pc <- predict(m, newdata = grid, return_tmb_object = TRUE)
 
 p <- pc$data %>% mutate(cond = exp(est)) %>% filter(!(year == 2020))
 
-# filter to plot only cells representing 99% of predicted biomass
+saveRDS(p, paste0("data-generated/cond-predictions/", spp, "-pc", model_name, "-", knot_distance, "-km.rds"))
 
-proportion_of_biomass <- function(data, threshold = 0.01) {
-  bio5perc <- sum(data$density, na.rm = TRUE) * threshold
-  s <- sort(data$density)
-  bio_sum <- cumsum(s)
-  lower_density_threshold <- s[which(bio_sum >= bio5perc)[1]]
-  data <- filter(data, density > lower_density_threshold)
-  data
-}
-
-p <- proportion_of_biomass(p, 0.01)
+# filter to plot only cells representing 99% of mean predicted biomass
+# cells must be defined by "X", "Y", only represented once per "year"
+# biomass/abundance stored as "density"
+p <- trim_predictions_by_year(p, 0.01)
 
 ggplot(p, aes(X, Y, colour = log(cond), fill = log(cond))) +
   geom_tile(width = 2, height = 2, alpha = 1) +
@@ -159,7 +159,7 @@ ggplot(p, aes(X, Y, colour = log(cond), fill = log(cond))) +
 
 ggsave(paste0("figs/condition-map-", spp, model_name, "-", knot_distance, "-km.png"))
 dir.create(paste0("data-generated/cond-predictions/"), showWarnings = FALSE)
-saveRDS(p, paste0("data-generated/cond-predictions/", spp, "-pc", model_name, "-", knot_distance, "-km.rds"))
+
 
 ind <- get_index(pc, area = grid$prop_density, bias_correct = FALSE)
 
@@ -177,13 +177,17 @@ saveRDS(ind, paste0("data-generated/cond-index/", spp, "-pc", model_name, "-", k
 
 
 # results of model 2
-
 grid2 <- filter(grid, !(year == 2020))
+sort(unique(m2$data$year))
+sort(unique(grid2$year))
+
 pc2 <- predict(m2, newdata = grid2, return_tmb_object = TRUE)
 
 p2 <- pc2$data %>% mutate(cond = exp(est))
 
-p2 <- proportion_of_biomass(p2, 0.01)
+saveRDS(p2, paste0("data-generated/cond-predictions/", spp, "-pc", model_name2, "-", knot_distance, "-km.rds"))
+
+p2 <- trim_predictions_by_year(p2, 0.01)
 
 ggplot(p2, aes(X, Y, colour = log(cond), fill = log(cond))) +
   geom_tile(width = 2, height = 2, alpha = 1) +
@@ -192,7 +196,7 @@ ggplot(p2, aes(X, Y, colour = log(cond), fill = log(cond))) +
   scale_colour_gradient2() +
   ggtitle(paste(spp, model_name2, knot_distance, "km"))
 ggsave(paste0("figs/condition-map-", spp, model_name2, "-", knot_distance, "-km.png"))
-saveRDS(p2, paste0("data-generated/cond-predictions/", spp, "-pc", model_name2, "-", knot_distance, "-km.rds"))
+
 
 ind2 <- get_index(pc2, area = grid2$prop_density, bias_correct = FALSE)
 

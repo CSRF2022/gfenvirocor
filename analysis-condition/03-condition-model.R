@@ -2,6 +2,7 @@
 library(tidyverse)
 library(sdmTMB)
 library(ggsidekick)
+devtools::load_all(".")
 
 theme_set(theme_sleek())
 
@@ -160,6 +161,11 @@ if (mat_class == "mature") {
 
     grid <- left_join(gridA, gridB)
 
+    ## trim grid containing density to include only 99% of predicted total abundance in each year
+    ## by_year version of this function allows for distribution changes between years
+    # grid <- trim_predictions_by_year(grid, 0.01)
+
+
     sort(unique(m2$data$year))
     sort(unique(grid$year))
 
@@ -168,6 +174,13 @@ if (mat_class == "mature") {
     p3 <- pc$data %>%
       # filter(!(year == 2020)) %>%
       mutate(cond = exp(est))
+
+    saveRDS(p3, paste0("data-generated/cond-predictions/", spp, "-pc", model_name, "-", knot_distance, "-km.rds"))
+
+    # filter to plot only cells representing 99% of mean predicted biomass
+    # cells must be defined by "X", "Y", time by "year", and biomass/abundance stored as "density"
+    p3 <- trim_predictions_by_year(p3, 0.01)
+
 
     ggplot(p3, aes(X, Y, colour = log(cond), fill = log(cond))) +
       geom_tile(width = 2, height = 2, alpha = 1) +
