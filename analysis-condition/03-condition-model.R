@@ -6,21 +6,28 @@ devtools::load_all(".")
 
 theme_set(theme_sleek())
 
-just_females <- TRUE
-mat_class <- "mature"
+just_females <- FALSE
+# just_females <- TRUE
+# mat_class <- "mat"
+mat_class <- "imm"
 mat_threshold <- 0.5
-# mat_class <- "immature"
 # knot_distance <- 5
-knot_distance <- 10
+# knot_distance <- 10
+knot_distance <- 15
+# knot_distance <- 20
+add_covariates <- FALSE
+fig_height <- 4*2
+fig_width <- 5*2
 
-dens_model_name <- "-w-survey-factor"
+dens_model_name <- "-w-survey-factor-tw-15-km"
+delta_dens_model <- FALSE
 
-species_list <- c("Petrale Sole")
+# species_list <- c("Petrale Sole")
+species_list <- c("Canary Rockfish")
 spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species_list)))
 
 
 # load condition data and attach lagged density estimates
-
 f <- paste0("data-generated/condition-data-w-lag-density/", spp, "-mat-", mat_threshold, "-condition-density.rds")
 
 if (!file.exists(f)) {
@@ -46,13 +53,19 @@ if (!file.exists(f)) {
 
   pd <- predict(m, newdata = nd)
 
-  pd2 <- pd %>%
+  if(delta_dens_model) {
+    pd2 <- pd %>% mutate(density_lag1 = plogis(est1) * exp(est2))
+  } else {
+    pd2 <- pd %>% mutate(density_lag1 = exp(est))
+  }
+
+  pd2 <- pd2 %>%
     mutate(
       year = year_true,
-      density_lag1 = plogis(est1) * exp(est2),
       log_density_lag1 = log(density_lag1)
     ) %>%
-    select(year, survey_abbrev, fishing_event_id, X, Y, log_depth, year, year_density, density_lag1, log_density_lag1) %>%
+    select(year, survey_abbrev, fishing_event_id, X, Y, log_depth,
+           year_density, density_lag1, log_density_lag1) %>%
     distinct()
 
   d2 <- left_join(d, pd2)
@@ -62,12 +75,54 @@ if (!file.exists(f)) {
   d2 <- readRDS(f)
 }
 
+
+# load density predictions for full survey grid
+gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p", dens_model_name, ".rds")) %>%
+  select(year, X, Y, survey, depth, log_depth, density) %>%
+  mutate(
+    year_density = year,
+    year = year + 1,
+    density_lag1 = density,
+    log_density_lag1 = log(density)
+  ) %>%
+  select(-density) %>%
+  group_by(year) %>% mutate(mean_density_lag1 = mean(density_lag1),
+                            log_mean_density_lag1 = log(mean_density_lag1)) %>% ungroup()
+
+# get current year density to scale condition index with
+gridB <- readRDS(paste0("data-generated/density-predictions/", spp, "-p", dens_model_name, ".rds")) %>%
+  select(year, X, Y, survey, depth, log_depth, density) %>%
+  group_by(year) %>%
+  mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density))
+
+mean_den <- select(gridA, year, mean_density_lag1, log_mean_density_lag1) %>% distinct()
+
+grid <- left_join(gridA, gridB) %>%
+  filter(
+    # !(year == 2020) &
+    year <= 2022 & year >= 2003
+  )
+grid <- grid %>% mutate(dens_dev = log_density_lag1 - log_mean_density_lag1)
+
+
 # estimate condition model
 
-if (mat_class == "mature") {
+if (mat_class == "mat") {
   if (just_females) {
-    d <- d2 %>% filter(group_name == "Mature females")
+    d <- d2 %>% filter(group_name == "Mature females") %>% left_join(mean_den)
+    group_tag <- "mat-fem"
+    group_label <- "mature females"
 
+  } else {
+    d <- d2 %>% filter(group_name %in% c("Mature females", "Mature males")) %>% left_join(mean_den)
+    group_tag <- "mat"
+    group_label <- "mature females and males"
+  }
+} else {
+  d <- d2 %>% filter(group_name %in% c("Immature")) %>% left_join(mean_den)
+  group_tag <- "imm"
+  group_label <- "immatures"
+}
 
     hist(d$cond_fac)
     hist(log(d$cond_fac))
@@ -78,118 +133,152 @@ if (mat_class == "mature") {
     hist(log(d$density))
     hist(log(d$density_lag1))
     d$log_density <- log(d$density)
+    d$log_mean_density_lag1 <- log(d$mean_density_lag1)
     plot(d$log_density ~ d$log_density_lag1)
 
     # TODO: I don't think density needs centering, but depth might?
     hist(d$depth_m)
+    hist(log(d$depth_m))
+    hist((d$mean_density_lag1))
+    hist(log(d$mean_density_lag1))
+
+    hist((d$log_density))
+
     # d$log_depth_c <- d$log_depth - log()
     ## name this model version (knot distance added for file name later)
 
-    # model_name <- "-mat-fem-d0-dlag1" # should current density be included?
-    model_name <- "-mat-fem-dlag1"
-    # model_name <- "-mat-fem-dlag1-no-extra-time"
 
-    mf <- paste0("data-generated/condition-models-mat-fem/", spp, "-c", model_name, "-", knot_distance, "-km.rds")
+    mesh <- make_mesh(d, c("X", "Y"), cutoff = knot_distance)
+
+    ggplot() +
+      inlabru::gg(mesh$mesh) +
+      coord_fixed() +
+      geom_point(aes(X, Y, size = total_weight), data = d2) +
+      geom_point(aes(X, Y, colour = group_catch_weight),data = d) +
+      facet_wrap(~year) +
+      scale_color_viridis_c(trans = "fourth_root_power")
+
+    ggplot() +
+      inlabru::gg(mesh$mesh) +
+      coord_fixed() +
+      geom_point(aes(X, Y, size = group_catch_weight), data = d2) +
+      geom_point(aes(X, Y, colour = log(cond_fac)),data = d) +
+      facet_wrap(~year) +
+      scale_color_gradient2()
+
+    d <- d %>% mutate(dens_dev = log_density_lag1 - log_mean_density_lag1)
+
+    # start with just an intercept model
+    model_name <- ""
+
+    mf <- paste0("data-generated/condition-models-", group_tag, "/", spp, "-c-", group_tag, model_name, "-", knot_distance, "-km.rds")
 
     if (!file.exists(mf)) {
-      mesh <- make_mesh(d, c("X", "Y"), cutoff = knot_distance)
 
-      ggplot() +
-        inlabru::gg(mesh$mesh) +
-        coord_fixed() +
-        geom_point(aes(X, Y, size = total_weight), data = d2) +
-        geom_point(aes(X, Y, colour = group_catch_weight),data = d) +
-        facet_wrap(~year) +
-        scale_color_viridis_c(trans = "fourth_root_power")
 
-      m2 <- sdmTMB(cond_fac ~
-        1 +
-        poly(log_density_lag1, 2) +
-        # poly(log_density, 2) +
-        poly(log_depth, 2),
-      # s(log_density_lag1, k = 3) +
-      # s(log_density, k = 3) +
-      # s(log_depth, k = 3),
-      weights = d$sample_multiplier,
-      mesh = mesh,
-      data = d,
-      spatial = "on",
-      spatiotemporal = "rw",
-      extra_time = c(2020),
-      share_range = FALSE,
-      silent = FALSE,
-      time = "year",
-      # reml = TRUE,
-      family = lognormal(link = "log"),
-      # family = student(df = 5),
-      # control = sdmTMBcontrol(newton_loops = 1L),
-      priors = sdmTMBpriors(
-        matern_s = pc_matern(range_gt = knot_distance * 1.5, sigma_lt = 2),
-        matern_st = pc_matern(range_gt = knot_distance * 1.5, sigma_lt = 2)
+      m1 <- sdmTMB(cond_fac ~ 1,
+        weights = d$sample_multiplier,
+        mesh = mesh,
+        data = d,
+        spatial = "on",
+        spatiotemporal = "rw",
+        # spatiotemporal = "off",
+        # spatial_varying = ~ dens_dev,
+        # spatial_varying = ~ log_mean_density_lag1,
+        extra_time = c(2020),
+        share_range = FALSE,
+        silent = FALSE,
+        time = "year",
+        # reml = TRUE,
+        family = lognormal(link = "log"),
+        # family = student(df = 5),
+        # control = sdmTMBcontrol(newton_loops = 1L),
+        priors = sdmTMBpriors(
+        matern_s = pc_matern(range_gt = knot_distance, sigma_lt = 2),
+        matern_st = pc_matern(range_gt = knot_distance, sigma_lt = 2)
       )
       )
 
-      sanity(m2)
-      m2
-
-      dir.create(paste0("data-generated/condition-models-mat-fem/"), showWarnings = FALSE)
-      saveRDS(m2, mf)
+      s <- sanity(m1)
+      if(!all(s)){
+        m1 <- update(m1, share_range = TRUE)
+        s <- sanity(m1)
+        if(!all(s)){
+          m1 <- update(m1, spatial = "off")
+        }
+      }
+      sanity(m1)
+      dir.create(paste0("data-generated/condition-models-", group_tag, "/"), showWarnings = FALSE)
+      saveRDS(m1, mf)
     } else {
-      m2 <- readRDS(mf)
+      # mf <- "data-generated/condition-models-mat-fem/petrale-sole-c-mat-fem-15-km.rds"
+      m1 <- readRDS(mf)
     }
 
-    # load density predictions for full survey grid
-    gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p", dens_model_name, ".rds")) %>%
-      select(year, X, Y, survey, depth, log_depth, density) %>%
-      mutate(
-        year_density = year,
-        year = year + 1,
-        density_lag1 = density,
-        log_density_lag1 = log(density)
-      ) %>%
-      select(-density) %>%
-      filter(
-        !(year == 2020) &
-          year <= 2022 & year >= 2003
-      )
+    m1
+    m1$sd_report
+    tidy(m1, "ran_pars", conf.int = TRUE)
 
-    # get current year density to scale condition index with
-    gridB <- readRDS(paste0("data-generated/density-predictions/", spp, "-p", dens_model_name, ".rds")) %>%
-      select(year, X, Y, survey, depth, log_depth, density) %>%
-      group_by(year) %>%
-      mutate(sum_density = sum(density), prop_density = density / sum_density)
+    m <- m1
 
-    grid <- left_join(gridA, gridB)
+    ## don't do this for now, but can be used to explore utility of covariates
+    if(add_covariates){
 
-    ## trim grid containing density to include only 99% of predicted total abundance in each year
-    ## by_year version of this function allows for distribution changes between years
-    # grid <- trim_predictions_by_year(grid, 0.01)
+    model_name <- "-pmd-pdev"
+    model_name <- "-dlag1"
 
+    mf <- paste0("data-generated/condition-models-", group_tag, "/",
+                 spp, "-c-", group_tag, model_name, "-", knot_distance, "-km.rds")
 
-    sort(unique(m2$data$year))
+    if (!file.exists(mf)) {
+    m2 <- update(m1, cond_fac ~ 1 +
+                   # # log_density +
+                   # poly(log_density, 2) +
+                   # log_density_lag1 +
+                   poly(log_density_lag1, 2) +
+                   # log_mean_density_lag1 +
+                   # poly(log_mean_density_lag1, 2) +
+                   # dens_dev +
+                   # # poly(dens_dev, 2)  +
+                   poly(log_depth, 2)
+    )
+    saveRDS(m2, mf)
+    } else {
+    m2 <- readRDS(mf)
+    }
+
+    sanity(m2)
+    m2
+    m2$sd_report
+    tidy(m2, "ran_pars", conf.int = TRUE)
+    m <- m2
+    }
+
+    sort(unique(m$data$year))
     sort(unique(grid$year))
 
-    pc <- predict(m2, newdata = grid, return_tmb_object = TRUE)
+    pc <- predict(m, newdata = grid, return_tmb_object = TRUE)
 
-    p3 <- pc$data %>%
+    p2 <- pc$data %>%
       # filter(!(year == 2020)) %>%
       mutate(cond = exp(est))
 
-    saveRDS(p3, paste0("data-generated/cond-predictions/", spp, "-pc", model_name, "-", knot_distance, "-km.rds"))
 
     # filter to plot only cells representing 99% of mean predicted biomass
     # cells must be defined by "X", "Y", time by "year", and biomass/abundance stored as "density"
-    p3 <- trim_predictions_by_year(p3, 0.01)
+    p2 <- trim_predictions_by_year(p2, 0.01)
 
 
-    ggplot(p3, aes(X, Y, colour = log(cond), fill = log(cond))) +
+    ggplot(p2, aes(X, Y, colour = log(cond), fill = log(cond))) +
       geom_tile(width = 2, height = 2, alpha = 1) +
       facet_wrap(~year) +
       scale_fill_gradient2() +
-      scale_colour_gradient2()
+      scale_colour_gradient2() +
+      labs(title = paste0(species_list, ": ", group_label, " ", model_name), x = "", y = "")
 
-    dir.create(paste0("data-generated/cond-predictions/"), showWarnings = FALSE)
-    saveRDS(p3, paste0("data-generated/cond-predictions/", spp, "-pc", model_name, "-", knot_distance, "-km.rds"))
+    ggsave(paste0("figs/condition-map-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.png"),
+           height = fig_height, width = fig_width)
+
 
     ind2 <- get_index(pc, area = grid$prop_density, bias_correct = FALSE)
 
@@ -198,19 +287,158 @@ if (mat_class == "mature") {
       geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.4) +
       xlab("Year") +
       ylab("Predicted average condition factor") +
-      ggtitle(paste("Mature female", species_list))
+      labs(title = paste0(species_list, ": ", group_label, " ", model_name))
 
-    dir.create(paste0("data-generated/cond-index/"), showWarnings = FALSE)
-    saveRDS(ind2, paste0("data-generated/cond-index/", spp, "-pc", model_name, "-", knot_distance, "-km.rds"))
+    ggsave(paste0("figs/condition-index-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.png"),
+           height = fig_height/2, width = fig_width/2)
 
 
-    # (vdp <- visreg(m, xvar = "log_depth", gg = TRUE))
-    # (vdp <- visreg_delta(m, xvar = "log_density_lag1", gg = TRUE))
+    # dir.create(paste0("data-generated/cond-predictions/"), showWarnings = FALSE)
+    # dir.create(paste0("data-generated/cond-index/"), showWarnings = FALSE)
+    # saveRDS(p2, paste0("data-generated/cond-predictions/", spp, "-pc", "-", group_tag, model_name, "-", knot_distance, "-km.rds"))
+    # saveRDS(ind2, paste0("data-generated/cond-index/", spp, "-pc", "-", group_tag, model_name, "-", knot_distance, "-km.rds"))
+
+
+    ## probably don't need these for every model but keeping here for interest
     #
-    # v <- list(vdp, vdp)
+    # ggplot(p2, aes(X, Y, colour = log_density, fill = log_density)) +
+    #   geom_tile(width = 2, height = 2, alpha = 1) +
+    #   # facet_wrap(~year) +
+    #   scale_fill_viridis_c() +
+    #   scale_colour_viridis_c()
     #
+    ## ggsave(paste0("figs/density-map-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.png"), height = fig_height, width = fig_width)
+    # ggplot(p2, aes(X, Y,
+    #                colour = omega_s,
+    #                fill = omega_s)) +
+    #   geom_tile(width = 2, height = 2, alpha = 1) +
+    #   # facet_wrap(~year) +
+    #   scale_fill_gradient2() +
+    #   scale_colour_gradient2()
+    #
+    ## ggsave(paste0("figs/condition-omega-map-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.png"), height = fig_height, width = fig_width)
+    #
+    #
+    # ggplot(p2, aes(X, Y, colour = epsilon_st, fill = epsilon_st)) +
+    #   geom_tile(width = 2, height = 2, alpha = 1) +
+    #   facet_wrap(~year) +
+    #   scale_fill_gradient2() +
+    #   scale_colour_gradient2()
+    #
+    ## ggsave(paste0("figs/condition-epsilon-map-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.png"), height = fig_height, width = fig_width)
+
+
+
+    if(add_covariates){
+
+    ggplot(p3, aes(X, Y, colour = (est_non_rf), fill = (est_non_rf))) +
+      geom_tile(width = 2, height = 2, alpha = 1) +
+      facet_wrap(~year) +
+      scale_fill_gradient2() +
+      scale_colour_gradient2()
+
+    ggsave(paste0("figs/condition-dd-map-", spp, model_name, "-", knot_distance, "-km.png"))
+
+    g <- g2 <- g3 <- g4 <- pd <- NULL
+
+    g <- ggeffects::ggeffect(m, paste0("log_depth [",
+                                        range(d$log_depth)[1], ":", range(d$log_depth)[2], "by=0.05]"))
+    plot(g)
+
+    g2 <- ggeffects::ggeffect(m, paste0("log_mean_density_lag1 [",
+                                         range(d$log_mean_density_lag1)[1], ":", range(d$log_mean_density_lag1)[2], "by=0.1]"))
+    plot(g2)
+
+    g3 <- ggeffects::ggeffect(m, paste0("dens_dev [",
+                                         range(d$dens_dev)[1], ":", range(d$dens_dev)[2], "by=0.1]"))
+    plot(g3)
+
+    g4 <- ggeffects::ggeffect(m, paste0("log_density_lag1 [",
+                                         range(d$log_density_lag1)[1], ":", range(d$log_density_lag1)[2], "by=0.1]"))
+    plot(g4)
+
+
+    ## if time-varying depth included
+    nd <- expand.grid(
+      log_depth = seq(min(d$log_depth),
+                      max(d$log_depth),
+                      length.out = 100
+      ),
+      year = unique(d$year) # all years
+    )
+
+    nd$log_density <- 0
+    nd$log_density_lag1 <- 0
+
+    pd <- predict(m2,  newdata = nd, se_fit = TRUE, re_form = NA)
+    pd <- pd %>% group_by(year) %>% mutate(max_est = max(est, na.rm = T), xintercept = log_depth[est == max_est])
+
+
+    ggplot(pd, aes(exp(log_depth), exp(est),
+                   ymin = exp(est - 1.96 * est_se),
+                   ymax = exp(est + 1.96 * est_se),
+                   group = as.factor(year)
+    )) +
+      geom_vline(aes(xintercept = exp(xintercept),
+                     group = year, colour = year), alpha =0.4) +
+      geom_line(aes(colour = year), lwd = 0.5) +
+      geom_ribbon(aes(fill = year), alpha = 0.1) +
+      scale_colour_viridis_c() +
+      scale_fill_viridis_c() +
+      # scale_y_continuous(trans = "sqrt") +
+      coord_cartesian(expand = F,
+                      xlim = c(20, 300),
+                      ylim = c(NA, exp(max(pd$max_est))+0.1)) +
+      # coord_cartesian(expand = F, ylim = c(NA, 1)) +
+      # facet_wrap(~year_bin) +
+      geom_rug(data =filter(m2$data, catch_weight > 0), aes(depth_m), inherit.aes = FALSE, alpha = 0.02) +
+
+      labs(x = "Depth (m)", y = "Condition factor") +
+      # labs(x = "Depth (m)", y = "Biomass density (kg/km2)") +
+      # ylab(paste(group, "biomass density")) +
+      gfplot::theme_pbs()
+
+
+    # gg <- list(g, g2, g3, g4, pd)
     # dir.create(paste0("data-generated/cond-effects/"), showWarnings = FALSE)
-    # saveRDS(v, paste0("data-generated/cond-effects/", spp, "-d", model_name, ".rds"))
+    # saveRDS(gg, paste0("data-generated/cond-effects/", spp, "-", group_tag, model_name, "-", knot_distance, "-km.rds"))
+
+
+    ## SVC plots
     #
-  }
-}
+    # coefs <- tidy(m2, conf.int = TRUE)
+    # log_density_coef <- coefs$estimate[coefs$term == "log_density"]
+    #
+    # ggplot(p3, aes(X, Y,
+    #                colour = log_density_coef + zeta_s_log_density,
+    #                fill = log_density_coef + zeta_s_log_density)) +
+    #   geom_tile(width = 2, height = 2, alpha = 1) +
+    #   # facet_wrap(~year) +
+    #   scale_fill_gradient2() +
+    #   scale_colour_gradient2()
+    #
+    #
+    # dens_dev_coef <- coefs$estimate[coefs$term == "dens_dev"]
+    #
+    # ggplot(p3, aes(X, Y,
+    #                colour = dens_dev_coef + zeta_s_dens_dev,
+    #                fill = dens_dev_coef + zeta_s_dens_dev)) +
+    #   geom_tile(width = 2, height = 2, alpha = 1) +
+    #   # facet_wrap(~year) +
+    #   scale_fill_gradient2() +
+    #   scale_colour_gradient2()
+    #
+    # log_mean_density_lag1_coef <- coefs$estimate[coefs$term == "log_mean_density_lag1"]
+    #
+    # ggplot(p3, aes(X, Y,
+    #                colour = log_mean_density_lag1_coef + zeta_s_log_mean_density_lag1,
+    #                fill = log_mean_density_lag1_coef + zeta_s_log_mean_density_lag1)) +
+    #   geom_tile(width = 2, height = 2, alpha = 1) +
+    #   # facet_wrap(~year) +
+    #   scale_fill_gradient2() +
+    #   scale_colour_gradient2()
+    #
+    # ggsave(paste0("figs/condition-zeta-map-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.png"), height = fig_height, width = fig_width)
+    }
+
+

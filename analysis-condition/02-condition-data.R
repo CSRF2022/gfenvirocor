@@ -11,22 +11,49 @@ mat_threshold <- 0.5
 # mat_threshold <- 0.95
 
 
-species_list <- c("Petrale Sole")
-# species_list <- c("Canary Rockfish")
+# species_list <- c("Petrale Sole")
+species_list <- c("Canary Rockfish")
 
 # TODO: there appear to be a lot of samples from sets that were ultimately deemed un-usable that might be retrieved if I can get an updated dataframe that includes those sets
 
-dset <- readRDS("data-raw/survey-sets.rds") %>% filter(species_common_name == tolower(species_list))
-dat1 <- readRDS("data-raw/specimen-data.rds") %>% filter(species_common_name == tolower(species_list))
+dset <- readRDS("data-raw/survey-sets.rds") %>% filter(species_common_name == tolower(species_list)) %>% rename(set_month = month)
+dat1 <- readRDS("data-raw/specimen-data.rds") %>% filter(species_common_name == tolower(species_list)) %>% rename(trip_month = month)
+
+unique(dat1$usability_code)
 
 dat <- left_join(
   # dat1,
-  select(dat1, -sample_id, -grouping_code),
+  select(dat1,  -sample_id, -grouping_code,
+         # -month,
+         # -survey_series_desc,
+         # -survey_id,
+         # -major_stat_area_code, -minor_stat_area_code,
+         # -species_code, -species_science_name
+         ),
   # select(dat1, species_common_name, fishing_event_id, year, length, sex, age, weight, usability_code, specimen_id),
   dset,
   multiple = "all"
 )
 
+
+# ### figure out why data sets weren't matching (month variable was problem so renamed above)
+# # select(dat, trip_start_date, trip_month, set_month, day, latitude, longitude) %>% distinct() %>% View()
+#
+# datf <- filter(dat, !is.na(length))
+# datf <- filter(datf, !is.na(weight) & year > 2002 & !(survey_abbrev %in% c("DOG", "SYN SOG", "HBLL INS N", "HBLL INS S", "MSSM QCS",  "MSSM WCVI" )))
+#
+# datf <- filter(datf, !is.na(survey_abbrev))
+# unique(datf$survey_abbrev)
+#
+# datf2 <- filter(datf, !is.na(longitude) )
+# (nrow(datf) -nrow(datf2))/nrow(datf)
+#
+# ## get count of sampled fish with missing set data
+# datf %>% filter (is.na(longitude)) %>%
+#   ## add this line to get individual sets that are missing from get_survey_sets()
+#   # select(survey_abbrev, year, fishing_event_id) %>% distinct() %>%
+#   group_by(survey_abbrev, year) %>%
+#   summarise(n = n()) %>% View()
 
 # TODO: decide which surveys to include, for now including all data available
 # Have there been any measurement changes or are there differences between HBLL ans synoptic in lengths or maturity keys?
@@ -92,7 +119,7 @@ group_by(dd2, year) %>%
   ggplot(aes(year, mcond)) +
   geom_line()
 
-fish <- dd2
+fish <- dd2 #%>% filter(!(year %in% c(2004, 2006)))
 
 ggplot(
   filter(fish, !is.na(latitude) & !is.na(longitude)),
@@ -102,21 +129,17 @@ ggplot(
   facet_wrap(~year) +
   scale_colour_gradient2()
 
-#
-# ds %>% select(fishing_event_id, year, length, sex, age, weight, specimen_id,
-#               survey_abbrev, wbar, cond_fac) %>% View()
-
-plot(weight ~ length, data = dd, col = "red")
-points(weight ~ length, data = ds)
-abline(v = m$mat_perc$f.p0.95, col = "green")
-abline(v = m$mat_perc$m.p0.95, col = "blue")
 
 # 3. Split samples into immature and mature and into length bins
 # Starting with code lifted from split by maturity function in case we also want to functionalize this
 # arguements required:
 custom_maturity_at <- NULL
 sample_id_re <- TRUE
-year_re <- TRUE
+
+## could use separate estimates for each year
+# year_re <- TRUE
+## discovered that petrale length at maturity was unusually high in WCVI 2004 and 2006
+year_re <- FALSE
 p_threshold <- mat_threshold
 split_by_maturity <- TRUE
 split_by_sex <- TRUE
@@ -307,6 +330,9 @@ if (split_by_maturity) {
     mutate(group_name = ifelse(sex == 1, "Males", "Females"))
 }
 
+# gfplot::plot_mat_annual_ogives(m)
+gfplot::plot_mat_ogive(m)
+
 # 4. Calculate ‘weights' (sample multiplier for each fish sampled)
 ds <- fish_groups %>%
   group_by(fishing_event_id, group_name) %>%
@@ -336,22 +362,36 @@ ds <- fish_groups %>%
   ) %>%
   unique()
 
-# investigate results
-ds %>%
-  select(
-    year, survey_abbrev, fishing_event_id,
-    latitude, latitude_end,
-    longitude, longitude_end,
-    depth_m, log_depth,
-    usability_code, area_swept, density_kgpm2,
-    group_name, length, sex, age, weight, specimen_id,
-    wbar, cond_fac,
-    catch_weight, total_weight,
-    sampled_weight, num_sampled, group_num_sampled,
-    prop_w_in_group, group_catch_weight,
-    prop_n_in_group, est_count, est_num_unsampled_group_members, sample_multiplier
-  ) %>%
-  View()
+# # investigate results
+# ds %>%
+#   select(
+#     year, survey_abbrev, fishing_event_id,
+#     latitude, latitude_end,
+#     longitude, longitude_end,
+#     depth_m, log_depth,
+#     usability_code, area_swept, density_kgpm2,
+#     group_name, length, sex, age, weight, specimen_id,
+#     wbar, cond_fac,
+#     catch_weight, total_weight,
+#     sampled_weight, num_sampled, group_num_sampled,
+#     prop_w_in_group, group_catch_weight,
+#     prop_n_in_group, est_count, est_num_unsampled_group_members, sample_multiplier
+#   ) %>%
+#   View()
+
+
+#
+# ds %>% select(fishing_event_id, year, length, sex, age, weight, specimen_id,
+#               survey_abbrev, wbar, cond_fac) %>% View()
+
+plot(weight ~ length, data = dd, col = "red")
+points(weight ~ length, data = ds)
+# add female maturity in green
+abline(v = m$mat_perc$f.p0.5, col = "green")
+abline(v = m$mat_perc$mean$f.mean.p0.5, col = "green")
+# add male maturity in blue
+abline(v = m$mat_perc$m.p0.5, col = "blue")
+abline(v = m$mat_perc$mean$m.mean.p0.5, col = "blue")
 
 hist(ds$sample_multiplier)
 plot(log(ds$sample_multiplier_by_weight) ~ log(ds$sample_multiplier))
