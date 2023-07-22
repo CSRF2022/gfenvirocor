@@ -19,11 +19,11 @@ add_covariates <- FALSE
 fig_height <- 4*2
 fig_width <- 5*2
 
-dens_model_name <- "-w-survey-factor-tw-15-km"
+dens_model_name2 <- "-w-survey-factor-tw-15-km"
 delta_dens_model <- FALSE
 
-# species_list <- c("Petrale Sole")
-species_list <- c("Canary Rockfish")
+species_list <- c("Petrale Sole")
+# species_list <- c("Canary Rockfish")
 spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species_list)))
 
 
@@ -49,7 +49,7 @@ if (!file.exists(f)) {
     mutate(survey_type = "SYN", year_true = year, year_density = year - 1, year = year_density) %>%
     filter(year > 2001) # can't predict prior to first year of density model
 
-  m <- readRDS(paste0("data-generated/density-models/", spp, "-m", dens_model_name, ".rds"))
+  m <- readRDS(paste0("data-generated/density-models/", spp, "-m", dens_model_name2, ".rds"))
 
   pd <- predict(m, newdata = nd)
 
@@ -76,34 +76,34 @@ if (!file.exists(f)) {
 }
 
 
-# load density predictions for full survey grid
-gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p", dens_model_name, ".rds")) %>%
-  select(year, X, Y, survey, depth, log_depth, density) %>%
-  mutate(
-    year_density = year,
-    year = year + 1,
-    density_lag1 = density,
-    log_density_lag1 = log(density)
-  ) %>%
-  select(-density) %>%
-  group_by(year) %>% mutate(mean_density_lag1 = mean(density_lag1),
-                            log_mean_density_lag1 = log(mean_density_lag1)) %>% ungroup()
+# # load density predictions for full survey grid if going to be used as covariates condition
+# gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p", dens_model_name2, ".rds")) %>%
+#   select(year, X, Y, survey, depth, log_depth, density) %>%
+#   mutate(
+#     year_density = year,
+#     year = year + 1,
+#     density_lag1 = density,
+#     log_density_lag1 = log(density)
+#   ) %>%
+#   select(-density) %>%
+#   group_by(year) %>% mutate(mean_density_lag1 = mean(density_lag1),
+#                             log_mean_density_lag1 = log(mean_density_lag1)) %>%
+#   ungroup() %>% mutate(dens_dev = log_density_lag1 - log_mean_density_lag1)
+#
+# mean_den <- select(gridA, year, mean_density_lag1, log_mean_density_lag1) %>% distinct()
 
-# get current year density to scale condition index with
-gridB <- readRDS(paste0("data-generated/density-predictions/", spp, "-p", dens_model_name, ".rds")) %>%
-  select(year, X, Y, survey, depth, log_depth, density) %>%
-  group_by(year) %>%
-  mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density))
 
-mean_den <- select(gridA, year, mean_density_lag1, log_mean_density_lag1) %>% distinct()
-
-grid <- left_join(gridA, gridB) %>%
-  filter(
-    # !(year == 2020) &
-    year <= 2022 & year >= 2003
-  )
-grid <- grid %>% mutate(dens_dev = log_density_lag1 - log_mean_density_lag1)
-
+# # get current year density to scale condition index with
+# gridB <- readRDS(paste0("data-generated/density-predictions/", spp, "-p", dens_model_name2, ".rds")) %>%
+#   select(year, X, Y, survey, depth, log_depth, density) %>%
+#   group_by(year) %>%
+#   mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density))
+#
+# grid <- left_join(gridA, gridB) %>%
+#   filter(
+#     # !(year == 2020) &
+#     year <= 2022 & year >= 2003
+#   )
 
 # estimate condition model
 
@@ -113,40 +113,88 @@ if (mat_class == "mat") {
     group_tag <- "mat-fem"
     group_label <- "mature females"
 
+    # get current year density to scale condition index with
+    gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p-mat-fem", dens_model_name2, ".rds")) %>%
+      select(year, X, Y, survey, depth, log_depth, density) %>%
+      group_by(year) %>%
+      mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density))
   } else {
     d <- d2 %>% filter(group_name %in% c("Mature females", "Mature males")) %>% left_join(mean_den)
     group_tag <- "mat"
     group_label <- "mature females and males"
+
+    # get current year density to scale condition index with
+    gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p-all-mat", dens_model_name2, ".rds")) %>%
+      select(year, X, Y, survey, depth, log_depth, density) %>%
+      group_by(year) %>%
+      mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density))
   }
 } else {
-  d <- d2 %>% filter(group_name %in% c("Immature")) %>% left_join(mean_den)
+  if(mat_class == "imm"){
+  d <- d2 %>% filter(group_name %in% c("Immature"))
   group_tag <- "imm"
   group_label <- "immatures"
+
+  # get current year density to scale condition index with
+  gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p-imm", dens_model_name2, ".rds")) %>%
+    select(year, X, Y, survey, depth, log_depth, density) %>%
+    group_by(year) %>%
+    mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density))
+  } else {
+
+  # model everything together
+  d <- d2 %>% left_join(mean_den)
+
+  # get current year density to scale condition index with
+  gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p-total", dens_model_name2, ".rds")) %>%
+    select(year, X, Y, survey, depth, log_depth, density) %>%
+    group_by(year) %>%
+    mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density))
+  }
+}
+
+if(add_covariates){
+  # load density predictions for full survey grid if going to be used as covariates condition
+  gridB <- readRDS(paste0("data-generated/density-predictions/", spp, "-p-total", dens_model_name2, ".rds")) %>%
+    select(year, X, Y, survey, depth, log_depth, density) %>%
+    mutate(
+      year_density = year,
+      year = year + 1,
+      density_lag1 = density,
+      log_density_lag1 = log(density)
+    ) %>%
+    select(-density) %>%
+    group_by(year) %>% mutate(mean_density_lag1 = mean(density_lag1),
+                              log_mean_density_lag1 = log(mean_density_lag1)) %>%
+    ungroup() %>% mutate(dens_dev = log_density_lag1 - log_mean_density_lag1)
+
+  mean_den <- select(gridA, year, mean_density_lag1, log_mean_density_lag1) %>% distinct()
+  d <- d %>% left_join(mean_den) %>%
+    mutate(dens_dev = log_density_lag1 - log_mean_density_lag1)
+
+  # see how current total biomass density correlates with last year's total biomass density
+  d$density <- d$total_weight / (d$area_swept / 10000)
+  hist(d$density)
+  hist(log(d$density))
+  hist(log(d$density_lag1))
+  d$log_density <- log(d$density)
+  d$log_mean_density_lag1 <- log(d$mean_density_lag1)
+  plot(d$log_density ~ d$log_density_lag1)
+
+  # TODO: I don't think density needs centering, but depth might?
+  hist(d$depth_m)
+  hist(log(d$depth_m))
+  hist((d$mean_density_lag1))
+  hist(log(d$mean_density_lag1))
+
+  hist((d$log_density))
+
+  # d$log_depth_c <- d$log_depth - log()
+  ## name this model version (knot distance added for file name later)
 }
 
     hist(d$cond_fac)
     hist(log(d$cond_fac))
-
-    # see how current total biomass density correlates with last year's total biomass density
-    d$density <- d$total_weight / (d$area_swept / 10000)
-    hist(d$density)
-    hist(log(d$density))
-    hist(log(d$density_lag1))
-    d$log_density <- log(d$density)
-    d$log_mean_density_lag1 <- log(d$mean_density_lag1)
-    plot(d$log_density ~ d$log_density_lag1)
-
-    # TODO: I don't think density needs centering, but depth might?
-    hist(d$depth_m)
-    hist(log(d$depth_m))
-    hist((d$mean_density_lag1))
-    hist(log(d$mean_density_lag1))
-
-    hist((d$log_density))
-
-    # d$log_depth_c <- d$log_depth - log()
-    ## name this model version (knot distance added for file name later)
-
 
     mesh <- make_mesh(d, c("X", "Y"), cutoff = knot_distance)
 
@@ -162,11 +210,9 @@ if (mat_class == "mat") {
       inlabru::gg(mesh$mesh) +
       coord_fixed() +
       geom_point(aes(X, Y, size = group_catch_weight), data = d2) +
-      geom_point(aes(X, Y, colour = log(cond_fac)),data = d) +
+      geom_point(aes(X, Y, colour = log(cond_fac)),size = 0.5, data = d) +
       facet_wrap(~year) +
       scale_color_gradient2()
-
-    d <- d %>% mutate(dens_dev = log_density_lag1 - log_mean_density_lag1)
 
     # start with just an intercept model
     model_name <- ""
@@ -174,7 +220,6 @@ if (mat_class == "mat") {
     mf <- paste0("data-generated/condition-models-", group_tag, "/", spp, "-c-", group_tag, model_name, "-", knot_distance, "-km.rds")
 
     if (!file.exists(mf)) {
-
 
       m1 <- sdmTMB(cond_fac ~ 1,
         weights = d$sample_multiplier,
@@ -252,6 +297,19 @@ if (mat_class == "mat") {
     m2$sd_report
     tidy(m2, "ran_pars", conf.int = TRUE)
     m <- m2
+    }
+
+
+    if(add_covariates){
+    grid <- left_join(gridA, gridB) %>% filter(
+        # !(year == 2020) &
+        year <= 2022 & year >= 2003
+      )
+    } else {
+      grid <- gridA %>% filter(
+          # !(year == 2020) &
+          year <= 2022 & year >= 2003
+        )
     }
 
     sort(unique(m$data$year))
