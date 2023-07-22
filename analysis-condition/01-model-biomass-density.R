@@ -20,8 +20,8 @@ mat_threshold <- 0.5
 # # just_females <- TRUE
 # # mat_class <- "mat"
 # mat_class <- "imm"
-fig_height <- 4*2
-fig_width <- 5*2
+fig_height <- 4 * 2
+fig_width <- 5 * 2
 
 # species_list <- c("Petrale Sole")
 species_list <- c("Canary Rockfish")
@@ -33,12 +33,13 @@ spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species_list)))
 # TODO: extract a new version of survey sets that includes data dropped from the grid
 # all_set_dat <- readRDS("data-raw/survey-sets-all-species.rds")
 
-dset <- readRDS("data-raw/survey-sets.rds")  %>% filter(species_common_name == tolower(species_list)) %>%
-  filter(!(sample_id == 285491)|is.na(sample_id)) %>% # filter one of the 2 sample ids associated with duplicated event
+dset <- readRDS("data-raw/survey-sets.rds") %>%
+  filter(species_common_name == tolower(species_list)) %>%
+  filter(!(sample_id == 285491) | is.na(sample_id)) %>% # filter one of the 2 sample ids associated with duplicated event
   # currently choosing the max series of years without a gap
   # MSA occurs in 2002 and 2003, and SYN QCS starts in 2003
   filter(survey_abbrev %in% c("HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI"))
-dsamp <- readRDS("data-raw/specimen-data.rds") %>% filter(species_common_name == tolower(species_list)) #%>% rename(trip_month = month)
+dsamp <- readRDS("data-raw/specimen-data.rds") %>% filter(species_common_name == tolower(species_list)) # %>% rename(trip_month = month)
 
 check_for_duplicates <- dset[duplicated(dset$fishing_event_id), ]
 
@@ -59,9 +60,11 @@ ds <- ds %>% filter(!is.na(depth_m))
 ds <- ds %>% filter(!is.na(area_swept))
 ds <- ds %>% filter(!is.na(latitude))
 ds <- ds %>% filter(!is.na(longitude))
-ds$offset = log(ds$area_swept / 100000)
+ds$offset <- log(ds$area_swept / 100000)
 
-ggplot(ds) + geom_histogram(aes(offset)) + facet_wrap(~year)
+ggplot(ds) +
+  geom_histogram(aes(offset)) +
+  facet_wrap(~year)
 
 ds$X <- NULL
 ds$Y <- NULL
@@ -81,7 +84,7 @@ range(grid$X)
 range(d$Y)
 range(grid$Y)
 
-dp <- d %>% filter(catch_weight>1)
+dp <- d %>% filter(catch_weight > 1)
 
 hist(log(dp$catch_weight))
 range(d$catch_weight)
@@ -99,7 +102,7 @@ mesh <- make_mesh(d1, c("X", "Y"), cutoff = knot_distance)
 ggplot() +
   inlabru::gg(mesh$mesh) +
   coord_fixed() +
-  geom_point(aes(X, Y, colour = catch_weight, size = catch_weight), data = filter(d1, catch_weight >0)) +
+  geom_point(aes(X, Y, colour = catch_weight, size = catch_weight), data = filter(d1, catch_weight > 0)) +
   facet_wrap(~year) +
   scale_color_viridis_c(trans = "fourth_root_power")
 
@@ -122,42 +125,42 @@ fm <- paste0("data-generated/density-models/", spp, "-total", dens_model_name, "
 if (!file.exists(fm)) {
   m <- sdmTMB(
     # list(
-      catch_weight ~ 1 + survey_type + poly(log_depth, 2),
-      # catch_weight ~ 1 + survey_type),
+    catch_weight ~ 1 + survey_type + poly(log_depth, 2),
+    # catch_weight ~ 1 + survey_type),
     # s(log_depth, k = 3),
-  offset = "offset",
-  mesh = mesh,
-  data = d1,
-  spatial = "on",
-  # spatial = list("on", "off"),
-  spatiotemporal = "rw",
-  # spatiotemporal = list("off", "rw"),
-  share_range = FALSE,
-  # share_range = list(FALSE, TRUE),
-  silent = FALSE,
-  time = "year",
-  # reml = TRUE,
-  # family = delta_gamma(),
-  # family = delta_lognormal(),
-  # family = delta_lognormal_mix(),
-  # family = delta_gamma_mix(),
-  family = tweedie(),
-  # control = sdmTMBcontrol(
-  #   start = list(logit_p_mix = qlogis(0.01)),
-  #   map = list(logit_p_mix = factor(NA)),
-  #   newton_loops = 0L
-  # ),
-  priors = sdmTMBpriors(
-    matern_s = pc_matern(range_gt = knot_distance * 1.5, sigma_lt = 2),
-    matern_st = pc_matern(range_gt = knot_distance * 1.5, sigma_lt = 2)
-  )
+    offset = "offset",
+    mesh = mesh,
+    data = d1,
+    spatial = "on",
+    # spatial = list("on", "off"),
+    spatiotemporal = "rw",
+    # spatiotemporal = list("off", "rw"),
+    share_range = FALSE,
+    # share_range = list(FALSE, TRUE),
+    silent = FALSE,
+    time = "year",
+    # reml = TRUE,
+    # family = delta_gamma(),
+    # family = delta_lognormal(),
+    # family = delta_lognormal_mix(),
+    # family = delta_gamma_mix(),
+    family = tweedie(),
+    # control = sdmTMBcontrol(
+    #   start = list(logit_p_mix = qlogis(0.01)),
+    #   map = list(logit_p_mix = factor(NA)),
+    #   newton_loops = 0L
+    # ),
+    priors = sdmTMBpriors(
+      matern_s = pc_matern(range_gt = knot_distance * 1.5, sigma_lt = 2),
+      matern_st = pc_matern(range_gt = knot_distance * 1.5, sigma_lt = 2)
+    )
   )
 
   s <- sanity(m)
-  if(!all(s)){
+  if (!all(s)) {
     m <- update(m, share_range = TRUE)
     s <- sanity(m)
-    if(!all(s)){
+    if (!all(s)) {
       m <- update(m, spatial = "off")
     }
   }
@@ -177,8 +180,7 @@ p <- predict(m, newdata = grid, return_tmb_object = TRUE)
 
 
 map_density <- function(dat, type, delta = delta_dens_model) {
-
-  if(delta) {
+  if (delta) {
     p1 <- dat$data %>% mutate(density = plogis(est1) * exp(est2))
   } else {
     p1 <- dat$data %>% mutate(density = exp(est))
@@ -197,28 +199,30 @@ map_density <- function(dat, type, delta = delta_dens_model) {
 
 map_density(p, "total") + labs(title = paste0(species_list, ": total biomass (", dens_model_name, ")"))
 ggsave(paste0("figs/density-map-", spp, "-total", dens_model_name, "-", knot_distance, "-km.png"),
-       height = fig_height, width = fig_width)
+  height = fig_height, width = fig_width
+)
 
 
 plot_index <- function(dat, type) {
-f <-  paste0("data-generated/density-index/", spp, "-p-", type, dens_model_name, "-", knot_distance, "-km.rds")
-if(!file.exists(f)){
-dir.create(paste0("data-generated/density-index/"), showWarnings = FALSE)
-ind <- get_index(dat, bias_correct = FALSE)
-saveRDS(ind, f)
-} else {
-  ind <- readRDS(f)
-}
-ggplot(ind, aes(year, est)) +
-  geom_line() +
-  geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.4) +
-  xlab("Year") +
-  ylab("Biomass estimate (kg)")
+  f <- paste0("data-generated/density-index/", spp, "-p-", type, dens_model_name, "-", knot_distance, "-km.rds")
+  if (!file.exists(f)) {
+    dir.create(paste0("data-generated/density-index/"), showWarnings = FALSE)
+    ind <- get_index(dat, bias_correct = FALSE)
+    saveRDS(ind, f)
+  } else {
+    ind <- readRDS(f)
+  }
+  ggplot(ind, aes(year, est)) +
+    geom_line() +
+    geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.4) +
+    xlab("Year") +
+    ylab("Biomass estimate (kg)")
 }
 
 plot_index(p, "total") + ggtitle(paste0(species_list, ": total biomass (", dens_model_name, ")"))
 ggsave(paste0("figs/density-index-", spp, "-total", dens_model_name, "-", knot_distance, "-km.png"),
-       height = fig_height/2, width = fig_width/2)
+  height = fig_height / 2, width = fig_width / 2
+)
 
 
 # # not working with offset
@@ -235,16 +239,16 @@ if (!file.exists(fmf)) {
 
   mf <- update(m, group_catch_est ~ 1 + survey_type + poly(log_depth, 2), mesh = mesh2, data = d2)
 
-s <- sanity(mf)
-if(!all(s)){
-  mf <- update(mf, share_range = TRUE)
   s <- sanity(mf)
-  if(!all(s)){
-    mf <- update(mf, spatial = "off")
+  if (!all(s)) {
+    mf <- update(mf, share_range = TRUE)
+    s <- sanity(mf)
+    if (!all(s)) {
+      mf <- update(mf, spatial = "off")
+    }
   }
-}
-sanity(mf)
-saveRDS(mf, fmf)
+  sanity(mf)
+  saveRDS(mf, fmf)
 } else {
   mf <- readRDS(fmf)
 }
@@ -256,27 +260,30 @@ pf <- predict(mf, newdata = filter(grid, year > 2001), return_tmb_object = TRUE)
 map_density(pf, "mat-fem") + labs(title = paste0(species_list, ": mature female biomass (", dens_model_name, ")"))
 
 ggsave(paste0("figs/density-map-", spp, "-mat-fem", dens_model_name, "-", knot_distance, "-km.png"),
-       height = fig_height, width = fig_width)
+  height = fig_height, width = fig_width
+)
 
 plot_index(pf, "mat-fem") + ggtitle(paste0(species_list, ": mature female biomass (", dens_model_name, ")"))
 ggsave(paste0("figs/density-index-", spp, "-mat-fem", dens_model_name, "-", knot_distance, "-km.png"),
-       height = fig_height/2, width = fig_width/2)
+  height = fig_height / 2, width = fig_width / 2
+)
 
 
 fmm <- paste0("data-generated/density-models/", spp, "-all-mat", dens_model_name, "-", knot_distance, "-km.rds")
 
 if (!file.exists(fmm)) {
-
-  d3 <- ds %>% filter(group_name %in% c("Mature males") & year > 2001) %>% select(fishing_event_id, group_catch_est_mm = group_catch_est)
+  d3 <- ds %>%
+    filter(group_name %in% c("Mature males") & year > 2001) %>%
+    select(fishing_event_id, group_catch_est_mm = group_catch_est)
   d3 <- left_join(d2, d3) %>% mutate(group_catch_est2 = group_catch_est + group_catch_est_mm)
 
   mm <- update(mf, group_catch_est2 ~ 1 + survey_type + poly(log_depth, 2), data = d3)
 
   s <- sanity(mm)
-  if(!all(s)){
+  if (!all(s)) {
     mm <- update(mm, share_range = TRUE)
     s <- sanity(mm)
-    if(!all(s)){
+    if (!all(s)) {
       mm <- update(mm, spatial = "off")
     }
   }
@@ -290,27 +297,30 @@ pm <- predict(mm, newdata = filter(grid, year > 2001), return_tmb_object = TRUE)
 map_density(pm, "all-mat") + labs(title = paste0(species_list, ": mature biomass (", dens_model_name, ")"))
 
 ggsave(paste0("figs/density-map-", spp, "-all-mat", dens_model_name, "-", knot_distance, "-km.png"),
-       height = fig_height, width = fig_width)
+  height = fig_height, width = fig_width
+)
 
 plot_index(pm, "all-mat") + ggtitle(paste0(species_list, ": mature biomass (", dens_model_name, ")"))
 ggsave(paste0("figs/density-index-", spp, "-all-mat", dens_model_name, "-", knot_distance, "-km.png"),
-       height = fig_height/2, width = fig_width/2)
+  height = fig_height / 2, width = fig_width / 2
+)
 
 
 
 fmi <- paste0("data-generated/density-models/", spp, "-imm", dens_model_name, "-", knot_distance, "-km.rds")
 
 if (!file.exists(fmi)) {
-
-  d4 <- ds %>% filter(group_name %in% c("Immature")) %>% filter(year > 2001)
+  d4 <- ds %>%
+    filter(group_name %in% c("Immature")) %>%
+    filter(year > 2001)
 
   mi <- update(mf, data = d4)
 
   s <- sanity(mi)
-  if(!all(s)){
+  if (!all(s)) {
     mi <- update(mi, share_range = TRUE)
     s <- sanity(mi)
-    if(!all(s)){
+    if (!all(s)) {
       mi <- update(mi, spatial = "off")
     }
   }
@@ -325,11 +335,13 @@ pi <- predict(mi, newdata = filter(grid, year > 2001), return_tmb_object = TRUE)
 map_density(pi, "imm") + labs(title = paste0(species_list, ": immature biomass (", dens_model_name, ")"))
 
 ggsave(paste0("figs/density-map-", spp, "-imm", dens_model_name, "-", knot_distance, "-km.png"),
-       height = fig_height, width = fig_width)
+  height = fig_height, width = fig_width
+)
 
 plot_index(pi, "all-mat") + ggtitle(paste0(species_list, ": immature biomass (", dens_model_name, ")"))
 ggsave(paste0("figs/density-index-", spp, "-imm", dens_model_name, "-", knot_distance, "-km.png"),
-       height = fig_height/2, width = fig_width/2)
+  height = fig_height / 2, width = fig_width / 2
+)
 
 
 
