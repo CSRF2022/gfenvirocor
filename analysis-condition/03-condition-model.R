@@ -6,10 +6,10 @@ devtools::load_all(".")
 
 theme_set(theme_sleek())
 
-just_females <- FALSE
-# just_females <- TRUE
-# mat_class <- "mat"
-mat_class <- "imm"
+# just_females <- FALSE
+just_females <- TRUE
+mat_class <- "mat"
+# mat_class <- "imm"
 mat_threshold <- 0.5
 # knot_distance <- 5
 # knot_distance <- 10
@@ -22,8 +22,8 @@ fig_width <- 5 * 2
 dens_model_name2 <- "-w-survey-factor-tw-15-km"
 delta_dens_model <- FALSE
 
-species_list <- c("Petrale Sole")
-# species_list <- c("Canary Rockfish")
+# species_list <- c("Petrale Sole")
+species_list <- c("Canary Rockfish")
 spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species_list)))
 
 
@@ -111,9 +111,7 @@ if (!file.exists(f)) {
 
 if (mat_class == "mat") {
   if (just_females) {
-    d <- d2 %>%
-      filter(group_name == "Mature females") %>%
-      left_join(mean_den)
+    d <- d2 %>% filter(group_name == "Mature females")
     group_tag <- "mat-fem"
     group_label <- "mature females"
 
@@ -123,9 +121,7 @@ if (mat_class == "mat") {
       group_by(year) %>%
       mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density))
   } else {
-    d <- d2 %>%
-      filter(group_name %in% c("Mature females", "Mature males")) %>%
-      left_join(mean_den)
+    d <- d2 %>% filter(group_name %in% c("Mature females", "Mature males"))
     group_tag <- "mat"
     group_label <- "mature females and males"
 
@@ -149,7 +145,7 @@ if (mat_class == "mat") {
   } else {
 
     # model everything together
-    d <- d2 %>% left_join(mean_den)
+    d <- d2
 
     # get current year density to scale condition index with
     gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p-total", dens_model_name2, ".rds")) %>%
@@ -347,7 +343,6 @@ ggplot(p2, aes(X, Y, colour = log(cond), fill = log(cond))) +
 ggsave(paste0("figs/condition-map-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.png"),
   height = fig_height, width = fig_width
 )
-
 
 ind2 <- get_index(pc, area = grid$prop_density, bias_correct = FALSE)
 

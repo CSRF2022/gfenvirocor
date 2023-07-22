@@ -23,8 +23,8 @@ mat_threshold <- 0.5
 fig_height <- 4*2
 fig_width <- 5*2
 
-species_list <- c("Petrale Sole")
-# species_list <- c("Canary Rockfish")
+# species_list <- c("Petrale Sole")
+species_list <- c("Canary Rockfish")
 
 spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species_list)))
 
