@@ -9,6 +9,18 @@ library(ggsidekick)
 
 theme_set(theme_sleek())
 
+species_list <- c(
+  #"Petrale Sole"
+  # "Canary Rockfish"
+  # "Arrowtooth Flounder"
+  # "North Pacific Spiny Dogfish"
+  "Pacific Cod"
+  )
+
+# species_list <- c("Petrale Sole")
+# species_list <- c("Canary Rockfish")
+
+
 delta_dens_model <- FALSE
 # knot_distance <- 5
 # knot_distance <- 12
@@ -23,27 +35,43 @@ mat_threshold <- 0.5
 fig_height <- 4 * 2
 fig_width <- 5 * 2
 
-# species_list <- c("Petrale Sole")
-species_list <- c("Canary Rockfish")
 
-spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species_list)))
 
-# species_list <- c("Canary Rockfish")
+
+i = 1
+# for(i in seq_along(species_list)){
+
+if(species_list[i]=="North Pacific Spiny Dogfish") {
+ custom_maturity <- c(NA, 55)
+} else{
+  custom_maturity <- NULL
+}
+
+spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species_list[i])))
+
+# spp
+# }
+
 
 # TODO: extract a new version of survey sets that includes data dropped from the grid
 # all_set_dat <- readRDS("data-raw/survey-sets-all-species.rds")
 
 dset <- readRDS("data-raw/survey-sets.rds") %>%
-  filter(species_common_name == tolower(species_list)) %>%
-  filter(!(sample_id == 285491) | is.na(sample_id)) %>% # filter one of the 2 sample ids associated with duplicated event
+  filter(species_common_name == tolower(species_list[i])) %>%
+  select(-sample_id) %>% # it seems multiple sample ids from the same set were frequently used when some fish were weighed and some not?
+  # filter(!(sample_id == 285491) | is.na(sample_id)) %>% # filter one of the 2 sample ids associated with duplicated event
   # currently choosing the max series of years without a gap
   # MSA occurs in 2002 and 2003, and SYN QCS starts in 2003
-  filter(survey_abbrev %in% c("HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI"))
-dsamp <- readRDS("data-raw/specimen-data.rds") %>% filter(species_common_name == tolower(species_list)) # %>% rename(trip_month = month)
+  filter(survey_abbrev %in% c("HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI")) %>%
+  distinct()
+check_for_duplicates <- dset[duplicated(dset$fishing_event_id), ] # shouldn't be any unless something other than sample_ids can cause them
 
-check_for_duplicates <- dset[duplicated(dset$fishing_event_id), ]
+dsamp <- readRDS("data-raw/specimen-data.rds") %>% filter(species_common_name == tolower(species_list[i])) # %>% rename(trip_month = month)
 
-dss <- split_catch_by_sex(dset, dsamp, immatures_pooled = TRUE, p_threshold = mat_threshold)
+
+dss <- split_catch_by_sex(dset, dsamp, immatures_pooled = TRUE,
+                          custom_maturity_at = custom_maturity,
+                          p_threshold = mat_threshold)
 
 ds <- dss$data %>%
   mutate(
@@ -88,14 +116,11 @@ dp <- d %>% filter(catch_weight > 1)
 
 hist(log(dp$catch_weight))
 range(d$catch_weight)
-#
+
 # # Keep only synoptic data
 # d <- filter(d, survey_type == "SYN")
 
-
 d1 <- d %>% filter(group_name == "Mature females")
-
-
 
 mesh <- make_mesh(d1, c("X", "Y"), cutoff = knot_distance)
 
@@ -156,6 +181,7 @@ if (!file.exists(fm)) {
     )
   )
 
+refine_model <- function(m){
   s <- sanity(m)
   if (!all(s)) {
     m <- update(m, share_range = TRUE)
@@ -165,7 +191,12 @@ if (!file.exists(fm)) {
     }
   }
   sanity(m)
-  saveRDS(m, fm)
+  return(m)
+}
+
+m <- refine_model(m)
+saveRDS(m, fm)
+
 } else {
   m <- readRDS(fm)
 }
@@ -197,7 +228,9 @@ map_density <- function(dat, type, delta = delta_dens_model) {
     labs(x = "", y = "")
 }
 
-map_density(p, "total") + labs(title = paste0(species_list, ": total biomass (", dens_model_name, ")"))
+map_density(p, "total") +
+  labs(title = paste0(species_list[i], ": total biomass (", dens_model_name, ")"))
+
 ggsave(paste0("figs/density-map-", spp, "-total", dens_model_name, "-", knot_distance, "-km.png"),
   height = fig_height, width = fig_width
 )
@@ -219,7 +252,8 @@ plot_index <- function(dat, type) {
     ylab("Biomass estimate (kg)")
 }
 
-plot_index(p, "total") + ggtitle(paste0(species_list, ": total biomass (", dens_model_name, ")"))
+plot_index(p, "total") + ggtitle(paste0(species_list[i], ": total biomass (", dens_model_name, ")"))
+
 ggsave(paste0("figs/density-index-", spp, "-total", dens_model_name, "-", knot_distance, "-km.png"),
   height = fig_height / 2, width = fig_width / 2
 )
@@ -230,81 +264,113 @@ ggsave(paste0("figs/density-index-", spp, "-total", dens_model_name, "-", knot_d
 #                                    range(d$log_depth)[1], ":", range(d$log_depth)[2], "by=0.05]"))
 # plot(g)
 
-
+## mature females
 fmf <- paste0("data-generated/density-models/", spp, "-mat-fem", dens_model_name, "-", knot_distance, "-km.rds")
 
 if (!file.exists(fmf)) {
   d2 <- d1 %>% filter(year > 2001)
   mesh2 <- make_mesh(d2, c("X", "Y"), cutoff = knot_distance)
 
-  mf <- update(m, group_catch_est ~ 1 + survey_type + poly(log_depth, 2), mesh = mesh2, data = d2)
+  mf <- update(m,
+               group_catch_est ~ 1 + survey_type + poly(log_depth, 2),
+               mesh = mesh2, data = d2)
 
-  s <- sanity(mf)
-  if (!all(s)) {
-    mf <- update(mf, share_range = TRUE)
-    s <- sanity(mf)
-    if (!all(s)) {
-      mf <- update(mf, spatial = "off")
-    }
-  }
-  sanity(mf)
+  mf <- refine_model(mf)
   saveRDS(mf, fmf)
+
 } else {
   mf <- readRDS(fmf)
 }
 
+# check that model updated properly
+sort(unique(m$data$year))
+sort(unique(mf$data$year))
 
 
 pf <- predict(mf, newdata = filter(grid, year > 2001), return_tmb_object = TRUE)
 
-map_density(pf, "mat-fem") + labs(title = paste0(species_list, ": mature female biomass (", dens_model_name, ")"))
+map_density(pf, "mat-fem") +
+  labs(title = paste0(species_list[i], ": mature female biomass (", dens_model_name, ")"))
 
 ggsave(paste0("figs/density-map-", spp, "-mat-fem", dens_model_name, "-", knot_distance, "-km.png"),
   height = fig_height, width = fig_width
 )
 
-plot_index(pf, "mat-fem") + ggtitle(paste0(species_list, ": mature female biomass (", dens_model_name, ")"))
+plot_index(pf, "mat-fem") +
+  ggtitle(paste0(species_list[i], ": mature female biomass (", dens_model_name, ")"))
 ggsave(paste0("figs/density-index-", spp, "-mat-fem", dens_model_name, "-", knot_distance, "-km.png"),
   height = fig_height / 2, width = fig_width / 2
 )
 
 
-fmm <- paste0("data-generated/density-models/", spp, "-all-mat", dens_model_name, "-", knot_distance, "-km.rds")
+## mature males
+fmm <- paste0("data-generated/density-models/", spp, "-mat-m", dens_model_name, "-", knot_distance, "-km.rds")
 
 if (!file.exists(fmm)) {
-  d3 <- ds %>%
-    filter(group_name %in% c("Mature males") & year > 2001) %>%
-    select(fishing_event_id, group_catch_est_mm = group_catch_est)
-  d3 <- left_join(d2, d3) %>% mutate(group_catch_est2 = group_catch_est + group_catch_est_mm)
 
-  mm <- update(mf, group_catch_est2 ~ 1 + survey_type + poly(log_depth, 2), data = d3)
 
-  s <- sanity(mm)
-  if (!all(s)) {
-    mm <- update(mm, share_range = TRUE)
-    s <- sanity(mm)
-    if (!all(s)) {
-      mm <- update(mm, spatial = "off")
-    }
-  }
-  sanity(mm)
+  d2b <- d %>% filter(group_name == "Mature males") %>% filter(year > 2001)
+
+  mm <- update(mf,
+               group_catch_est ~ 1 + survey_type + poly(log_depth, 2),
+               mesh = mesh2, data = d2b)
+
+  mm <- refine_model(mm)
   saveRDS(mm, fmm)
+
 } else {
   mm <- readRDS(fmm)
 }
+
+
 pm <- predict(mm, newdata = filter(grid, year > 2001), return_tmb_object = TRUE)
 
-map_density(pm, "all-mat") + labs(title = paste0(species_list, ": mature biomass (", dens_model_name, ")"))
+map_density(pm, "mat-m") +
+  labs(title = paste0(species_list[i], ": mature male biomass (", dens_model_name, ")"))
 
-ggsave(paste0("figs/density-map-", spp, "-all-mat", dens_model_name, "-", knot_distance, "-km.png"),
-  height = fig_height, width = fig_width
+ggsave(paste0("figs/density-map-", spp, "-mat-m", dens_model_name, "-", knot_distance, "-km.png"),
+       height = fig_height, width = fig_width
 )
 
-plot_index(pm, "all-mat") + ggtitle(paste0(species_list, ": mature biomass (", dens_model_name, ")"))
-ggsave(paste0("figs/density-index-", spp, "-all-mat", dens_model_name, "-", knot_distance, "-km.png"),
-  height = fig_height / 2, width = fig_width / 2
+plot_index(pm, "mat-m") +
+  ggtitle(paste0(species_list[i], ": mature male biomass (", dens_model_name, ")"))
+ggsave(paste0("figs/density-index-", spp, "-mat-m", dens_model_name, "-", knot_distance, "-km.png"),
+       height = fig_height / 2, width = fig_width / 2
 )
 
+
+# ## both mature males and females combined
+# fmm2 <- paste0("data-generated/density-models/", spp, "-all-mat", dens_model_name, "-", knot_distance, "-km.rds")
+#
+# if (!file.exists(fmm2)) {
+#   d3 <- ds %>%
+#     filter(group_name %in% c("Mature males") & year > 2001) %>%
+#     select(fishing_event_id, group_catch_est_mm = group_catch_est)
+#   d3 <- left_join(d2, d3) %>%
+#     mutate(group_catch_est2 = group_catch_est + group_catch_est_mm)
+#
+#   mm2 <- update(mf, group_catch_est2 ~ 1 + survey_type + poly(log_depth, 2), data = d3)
+#
+#   mm2 <- refine_model(mm2)
+#   saveRDS(mm2, fmm2)
+# } else {
+#   mm2 <- readRDS(fmm2)
+# }
+#
+# pm2 <- predict(mm2, newdata = filter(grid, year > 2001), return_tmb_object = TRUE)
+#
+# map_density(pm2, "all-mat") +
+#   labs(title = paste0(species_list[i], ": mature biomass (", dens_model_name, ")"))
+#
+# ggsave(paste0("figs/density-map-", spp, "-all-mat", dens_model_name, "-", knot_distance, "-km.png"),
+#   height = fig_height, width = fig_width
+# )
+#
+# plot_index(pm2, "all-mat") + ggtitle(paste0(species_list[i], ": mature biomass (", dens_model_name, ")"))
+# ggsave(paste0("figs/density-index-", spp, "-all-mat", dens_model_name, "-", knot_distance, "-km.png"),
+#   height = fig_height / 2, width = fig_width / 2
+# )
+#
 
 
 fmi <- paste0("data-generated/density-models/", spp, "-imm", dens_model_name, "-", knot_distance, "-km.rds")
@@ -314,17 +380,9 @@ if (!file.exists(fmi)) {
     filter(group_name %in% c("Immature")) %>%
     filter(year > 2001)
 
-  mi <- update(mf, data = d4)
+  mi <- update(mm, group_catch_est ~ 1 + survey_type + poly(log_depth, 2), data = d4)
 
-  s <- sanity(mi)
-  if (!all(s)) {
-    mi <- update(mi, share_range = TRUE)
-    s <- sanity(mi)
-    if (!all(s)) {
-      mi <- update(mi, spatial = "off")
-    }
-  }
-  sanity(mi)
+  mi <- refine_model(mi)
   saveRDS(mi, fmi)
 } else {
   mi <- readRDS(fmi)
@@ -332,19 +390,21 @@ if (!file.exists(fmi)) {
 
 pi <- predict(mi, newdata = filter(grid, year > 2001), return_tmb_object = TRUE)
 
-map_density(pi, "imm") + labs(title = paste0(species_list, ": immature biomass (", dens_model_name, ")"))
+map_density(pi, "imm") +
+  labs(title = paste0(species_list[i], ": immature biomass (", dens_model_name, ")"))
 
 ggsave(paste0("figs/density-map-", spp, "-imm", dens_model_name, "-", knot_distance, "-km.png"),
   height = fig_height, width = fig_width
 )
 
-plot_index(pi, "all-mat") + ggtitle(paste0(species_list, ": immature biomass (", dens_model_name, ")"))
+plot_index(pi, "imm") +
+  ggtitle(paste0(species_list[i], ": immature biomass (", dens_model_name, ")"))
 ggsave(paste0("figs/density-index-", spp, "-imm", dens_model_name, "-", knot_distance, "-km.png"),
   height = fig_height / 2, width = fig_width / 2
 )
 
 
-
+# }
 
 # dir.create(paste0("data-generated/density-depth-curves/"), showWarnings = FALSE)
 # saveRDS(g, paste0("data-generated/density-depth-curves/", spp, "-d", dens_model_name, ".rds"))
