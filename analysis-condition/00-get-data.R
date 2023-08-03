@@ -5,15 +5,9 @@ dir.create("data-raw", showWarnings = FALSE)
 
 
 # list of species of interest
-# species_common_name <- c("Petrale Sole")
-# species_list <- as.data.frame(species_common_name)
-
-species_list <- c("Petrale Sole", "Canary Rockfish")
-
-# species <- species_list[i]
-#
-# spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species)))
-# d <- readRDS(paste0(dr, spp, ".rds"))
+species_list <- c("Petrale Sole", "Canary Rockfish", "Arrowtooth Flounder",
+                  "North Pacific Spiny Dogfish",
+                  "Pacific Cod")
 
 
 if (Sys.info()[["user"]] == "dfomac") {
@@ -32,7 +26,7 @@ if (Sys.info()[["user"]] == "dfomac") {
   })
 
 
-  saveRDS(all_set_dat, file = "data-raw/survey-sets-all-species.rds")
+  # saveRDS(all_set_dat, file = "data-raw/survey-sets-all-species.rds")
 
   # subset to species of interest
   sets <- filter(all_set_dat, species_common_name %in% tolower(species_list))
@@ -43,7 +37,7 @@ if (Sys.info()[["user"]] == "dfomac") {
     cat(f[i], "\n")
     d <- readRDS(f[i])$survey_samples
   })
-  saveRDS(all_specimen_dat, file = "data-raw/specimen-data-all-species.rds")
+  # saveRDS(all_specimen_dat, file = "data-raw/specimen-data-all-species.rds")
 
   specimens <- filter(all_specimen_dat, species_common_name %in% tolower(species_list))
   saveRDS(specimens, file = "data-raw/specimen-data.rds")
@@ -55,15 +49,24 @@ if (Sys.info()[["user"]] == "dfomac") {
 
 all_set_dat <- readRDS("data-raw/survey-sets-all-species.rds")
 
+all_specimen_dat <- readRDS("data-raw/specimen-data-all-species.rds")
 ### investigate duplicated fishing event for petrale sole
-all_set_dat[all_set_dat$fishing_event_id == 886323, ] %>% View()
+id <- 886323
 
-event_samples_list <-  all_specimen_dat[all_specimen_dat$fishing_event_id == 886323, ] %>%
+### investigate duplicated fishing event for arrowtooth
+id <- 308793
+id <- 328882
+
+
+all_set_dat[all_set_dat$fishing_event_id == id, ] %>% View()
+
+
+event_samples_list <-  all_specimen_dat[all_specimen_dat$fishing_event_id == id, ] %>%
   group_by(sample_id, species_common_name) %>%
   summarise(sum_weight = sum(weight, na.rm = T)/1000,
             n = n())
 
-event_catch_list <-all_set_dat[all_set_dat$fishing_event_id == 886323, ] %>% filter(catch_weight >0)  %>%
+event_catch_list <-all_set_dat[all_set_dat$fishing_event_id == id, ] %>% filter(catch_weight >0)  %>%
   select(species_common_name, catch_weight, catch_count, density_kgpm2) %>% distinct()
 
 left_join(event_catch_list, event_samples_list)
