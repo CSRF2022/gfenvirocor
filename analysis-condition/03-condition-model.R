@@ -6,10 +6,28 @@ devtools::load_all(".")
 
 theme_set(theme_sleek())
 
-# just_females <- FALSE
-just_females <- TRUE
+
+species_list <- c(
+  #"Petrale Sole"
+  # "Canary Rockfish"
+  # "Arrowtooth Flounder"
+  "North Pacific Spiny Dogfish"
+  # "Pacific Cod"
+)
+
+
 mat_class <- "mat"
+## if mat_class == "mat" pick males, females, or both
+
+# just_males <- TRUE
+#
+just_males <- FALSE
+just_females <- TRUE
+#
 # mat_class <- "imm"
+# just_males <- just_females <- FALSE
+
+
 mat_threshold <- 0.5
 # knot_distance <- 5
 # knot_distance <- 10
@@ -22,8 +40,6 @@ fig_width <- 5 * 2
 dens_model_name2 <- "-w-survey-factor-tw-15-km"
 delta_dens_model <- FALSE
 
-# species_list <- c("Petrale Sole")
-species_list <- c("Canary Rockfish")
 spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species_list)))
 
 
@@ -40,16 +56,16 @@ if (!file.exists(f)) {
 
   ds$X <- NULL
   ds$Y <- NULL
-  d <- sdmTMB::add_utm_columns(ds, ll_names = c("longitude", "latitude"), utm_crs = 32609) %>%
+  ds2 <- sdmTMB::add_utm_columns(ds, ll_names = c("longitude", "latitude"), utm_crs = 32609) %>%
     filter(year > 2002) # can't predict prior to first year of density model
 
 
-  nd <- d %>%
+  nd <- ds2 %>%
     select(year, survey_abbrev, fishing_event_id, X, Y, log_depth) %>%
     mutate(survey_type = "SYN", year_true = year, year_density = year - 1, year = year_density) %>%
     filter(year > 2001) # can't predict prior to first year of density model
 
-  m <- readRDS(paste0("data-generated/density-models/", spp, "-m", dens_model_name2, ".rds"))
+  m <- readRDS(paste0("data-generated/density-models/", spp, "-total", dens_model_name2, ".rds"))
 
   pd <- predict(m, newdata = nd)
 
@@ -70,7 +86,7 @@ if (!file.exists(f)) {
     ) %>%
     distinct()
 
-  d2 <- left_join(d, pd2)
+  d2 <- left_join(ds2, pd2)
   dir.create(paste0("data-generated/condition-data-w-lag-density/"), showWarnings = FALSE)
   saveRDS(d2, f)
 } else {
@@ -110,6 +126,17 @@ if (!file.exists(f)) {
 # estimate condition model
 
 if (mat_class == "mat") {
+  if (just_males) {
+    d <- d2 %>% filter(group_name == "Mature males")
+    group_tag <- "mat-m"
+    group_label <- "mature males"
+
+    # get current year density to scale condition index with
+    gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p-mat-m", dens_model_name2, ".rds")) %>%
+      select(year, X, Y, survey, depth, log_depth, density) %>%
+      group_by(year) %>%
+      mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density))
+  } else {
   if (just_females) {
     d <- d2 %>% filter(group_name == "Mature females")
     group_tag <- "mat-fem"
@@ -121,15 +148,21 @@ if (mat_class == "mat") {
       group_by(year) %>%
       mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density))
   } else {
-    d <- d2 %>% filter(group_name %in% c("Mature females", "Mature males"))
+    d <- d2 %>% filter(group_name %in% c("Mature females", "Mature males")) %>%
+      rename(group_catch_weight_split = group_catch_weight)
+    d3 <- d %>% group_by(fishing_event_id, group_name) %>%
+      select(fishing_event_id, group_name, group_catch_weight_split) %>% distinct() %>% ungroup() %>%
+      group_by(fishing_event_id) %>% summarise(group_catch_weight = sum(group_catch_weight_split))
+    d <- left_join(d, d3)
     group_tag <- "mat"
-    group_label <- "mature females and males"
+    group_label <- "mature (females and males)"
 
     # get current year density to scale condition index with
     gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p-all-mat", dens_model_name2, ".rds")) %>%
       select(year, X, Y, survey, depth, log_depth, density) %>%
       group_by(year) %>%
       mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density))
+  }
   }
 } else {
   if (mat_class == "imm") {
@@ -221,13 +254,52 @@ ggplot() +
   facet_wrap(~year) +
   scale_color_gradient2()
 
-# start with just an intercept model
-model_name <- ""
 
-mf <- paste0("data-generated/condition-models-", group_tag, "/", spp, "-c-", group_tag, model_name, "-", knot_distance, "-km.rds")
+
+# start with just an intercept model
+model_name <- "-w-surveys"
+d %>% group_by(survey_group) %>% summarise(n = n())
+
+
+mf <- paste0("data-generated/condition-models-", group_tag, "/", spp, "-c-",
+             group_tag, model_name, "-", knot_distance, "-km.rds")
 
 if (!file.exists(mf)) {
-  m1 <- sdmTMB(cond_fac ~ 1,
+
+ # TODO: Add DOY with cyclic smoother?
+  # require(mgcv)
+  # set.seed(6)
+  # x <- sort(runif(200)*10)
+  # z <- runif(200)
+  # f <- sin(x*2*pi/10)+.5
+  # y <- rpois(exp(f),exp(f))
+  #
+  # ## finished simulating data, now fit model...
+  # b <- gam(y ~ s(x,bs="cc",k=12) + s(z),family=poisson,
+  #          knots=list(x=seq(0,10,length=12)))
+  # ## or more simply
+  # b <- gam(y ~ s(x,bs="cc",k=12) + s(z),family=poisson,
+  #          knots=list(x=c(0,10)))
+  #
+  # ## plot results...
+  # par(mfrow=c(2,2))
+  # plot(x,y);plot(b,select=1,shade=TRUE);lines(x,f-mean(f),col=2)
+  # plot(b,select=2,shade=TRUE);plot(fitted(b),residuals(b))
+
+
+
+  if(length(unique(d$survey_group))==1){
+    cond_formula <- cond_fac ~ 1
+    model_name <- ""
+    mf <- paste0("data-generated/condition-models-", group_tag, "/", spp, "-c-",
+                 group_tag, model_name, "-", knot_distance, "-km.rds")
+  } else {
+    cond_formula <- cond_fac ~ as.factor(survey_group)
+  }
+
+  sort(unique(d$year))
+
+  m1 <- sdmTMB(cond_formula,
     weights = d$sample_multiplier,
     mesh = mesh,
     data = d,
@@ -236,7 +308,7 @@ if (!file.exists(mf)) {
     # spatiotemporal = "off",
     # spatial_varying = ~ dens_dev,
     # spatial_varying = ~ log_mean_density_lag1,
-    extra_time = c(2020),
+    extra_time = c(2007, 2020),
     share_range = FALSE,
     silent = FALSE,
     time = "year",
@@ -250,17 +322,24 @@ if (!file.exists(mf)) {
     )
   )
 
-  s <- sanity(m1)
-  if (!all(s)) {
-    m1 <- update(m1, share_range = TRUE)
-    s <- sanity(m1)
+  refine_model <- function(m){
+    s <- sanity(m)
     if (!all(s)) {
-      m1 <- update(m1, spatial = "off")
+      m <- update(m, share_range = TRUE)
+      s <- sanity(m)
+      if (!all(s)) {
+        m <- update(m, spatial = "off")
+      }
     }
+    sanity(m)
+    return(m)
   }
-  sanity(m1)
+
+  m1 <- refine_model(m1)
+
   dir.create(paste0("data-generated/condition-models-", group_tag, "/"), showWarnings = FALSE)
   saveRDS(m1, mf)
+
 } else {
   # mf <- "data-generated/condition-models-mat-fem/petrale-sole-c-mat-fem-15-km.rds"
   m1 <- readRDS(mf)
@@ -318,8 +397,12 @@ if (add_covariates) {
   )
 }
 
+grid$survey_group <- "SYN"
+
 sort(unique(m$data$year))
 sort(unique(grid$year))
+
+grid <- filter(grid, year %in% unique(m$data$year))
 
 pc <- predict(m, newdata = grid, return_tmb_object = TRUE)
 
@@ -330,19 +413,93 @@ p2 <- pc$data %>%
 
 # filter to plot only cells representing 99% of mean predicted biomass
 # cells must be defined by "X", "Y", time by "year", and biomass/abundance stored as "density"
-p2 <- trim_predictions_by_year(p2, 0.01)
+p2 <- trim_predictions_by_year(p2, 0.001)
 
 
-ggplot(p2, aes(X, Y, colour = log(cond), fill = log(cond))) +
+ggplot(p2, aes(X, Y, colour = (cond), fill = (cond))) +
   geom_tile(width = 2, height = 2, alpha = 1) +
   facet_wrap(~year) +
-  scale_fill_gradient2() +
-  scale_colour_gradient2() +
+    scale_fill_viridis_c() +
+    scale_colour_viridis_c() +
+  # scale_fill_gradient2() +
+  # scale_colour_gradient2() +
   labs(title = paste0(species_list, ": ", group_label, " ", model_name), x = "", y = "")
+# ggsave(paste0("figs/condition-map-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.png"),
+#        height = fig_height, width = fig_width
+# )
 
+
+# # experiment with using gfplot function
+#
+# p2$cond <- exp(p2$est)
+# p2$bin <- NA
+# p2$pos <- NA
+# p2$akima_depth <- p2$depth
+#
+# dset <- readRDS("data-raw/survey-sets.rds") %>% filter(species_common_name == tolower(species_list)) %>%
+#   rename(set_month = month)
+# dset <- dset %>% mutate(lon = longitude, lat = latitude,
+#                         density = density_kgpm2,
+#                         present = ifelse(density > 0, 1, 0))
+# dset2 <- sdmTMB::add_utm_columns(dset, ll_names = c("longitude", "latitude"), utm_crs = 32609)
+
+# library(gfplot)
+# fit <- fit_survey_sets(dset,
+#                        years = 2015,
+#                        survey = "SYN QCS")
+# # names(fit)
+# plot_survey_sets(fit$predictions, fit$data, fill_column = "combined", rotation_angle = 40, show_raw_data = FALSE)
+
+dset <- readRDS("data-generated/set-data-used.rds") %>%
+  sdmTMB::add_utm_columns(., ll_names = c("longitude", "latitude"), utm_crs = 32609) %>%
+  filter(year > 2002)
+  # filter(year >= min(m$data$year))
+
+unique(dset$survey_abbrev)
+# all sets
+set_list <- dset %>% select(fishing_event_id, longitude, latitude, X, Y, year, catch_weight, catch_count) %>%
+  distinct() %>%
+  mutate(lon = longitude, lat = latitude)
+
+# # just sampled sets
+# set_list <- d2 %>% select(fishing_event_id, longitude, latitude, X, Y) %>% distinct() %>%
+#   mutate(lon = longitude, lat = latitude)
+
+model_dat <- d %>% group_by(fishing_event_id) %>% mutate(
+          count = n())
+
+model_dat <- left_join(set_list, model_dat, multiple = "all") %>% mutate(
+          density = group_catch_weight,
+          caught = ifelse(catch_count > 0 | catch_weight > 0, 1, 0),
+          count = ifelse(is.na(count), 0, count),
+          present = ifelse(count > 0, 1, ifelse(caught ==1, 0, NA_integer_)))
+
+# model_dat %>% group_by(present, caught) %>% summarise(n = n()) %>% View()
+p2$log_cond <- log(p2$cond)
+p2 <- p2 %>% mutate(cond_trim = ifelse(cond > 2, 2, cond))
+g <- plot_predictions(p2, model_dat, #extrapolate_depth = FALSE,
+                 # fill_column = "log_cond",
+                 fill_column = "cond_trim",
+                 fill_label = "Condition \nfactor",
+                 pt_column = "count",
+                 pt_label = "Fish \nsampled",
+                 pt_size_range = c(0.5, 2),
+                 pos_pt_fill = NA,
+                 bin_pt_col = "black",
+                 pos_pt_col = "red",
+                 # x_buffer = c(-0, 0),
+                 # y_buffer = c(-0, 0),
+                 fill_scale =
+                   ggplot2::scale_fill_viridis_c(trans = "log10"),
+                 rotation_angle = 30, show_raw_data = TRUE)
+
+g <- g + facet_wrap(~year, ncol = 10) + ggtitle(paste0(species_list, ": ", group_label, " ", model_name))
+
+#
 ggsave(paste0("figs/condition-map-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.png"),
-  height = fig_height, width = fig_width
+       height = fig_height*1.5, width = fig_width*1.5
 )
+
 
 ind2 <- get_index(pc, area = grid$prop_density, bias_correct = FALSE)
 
