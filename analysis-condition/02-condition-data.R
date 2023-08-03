@@ -11,45 +11,88 @@ mat_threshold <- 0.5
 # mat_threshold <- 0.95
 
 
-# species_list <- c("Petrale Sole")
-species_list <- c("Canary Rockfish")
+
+species_list <- c(
+  #"Petrale Sole"
+  # "Canary Rockfish"
+  # "Arrowtooth Flounder"
+  "North Pacific Spiny Dogfish"
+  # "Pacific Cod"
+)
 
 # TODO: there appear to be a lot of samples from sets that were ultimately deemed un-usable that might be retrieved if I can get an updated dataframe that includes those sets
+sable <- readRDS("data-raw/sablefish-w-loc.rds")
+mssm <- readRDS("data-raw/dogfish-sets-with-mssm.rds") %>%
+  filter(survey_abbrev %in% c("MSSM QCS", "MSSM WCVI"))
+dset <- readRDS("data-raw/survey-sets.rds") %>% select( -sample_id) %>%
+  bind_rows(sable) %>%
+  bind_rows(mssm) %>%
+  filter(species_common_name == tolower(species_list)) %>%
+  rename(set_month = month)
 
-dset <- readRDS("data-raw/survey-sets.rds") %>% filter(species_common_name == tolower(species_list)) %>% rename(set_month = month)
-dat1 <- readRDS("data-raw/specimen-data.rds") %>% filter(species_common_name == tolower(species_list)) %>% rename(trip_month = month)
+saveRDS(dset, "data-generated/set-data-used.rds")
 
-unique(dat1$usability_code)
+unique(dset$survey_abbrev)
+
+dat1 <- readRDS("data-raw/specimen-data.rds") %>%
+  filter(species_common_name == tolower(species_list)) %>%
+  mutate(survey_abbrev = ifelse(survey_abbrev %in% c("SABLE", "SABLE OFF",  "SABLE RAND"), "SABLE", survey_abbrev)) %>%
+  rename(trip_month = month)
+
+
+unique(dat1$survey_abbrev)
+
+# glimpse(dset)
+# dat1 %>% filter(!is.na(length) & !is.na(weight)) %>% group_by(survey_abbrev, year) %>% summarise(n=n()) %>% View()
 
 dat <- left_join(
   # dat1,
-  select(dat1,  -sample_id, -grouping_code,
+  select(dat1,
+         -grouping_code,
          # -month,
-         # -survey_series_desc,
-         # -survey_id,
-         # -major_stat_area_code, -minor_stat_area_code,
-         # -species_code, -species_science_name
+         -major_stat_area_code, -minor_stat_area_code,
          ),
   # select(dat1, species_common_name, fishing_event_id, year, length, sex, age, weight, usability_code, specimen_id),
-  dset,
+  select(dset, # this data is missing some survey data so we rely on the sample data frame for that and bind on event id and species
+         -survey_abbrev,
+         -survey_series_id,
+         -survey_series_desc,
+         -survey_id),
   multiple = "all"
-)
+) %>% filter(!(survey_abbrev %in% c("DOG", "SYN SOG", "HBLL INS N", "HBLL INS S"))
+             ) %>%
+  mutate(survey_group =
+           ifelse(survey_abbrev %in% c("HBLL OUT N", "HBLL OUT S"), "HBLL",
+            ifelse(survey_abbrev %in% c("SYN HS","SYN QCS","SYN WCHG","SYN WCVI"), "SYN",
+              ifelse(survey_abbrev %in% c("MSSM QCS", "MSSM WCVI"), "MSSM",
+                     survey_abbrev)
+            )
+           )
+         )
 
 
-# ### figure out why data sets weren't matching (month variable was problem so renamed above)
-# # select(dat, trip_start_date, trip_month, set_month, day, latitude, longitude) %>% distinct() %>% View()
-#
-# datf <- filter(dat, !is.na(length))
-# datf <- filter(datf, !is.na(weight) & year > 2002 & !(survey_abbrev %in% c("DOG", "SYN SOG", "HBLL INS N", "HBLL INS S", "MSSM QCS",  "MSSM WCVI" )))
-#
-# datf <- filter(datf, !is.na(survey_abbrev))
-# unique(datf$survey_abbrev)
-#
-# datf2 <- filter(datf, !is.na(longitude) )
-# (nrow(datf) -nrow(datf2))/nrow(datf)
-#
+### figure out why data sets weren't matching (month variable was problem so renamed above)
+# select(dat, trip_start_date, trip_month, set_month, day, latitude, longitude) %>% distinct() %>% View()
+
+datf <- filter(dat, !is.na(length))
+datf <- filter(datf, !is.na(weight) & year > 2002 & !(survey_abbrev %in% c(
+  # "MSSM QCS", "MSSM WCVI",
+  "OTHER",
+  # "SABLE", "SABLE OFF",  "SABLE RAND",
+  "DOG", "SYN SOG", "HBLL INS N", "HBLL INS S"
+  )))
+
+datf <- filter(datf, !is.na(survey_abbrev))
+unique(datf$survey_abbrev)
+
+datf2 <- filter(datf, !is.na(longitude) )
+unique(datf2$survey_abbrev)
+unique(datf2$survey_group)
+
+(nrow(datf) -nrow(datf2))/nrow(datf)
+
 # ## get count of sampled fish with missing set data
-# datf %>% filter (is.na(longitude)) %>%
+# datf %>% filter(is.na(longitude)) %>%
 #   ## add this line to get individual sets that are missing from get_survey_sets()
 #   # select(survey_abbrev, year, fishing_event_id) %>% distinct() %>%
 #   group_by(survey_abbrev, year) %>%
@@ -119,11 +162,13 @@ group_by(dd2, year) %>%
   ggplot(aes(year, mcond)) +
   geom_line()
 
-fish <- dd2 #%>% filter(!(year %in% c(2004, 2006)))
+fish <- dd2
+
+if(length(unique(fish$length_type))>1){stop("Stop. Two different length types.")}
 
 ggplot(
   filter(fish, !is.na(latitude) & !is.na(longitude)),
-  aes(longitude, latitude, colour = log(cond_fac))
+  aes(longitude, latitude, shape = survey_group, colour = log(cond_fac))
 ) +
   geom_point() +
   facet_wrap(~year) +
@@ -144,6 +189,14 @@ p_threshold <- mat_threshold
 split_by_maturity <- TRUE
 split_by_sex <- TRUE
 immatures_pooled <- TRUE
+
+
+
+if(species_list=="North Pacific Spiny Dogfish") {
+  custom_maturity <- c(NA, 55)
+} else{
+  custom_maturity <- NULL
+}
 
 
 # -----
@@ -209,7 +262,7 @@ if (split_by_maturity) {
       m <- fit_mat_ogive(fish,
         type = "length",
         sample_id_re = sample_id_re,
-        custom_maturity_at = custom_maturity_at
+        custom_maturity_at = custom_maturity
       )
 
       if (p_threshold == 0.5) {
@@ -236,8 +289,8 @@ if (split_by_maturity) {
       m <- fit_mat_ogive(fish,
         type = "length",
         sample_id_re = sample_id_re,
-        year_re = TRUE,
-        custom_maturity_at = custom_maturity_at
+        custom_maturity_at = custom_maturity,
+        year_re = TRUE
       )
       if (p_threshold == 0.5) {
         f_fish$threshold <- lapply(f_fish$year_f, function(x) m$mat_perc[[x]]$f.p0.5)
@@ -255,7 +308,7 @@ if (split_by_maturity) {
       m <- fit_mat_ogive(fish,
         type = "length",
         sample_id_re = sample_id_re,
-        custom_maturity_at = custom_maturity_at
+        custom_maturity_at = custom_maturity
       )
 
       # apply global estimates to all catches
@@ -347,8 +400,13 @@ ds <- fish_groups %>%
     sampled_weight = sum(weight, na.rm = T) / 1000,
     num_sampled = n(),
     mean_weight = mean(weight, na.rm = T) / 1000,
-    area_swept = ifelse(is.na(tow_length_m), doorspread_m * duration_min * speed_mpm, doorspread_m * tow_length_m),
-    total_weight = ifelse(catch_weight > sampled_weight, catch_weight, sampled_weight),
+    area_swept = ifelse(
+      is.na(tow_length_m), doorspread_m * duration_min * speed_mpm, doorspread_m * tow_length_m
+      ),
+    total_weight = ifelse(
+      catch_weight == 0 & catch_count > 0, catch_count * mean_weight,
+      ifelse(catch_weight > sampled_weight, catch_weight, sampled_weight)
+      ),
     est_count = round(total_weight / mean_weight),
     est_count = ifelse(num_sampled > est_count, num_sampled, est_count),
     # catch_weight = mean(catch_weight),
@@ -401,3 +459,4 @@ spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species_list)))
 
 dir.create(paste0("data-generated/condition-data/"), showWarnings = FALSE)
 saveRDS(ds, paste0("data-generated/condition-data/", spp, "-mat-", mat_threshold, "-condition.rds"))
+
