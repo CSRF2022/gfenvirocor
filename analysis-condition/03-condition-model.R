@@ -134,8 +134,11 @@ if (mat_class == "mat") {
     # get current year density to scale condition index with
     gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p-mat-m", dens_model_name2, ".rds")) %>%
       select(year, X, Y, survey, depth, log_depth, density) %>%
-      group_by(year) %>%
-      mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density))
+      group_by(year)  %>%
+      mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density)) %>%
+      ungroup() %>%
+      group_by(year, survey) %>%
+      mutate(survey_density = sum(density), prop_density_by_survey = density / survey_density)
   } else {
   if (just_females) {
     d <- d2 %>% filter(group_name == "Mature females")
