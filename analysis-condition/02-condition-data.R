@@ -16,80 +16,121 @@ species_list <- c(
   #"Petrale Sole"
   # "Canary Rockfish"
   # "Arrowtooth Flounder"
-  "North Pacific Spiny Dogfish"
-  # "Pacific Cod"
+  # "North Pacific Spiny Dogfish"
+  "Pacific Cod"
 )
+#
+# surveys_excluded <- c(
+#   "SABLE INLET", "SABLE OFF", "SABLE RAND", # all 3 of these are duplicated in SABLE
+#   "HBLL INS N", "HBLL INS S", "SYN SOG", "EUL N", "EUL S", "DOG", "DOG-C", "DOG-J",  # not using inside waters for now
+#   "OTHER"
+# )
+
+surveys_included <- c("HBLL OUT N",  "HBLL OUT S",  "IPHC FISS", "SABLE", # these will only have weights for certain species?
+                      "MSSM QCS", "MSSM WCVI",
+                      "HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI")
 
 # TODO: there appear to be a lot of samples from sets that were ultimately deemed un-usable that might be retrieved if I can get an updated dataframe that includes those sets
-sable <- readRDS("data-raw/sablefish-w-loc.rds")
-mssm <- readRDS("data-raw/dogfish-sets-with-mssm.rds") %>%
-  filter(survey_abbrev %in% c("MSSM QCS", "MSSM WCVI"))
-dset <- readRDS("data-raw/survey-sets.rds") %>% select( -sample_id) %>%
-  bind_rows(sable) %>%
-  bind_rows(mssm) %>%
-  filter(species_common_name == tolower(species_list)) %>%
-  rename(set_month = month)
+# sable <- readRDS("data-raw/sablefish-w-loc.rds")
+# mssm <- readRDS("data-raw/dogfish-sets-with-mssm.rds") %>%
+#   filter(survey_abbrev %in% c("MSSM QCS", "MSSM WCVI"))
+# dset <- readRDS("data-raw/survey-sets.rds") %>% select( -sample_id) %>%
+  # bind_rows(sable) %>%
+  # bind_rows(mssm) %>%
+#   filter(species_common_name == tolower(species_list)) %>%
+#   rename(set_month = month)
+#
+# saveRDS(dset, "data-generated/set-data-used.rds")
+#
+# dat1 <- readRDS("data-raw/specimen-data.rds") %>%
+#   filter(species_common_name == tolower(species_list)) %>%
+#   mutate(survey_abbrev = ifelse(survey_abbrev %in% c("SABLE", "SABLE OFF",  "SABLE RAND"), "SABLE", survey_abbrev)) %>%
+#   rename(trip_month = month)
+#
+# dat <- left_join(
+#   # dat1,
+#   select(dat1,
+#          -grouping_code,
+#          # -month,
+#          -major_stat_area_code, -minor_stat_area_code,
+#          ),
+#   # select(dat1, species_common_name, fishing_event_id, year, length, sex, age, weight, usability_code, specimen_id),
+#   select(dset, # this data is missing some survey data so we rely on the sample data frame for that and bind on event id and species
+#          -survey_abbrev,
+#          -survey_series_id,
+#          -survey_series_desc,
+#          -survey_id),
+#   multiple = "all"
+# ) %>% filter(!(survey_abbrev %in% c("DOG", "SYN SOG", "HBLL INS N", "HBLL INS S"))
+#              ) %>%
+#   mutate(survey_group =
+#            ifelse(survey_abbrev %in% c("HBLL OUT N", "HBLL OUT S"), "HBLL",
+#             ifelse(survey_abbrev %in% c("SYN HS","SYN QCS","SYN WCHG","SYN WCVI"), "SYN",
+#               ifelse(survey_abbrev %in% c("MSSM QCS", "MSSM WCVI"), "MSSM",
+#                      survey_abbrev)
+#             )
+#            )
+#          )
+#
 
+
+dat <- readRDS("data-raw/pcod-survey-samples-all.rds") %>%
+  filter(species_common_name == tolower(species_list)) %>%
+  filter((survey_abbrev %in% surveys_included)) %>%
+  mutate(survey_group =
+           ifelse(survey_abbrev %in% c("HBLL OUT N", "HBLL OUT S"), "HBLL",
+                  ifelse(survey_abbrev %in% c("SYN HS","SYN QCS","SYN WCHG","SYN WCVI"), "SYN",
+                         ifelse(survey_abbrev %in% c("MSSM QCS", "MSSM WCVI"), "MSSM",
+                                survey_abbrev)
+                  )
+           )
+  )
+# rename(trip_month = month)
+
+sort(unique(dset$survey_abbrev))
+sort(unique(dat$survey_abbrev))
+
+
+
+dset <- readRDS("data-raw/pcod-survey-sets-all.rds") %>%
+  filter(species_common_name == tolower(species_list))%>%
+  filter((survey_abbrev %in% surveys_included), !is.na(longitude), !is.na(latitude))
 saveRDS(dset, "data-generated/set-data-used.rds")
 
-unique(dset$survey_abbrev)
-
-dat1 <- readRDS("data-raw/specimen-data.rds") %>%
-  filter(species_common_name == tolower(species_list)) %>%
-  mutate(survey_abbrev = ifelse(survey_abbrev %in% c("SABLE", "SABLE OFF",  "SABLE RAND"), "SABLE", survey_abbrev)) %>%
-  rename(trip_month = month)
+sort(unique(dset$survey_abbrev))
+unique(select(dset, usability_code, usability_desc)) %>% view()
 
 
-unique(dat1$survey_abbrev)
 
+check_for_duplicates <- dset[duplicated(dset$fishing_event_id), ]
+check_for_duplicates <- dat[duplicated(dat$specimen_id), ]
 # glimpse(dset)
 # dat1 %>% filter(!is.na(length) & !is.na(weight)) %>% group_by(survey_abbrev, year) %>% summarise(n=n()) %>% View()
 
-dat <- left_join(
-  # dat1,
-  select(dat1,
-         -grouping_code,
-         # -month,
-         -major_stat_area_code, -minor_stat_area_code,
-         ),
-  # select(dat1, species_common_name, fishing_event_id, year, length, sex, age, weight, usability_code, specimen_id),
-  select(dset, # this data is missing some survey data so we rely on the sample data frame for that and bind on event id and species
-         -survey_abbrev,
-         -survey_series_id,
-         -survey_series_desc,
-         -survey_id),
-  multiple = "all"
-) %>% filter(!(survey_abbrev %in% c("DOG", "SYN SOG", "HBLL INS N", "HBLL INS S"))
-             ) %>%
-  mutate(survey_group =
-           ifelse(survey_abbrev %in% c("HBLL OUT N", "HBLL OUT S"), "HBLL",
-            ifelse(survey_abbrev %in% c("SYN HS","SYN QCS","SYN WCHG","SYN WCVI"), "SYN",
-              ifelse(survey_abbrev %in% c("MSSM QCS", "MSSM WCVI"), "MSSM",
-                     survey_abbrev)
-            )
-           )
-         )
+#TODO: temporary because false zeros were in an older data pull
+dat$catch_count <- ifelse(dat$catch_weight > 0 & dat$catch_count == 0, NA, dat$catch_count)
+dat$catch_weight <- ifelse(dat$catch_count > 0 & dat$catch_weight == 0, NA, dat$catch_weight)
+
+
 
 
 ### figure out why data sets weren't matching (month variable was problem so renamed above)
 # select(dat, trip_start_date, trip_month, set_month, day, latitude, longitude) %>% distinct() %>% View()
 
 datf <- filter(dat, !is.na(length))
-datf <- filter(datf, !is.na(weight) & year > 2002 & !(survey_abbrev %in% c(
-  # "MSSM QCS", "MSSM WCVI",
-  "OTHER",
-  # "SABLE", "SABLE OFF",  "SABLE RAND",
-  "DOG", "SYN SOG", "HBLL INS N", "HBLL INS S"
-  )))
+datf <- filter(datf, !is.na(weight))
+# datf <- filter(datf, year > 2002)
 
 datf <- filter(datf, !is.na(survey_abbrev))
 unique(datf$survey_abbrev)
+unique(dat$survey_abbrev)
 
-datf2 <- filter(datf, !is.na(longitude) )
-unique(datf2$survey_abbrev)
-unique(datf2$survey_group)
-
-(nrow(datf) -nrow(datf2))/nrow(datf)
+## missing event info is not an issue for the new datasets
+# datf2 <- filter(datf, !is.na(longitude) )
+# unique(datf2$survey_abbrev)
+# unique(datf2$survey_group)
+#
+# (nrow(datf) -nrow(datf2))/nrow(datf)
 
 # ## get count of sampled fish with missing set data
 # datf %>% filter(is.na(longitude)) %>%
@@ -400,11 +441,11 @@ ds <- fish_groups %>%
     sampled_weight = sum(weight, na.rm = T) / 1000,
     num_sampled = n(),
     mean_weight = mean(weight, na.rm = T) / 1000,
-    area_swept = ifelse(
-      is.na(tow_length_m), doorspread_m * duration_min * speed_mpm, doorspread_m * tow_length_m
-      ),
+    # area_swept = ifelse(
+    #   is.na(tow_length_m), doorspread_m * duration_min * speed_mpm, doorspread_m * tow_length_m
+    #   ),
     total_weight = ifelse(
-      catch_weight == 0 & catch_count > 0, catch_count * mean_weight,
+      is.na(catch_weight) & catch_count > 0, catch_count * mean_weight,
       ifelse(catch_weight > sampled_weight, catch_weight, sampled_weight)
       ),
     est_count = round(total_weight / mean_weight),

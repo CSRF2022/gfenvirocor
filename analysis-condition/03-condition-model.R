@@ -11,18 +11,18 @@ species_list <- c(
   #"Petrale Sole"
   # "Canary Rockfish"
   # "Arrowtooth Flounder"
-  "North Pacific Spiny Dogfish"
-  # "Pacific Cod"
+  # "North Pacific Spiny Dogfish"
+  "Pacific Cod"
 )
 
 
 mat_class <- "mat"
 ## if mat_class == "mat" pick males, females, or both
 
-# just_males <- TRUE
+just_males <- TRUE
 #
-just_males <- FALSE
-just_females <- TRUE
+# just_males <- FALSE
+# just_females <- TRUE
 #
 # mat_class <- "imm"
 # just_males <- just_females <- FALSE
@@ -161,7 +161,10 @@ if (mat_class == "mat") {
     gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p-all-mat", dens_model_name2, ".rds")) %>%
       select(year, X, Y, survey, depth, log_depth, density) %>%
       group_by(year) %>%
-      mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density))
+      mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density)) %>%
+      ungroup() %>%
+      group_by(year, survey) %>%
+      mutate(survey_density = sum(density), prop_density_by_survey = density / survey_density)
   }
   }
 } else {
@@ -174,7 +177,10 @@ if (mat_class == "mat") {
     gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p-imm", dens_model_name2, ".rds")) %>%
       select(year, X, Y, survey, depth, log_depth, density) %>%
       group_by(year) %>%
-      mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density))
+      mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density)) %>%
+      ungroup() %>%
+      group_by(year, survey) %>%
+      mutate(survey_density = sum(density), prop_density_by_survey = density / survey_density)
   } else {
 
     # model everything together
@@ -183,8 +189,11 @@ if (mat_class == "mat") {
     # get current year density to scale condition index with
     gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p-total", dens_model_name2, ".rds")) %>%
       select(year, X, Y, survey, depth, log_depth, density) %>%
-      group_by(year) %>%
-      mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density))
+      group_by(year)
+    mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density)) %>%
+      ungroup() %>%
+      group_by(year, survey) %>%
+      mutate(survey_density = sum(density), prop_density_by_survey = density / survey_density)
   }
 }
 
@@ -406,6 +415,9 @@ grid <- filter(grid, year %in% unique(m$data$year))
 
 pc <- predict(m, newdata = grid, return_tmb_object = TRUE)
 
+
+
+
 p2 <- pc$data %>%
   # filter(!(year == 2020)) %>%
   mutate(cond = exp(est))
@@ -476,21 +488,23 @@ model_dat <- left_join(set_list, model_dat, multiple = "all") %>% mutate(
 
 # model_dat %>% group_by(present, caught) %>% summarise(n = n()) %>% View()
 p2$log_cond <- log(p2$cond)
-p2 <- p2 %>% mutate(cond_trim = ifelse(cond > 2, 2, cond))
+p2 <- p2 %>% mutate(cond_trim = ifelse(cond > quantile(p2$cond, 0.99),
+                                       quantile(p2$cond, 0.99), cond))
 g <- plot_predictions(p2, model_dat, #extrapolate_depth = FALSE,
                  # fill_column = "log_cond",
                  fill_column = "cond_trim",
                  fill_label = "Condition \nfactor",
                  pt_column = "count",
                  pt_label = "Fish \nsampled",
-                 pt_size_range = c(0.5, 2),
+                 pt_size_range = c(0.5, 4),
                  pos_pt_fill = NA,
                  bin_pt_col = "black",
                  pos_pt_col = "red",
                  # x_buffer = c(-0, 0),
                  # y_buffer = c(-0, 0),
                  fill_scale =
-                   ggplot2::scale_fill_viridis_c(trans = "log10"),
+                   ggplot2::scale_fill_viridis_c(),
+                   # ggplot2::scale_fill_viridis_c(trans = "log10"),
                  rotation_angle = 30, show_raw_data = TRUE)
 
 g <- g + facet_wrap(~year, ncol = 10) + ggtitle(paste0(species_list, ": ", group_label, " ", model_name))
@@ -499,6 +513,7 @@ g <- g + facet_wrap(~year, ncol = 10) + ggtitle(paste0(species_list, ": ", group
 ggsave(paste0("figs/condition-map-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.png"),
        height = fig_height*1.5, width = fig_width*1.5
 )
+
 
 
 ind2 <- get_index(pc, area = grid$prop_density, bias_correct = FALSE)
@@ -513,6 +528,30 @@ ggplot(ind2, aes(year, est)) +
 ggsave(paste0("figs/condition-index-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.png"),
   height = fig_height / 2, width = fig_width / 2
 )
+
+
+preds <- grid %>%
+  split(.$survey) %>%
+  lapply(function(x) predict(m, newdata = x, return_tmb_object = TRUE))
+
+inds <- purrr::map_dfr(preds, function(.x)
+  get_index(.x, area = .x$data$prop_density_by_survey), .id = "region")
+
+
+ggplot(inds, aes(year, est, fill = region)) +
+  geom_line(aes(colour = region)) +
+  geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.1) +
+  xlab("Year") +
+  ylab("Predicted average condition factor") +
+  labs(title = paste0(species_list, ": ", group_label, " ", model_name))
+
+ggsave(paste0("figs/condition-index-", spp, "-split-", group_tag, model_name, "-", knot_distance, "-km.png"),
+       height = fig_height / 2, width = fig_width/1.5
+)
+
+
+#   map(get_index(., area = .$data$prop_density, bias_correct = FALSE)) %>%
+#   bind_rows(.id = "survey")
 
 
 # dir.create(paste0("data-generated/cond-predictions/"), showWarnings = FALSE)
