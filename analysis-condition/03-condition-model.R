@@ -19,10 +19,10 @@ species_list <- c(
 mat_class <- "mat"
 ## if mat_class == "mat" pick males, females, or both
 
-just_males <- TRUE
+# just_males <- TRUE
 #
-# just_males <- FALSE
-# just_females <- TRUE
+just_males <- FALSE
+just_females <- TRUE
 #
 # mat_class <- "imm"
 # just_males <- just_females <- FALSE
@@ -140,6 +140,7 @@ if (mat_class == "mat") {
       group_by(year, survey) %>%
       mutate(survey_density = sum(density), prop_density_by_survey = density / survey_density)
   } else {
+
   if (just_females) {
     d <- d2 %>% filter(group_name == "Mature females")
     group_tag <- "mat-fem"
@@ -149,7 +150,10 @@ if (mat_class == "mat") {
     gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p-mat-fem", dens_model_name2, ".rds")) %>%
       select(year, X, Y, survey, depth, log_depth, density) %>%
       group_by(year) %>%
-      mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density))
+      mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density)) %>%
+      ungroup() %>%
+      group_by(year, survey) %>%
+      mutate(survey_density = sum(density), prop_density_by_survey = density / survey_density)
   } else {
     d <- d2 %>% filter(group_name %in% c("Mature females", "Mature males")) %>%
       rename(group_catch_weight_split = group_catch_weight)
@@ -269,7 +273,7 @@ ggplot() +
 
 
 # start with just an intercept model
-model_name <- "-w-surveys"
+model_name <- "-all-surveys"
 d %>% group_by(survey_group) %>% summarise(n = n())
 
 
