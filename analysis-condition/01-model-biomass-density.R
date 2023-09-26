@@ -1,19 +1,20 @@
 # 1. Create a total biomass distribution model (to use for prediction grid)
 # 2. Create prediction grid with density and depth
 # TODO: get matching depth for use in models and on prediction grids?
-devtools::load_all()
-library(tidyverse)
 library(sdmTMB)
 library(gfplot)
 library(ggsidekick)
+library(tidyverse)
+devtools::load_all()
+
 options(scipen = 100, digits = 4)
 
 theme_set(theme_sleek())
 
 species_list <- c(
-  "Petrale Sole"
+  # "Petrale Sole"
   # "Canary Rockfish"
-  # "Arrowtooth Flounder"
+  "Arrowtooth Flounder"
   # "North Pacific Spiny Dogfish"
   # "Pacific Cod"
   )
@@ -55,11 +56,11 @@ i = 1
 
 # dens_model_name <- "-w-survey-factor-dg-doy-1-22-10min-xt"
 
-set_family <- delta_gamma()
-dens_model_name <- "-dg-doy-1-22-10min-xt-offset"
+# set_family <- delta_gamma()
+# dens_model_name <- "-dg-doy-1-22-10min-xt-offset"
 
-# set_family <- tweedie()
-# dens_model_name <- "-tw-doy-1-22-10min-xt-offset"
+set_family <- tweedie()
+dens_model_name <- "-tw-doy-1-22-10min-xt-offset"
 
 set_family2 <- tweedie()
 
@@ -79,13 +80,16 @@ if(length(set_family)== 6){
 if(species_list[i]=="North Pacific Spiny Dogfish") {
  custom_maturity_code <- c(NA, 55)
  custom_length_threshold <- NULL
- # # custom_length_threshold <- c(70.9, 86.2)
- set_family <- delta_lognormal_mix()
- set_family2 <- delta_lognormal()
+ # # # custom_length_threshold <- c(70.9, 86.2)
+ # set_family <- delta_lognormal_mix()
+ # set_family2 <- delta_lognormal()
+ set_family <- delta_gamma_mix()
+ set_family2 <- delta_gamma()
  # set_spatiotemporal <- list("rw", "off")
  # # dens_model_name <- "-w-survey-factor-tw-exp"
  # dens_model_name <- "-w-survey-factor-lnm-nosp-1-22-xt"
- dens_model_name <- "-lnm-doy-1-22-xt-offset"
+ # dens_model_name <- "-lnm-doy-1-22-xt-offset"
+ dens_model_name <- "-dgm-doy-1-22-xt-offset"
 } else{
   custom_maturity_code <- NULL
   custom_length_threshold <- NULL
@@ -332,7 +336,7 @@ saveRDS(m, fm)
 m
 m$sd_report
 tidy(m, "ran_pars", conf.int = TRUE, model = 1)
-tidy(m, "ran_pars", conf.int = TRUE, model = 2)
+try(tidy(m, "ran_pars", conf.int = TRUE, model = 2))
 
 m0 <- sdmTMB(
   catch_weight ~ 1,
@@ -643,7 +647,7 @@ p3 <- p3dat %>%
 
 if(length(unique(all_split_inds$model))>1){
   p3 <- p3 + geom_text(aes(label = model),
-      x = 2003, y = max(p3dat$upr)*0.9, size = 2.5, hjust = 0)
+      x = 2003, y = max(p3dat$est)*1.1, size = 2.5, hjust = 0)
   }
 
 library(patchwork)
