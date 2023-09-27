@@ -20,6 +20,12 @@ refine_delta_model <- function(m){
     m <- update(m, spatial = list("off", "off"))
     s <- sanity(m)
   }
+
+  if (!s$se_magnitude_ok|!s$se_na_ok|!s$sigmas_ok) {
+    m <- update(m, spatial = list("on", "off"), spatiotemporal = c("off", "rw"))
+    s <- sanity(m)
+  }
+
   if (!s$se_magnitude_ok|!s$se_na_ok) {
     m <- update(m,
                 spatial = "on",
