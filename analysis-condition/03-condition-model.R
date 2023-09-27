@@ -2,53 +2,77 @@
 library(tidyverse)
 library(sdmTMB)
 library(ggsidekick)
-devtools::load_all(".")
+library(gfenvirocor)
+# devtools::load_all(".")
+library(future)
 
-theme_set(theme_sleek())
-
+is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
+is_unix <- .Platform$OS.type == "unix"
+cores <- round(parallel::detectCores() / 2)
+(cores <- parallel::detectCores() - 6L)
+if (!is_rstudio && is_unix) plan(multicore, workers = cores) else plan(multisession, workers = cores)
 
 species_list <- c(
-  #"Petrale Sole"
-  # "Canary Rockfish"
-  # "Arrowtooth Flounder"
-  # "North Pacific Spiny Dogfish"
+  "Petrale Sole",
+  "Canary Rockfish",
+  "Arrowtooth Flounder",
+  "North Pacific Spiny Dogfish",
   "Pacific Cod"
 )
 
+index_list <- expand.grid(species = species_list, maturity = c("mat", "imm"), males = c(TRUE,FALSE)) %>%
+  mutate(females = ifelse(males == FALSE & maturity == "mat", TRUE, FALSE),
+         males = ifelse(maturity == "imm", FALSE, males)
+         ) %>% distinct()
 
-mat_class <- "mat"
-## if mat_class == "mat" pick males, females, or both
-just_males <- TRUE
+# index_list <- index_list[4:6,]
 
-# just_males <- FALSE
-# just_females <- TRUE
-# # #
+calc_condition_indices <- function(species, maturity, males, females) {
+
+theme_set(ggsidekick:::theme_sleek())
+
+  spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species)))
+
+mat_class <- maturity
+just_males <- males
+just_females <- females
+
+# browser()
+
+if(species=="North Pacific Spiny Dogfish") {
+
+# just_males <- TRUE
+# just_females <- FALSE
+# mat_class <- c("mat", "imm")
+#
+# for (i in seq_len(nrow(index_list))) {
+#   spp <- gsub(" ", "-", gsub("\\/", "-", tolower(index_list$species[i])))
+#
+#   mat_class <- index_list$maturity[i]
+#   just_males <- index_list$males[i]
+#   just_females <- index_list$females[i]
+#   if(index_list$species[i]=="North Pacific Spiny Dogfish") {
+  dens_model_name2 <- "-lnm-doy-1-22-xt-offset-15-km"
+  # dens_model_name2 <- "-dgm-doy-1-22-xt-offset-15-km"
+} else {
+  # dens_model_name2 <- "-w-survey-factor-tw-15-km"
+  dens_model_name2 <- "-dg-doy-1-22-10min-xt-offset-15-km"
+}
+
+# mat_class <- "mat"
 # mat_class <- "imm"
+# just_males <- TRUE
+# just_females <- TRUE
 # just_males <- just_females <- FALSE
-
-
+add_covariates <- FALSE
 mat_threshold <- 0.5
 # knot_distance <- 5
 # knot_distance <- 10
 knot_distance <- 15
 # knot_distance <- 20
-add_covariates <- FALSE
 fig_height <- 4 * 2
 fig_width <- 5 * 2
-
-i = 1
-if(species_list[i]=="North Pacific Spiny Dogfish") {
-  dens_model_name2 <- "-lnm-doy-1-22-xt-offset-15-km"
-  # dens_model_name2 <- "-dgm-doy-1-22-xt-offset-15-km"
-} else{
-  # dens_model_name2 <- "-w-survey-factor-tw-15-km"
-  dens_model_name2 <- "-dg-doy-1-22-10min-xt-offset-15-km"
-}
-
 delta_dens_model <- TRUE
-
-spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species_list)))
-
 
 # load condition data and attach lagged density estimates
 f <- paste0("data-generated/condition-data-w-lag-density/", spp, "-mat-", mat_threshold, "-condition-dens-doy.rds")
@@ -109,7 +133,6 @@ if (!file.exists(f)) {
 } else {
   d2 <- readRDS(f)
 }
-
 
 # # load density predictions for full survey grid if going to be used as covariates condition
 # gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p", dens_model_name2, ".rds")) %>%
@@ -277,7 +300,7 @@ ggplot() +
   geom_point(aes(X, Y, size = total_weight), data = d2) +
   geom_point(aes(X, Y, colour = group_catch_weight), data = d) +
   facet_wrap(~year) +
-  scale_color_viridis_c(trans = "fourth_root_power")
+  scale_color_viridis_c(trans = ggsidekick::fourth_root_power_trans())
 
 ggplot() +
   inlabru::gg(mesh$mesh) +
@@ -287,7 +310,7 @@ ggplot() +
   facet_wrap(~year) +
   scale_color_gradient2()
 
-
+browser()
 
 # start with just an intercept model
 model_name <- "-all-doy"
@@ -460,7 +483,7 @@ ggplot(p2, aes(X, Y, colour = (cond), fill = (cond))) +
     scale_colour_viridis_c() +
   # scale_fill_gradient2() +
   # scale_colour_gradient2() +
-  labs(title = paste0(species_list, ": ", group_label, " ", model_name), x = "", y = "")
+  labs(title = paste0(species, ": ", group_label, " ", model_name), x = "", y = "")
 # ggsave(paste0("figs/condition-map-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.png"),
 #        height = fig_height, width = fig_width
 # )
@@ -473,7 +496,7 @@ ggplot(p2, aes(X, Y, colour = (cond), fill = (cond))) +
 # p2$pos <- NA
 # p2$akima_depth <- p2$depth
 #
-# dset <- readRDS("data-raw/survey-sets.rds") %>% filter(species_common_name == tolower(species_list)) %>%
+# dset <- readRDS("data-raw/survey-sets.rds") %>% filter(species_common_name == tolower(species)) %>%
 #   rename(set_month = month)
 # dset <- dset %>% mutate(lon = longitude, lat = latitude,
 #                         density = density_kgpm2,
@@ -515,7 +538,7 @@ model_dat <- left_join(set_list, model_dat, multiple = "all") %>% mutate(
 p2$log_cond <- log(p2$cond)
 p2 <- p2 %>% mutate(cond_trim = ifelse(cond > quantile(p2$cond, 0.99),
                                        quantile(p2$cond, 0.99), cond))
-g <- plot_predictions(p2, model_dat, #extrapolate_depth = FALSE,
+g <- gfenvirocor::plot_predictions(p2, model_dat, #extrapolate_depth = FALSE,
                  # fill_column = "log_cond",
                  fill_column = "cond_trim",
                  fill_label = "Condition \nfactor",
@@ -532,36 +555,47 @@ g <- plot_predictions(p2, model_dat, #extrapolate_depth = FALSE,
                    # ggplot2::scale_fill_viridis_c(trans = "log10"),
                  rotation_angle = 30, show_raw_data = TRUE)
 
-g <- g + facet_wrap(~year, ncol = 10) + ggtitle(paste0(species_list, ": ", group_label, " ", model_name))
+g <- g + facet_wrap(~year, ncol = 10) + ggtitle(paste0(species, ": ", group_label, " ", model_name))
 
 #
 ggsave(paste0("figs/condition-map-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.png"),
        height = fig_height*1.5, width = fig_width*1.5
 )
 
+i1 <- paste0("data-generated/cond-index/cond-index-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.rds")
 
-ind2 <- get_index(pc, area = grid$prop_density, bias_correct = FALSE)
+if(!file.exists(i1)) {
+
+ind2 <- get_index(pc, area = grid$prop_density, bias_correct = TRUE)
+
+saveRDS(ind2, i1)
+} else {
+  ind2 <- readRDS(i1)
+}
 
 ggplot(ind2, aes(year, est)) +
   geom_line() +
   geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.4) +
   xlab("Year") +
   ylab("Predicted average condition factor") +
-  labs(title = paste0(species_list, ": ", group_label, " ", model_name))
+  labs(title = paste0(species, ": ", group_label, " ", model_name))
 
 ggsave(paste0("figs/condition-index-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.png"),
   height = fig_height / 2, width = fig_width / 2
 )
 
 
+i2 <- paste0("data-generated/cond-index/survey-cond-indices-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.rds")
+
+if(!file.exists(i2)) {
+
+## TODO: if we want to split by stock area, will need to edit grid first to add species specific stock areas
 preds <- grid %>%
   split(.$survey) %>%
   lapply(function(x) predict(m, newdata = x, return_tmb_object = TRUE))
 
 inds <- purrr::map_dfr(preds, function(.x)
-  get_index(.x, area = .x$data$prop_density_by_survey), .id = "region")
-
-
+  get_index(.x, area = .x$data$prop_density_by_survey, bias_correct = TRUE), .id = "region")
 
 survey_years <- m$data %>% select(survey_abbrev, year) %>% distinct() %>%
   mutate(region = ifelse(survey_abbrev == "HS MSA", "SYN HS",
@@ -569,16 +603,21 @@ survey_years <- m$data %>% select(survey_abbrev, year) %>% distinct() %>%
                                 ifelse(survey_abbrev == "MSSM WCVI", "SYN WCVI",
                                        survey_abbrev))))
 
-ind3 <-
-  left_join(survey_years, inds, multiple = "all") %>%
+ind3 <- left_join(survey_years, inds, multiple = "all") %>%
   filter(!is.na(est))
+
+saveRDS(ind3, i2)
+
+} else {
+ind3 <- readRDS(i2)
+}
 
 ggplot(ind3, aes(year, est, fill = region)) +
   geom_line(aes(colour = region)) +
   geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.1) +
   xlab("Year") +
   ylab("Predicted average condition factor") +
-  labs(title = paste0(species_list, ": ", group_label, " ", model_name))
+  labs(title = paste0(species, ": ", group_label, " ", model_name))
 
 ggsave(paste0("figs/condition-index-", spp, "-split-", group_tag, model_name, "-", knot_distance, "-km.png"),
        height = fig_height / 2, width = fig_width/1.5
@@ -622,8 +661,6 @@ ggsave(paste0("figs/condition-index-", spp, "-split-", group_tag, model_name, "-
 #   scale_colour_gradient2()
 #
 ## ggsave(paste0("figs/condition-epsilon-map-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.png"), height = fig_height, width = fig_width)
-
-
 
 if (add_covariates) {
   ggplot(p3, aes(X, Y, colour = (est_non_rf), fill = (est_non_rf))) +
@@ -748,3 +785,12 @@ if (add_covariates) {
   #
   # ggsave(paste0("figs/condition-zeta-map-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.png"), height = fig_height, width = fig_width)
 }
+}
+
+## test runs
+# pmap(index_list, calc_condition_indices)
+
+furrr::future_pmap(index_list, calc_condition_indices)
+
+
+

@@ -5,73 +5,34 @@
 library(tidyverse)
 library(gfplot)
 
+species <- c(
+  "Petrale Sole",
+  "Canary Rockfish",
+  "Arrowtooth Flounder",
+  "North Pacific Spiny Dogfish",
+  "Pacific Cod"
+)
+
+species_list <- list(species_list = species)
+
+get_condition_data <- function(species_list){
 
 # mat_threshold  <-  0.05
 mat_threshold <- 0.5
 # mat_threshold <- 0.95
 
-
-
-species_list <- c(
-  #"Petrale Sole"
-  # "Canary Rockfish"
-  # "Arrowtooth Flounder"
-  # "North Pacific Spiny Dogfish"
-  "Pacific Cod"
-)
-#
 # surveys_excluded <- c(
 #   "SABLE INLET", "SABLE OFF", "SABLE RAND", # all 3 of these are duplicated in SABLE
 #   "HBLL INS N", "HBLL INS S", "SYN SOG", "EUL N", "EUL S", "DOG", "DOG-C", "DOG-J",  # not using inside waters for now
 #   "OTHER"
 # )
 
-surveys_included <- c("HBLL OUT N",  "HBLL OUT S",  "IPHC FISS", "SABLE", # these will only have weights for certain species?
+surveys_included <- c("HBLL OUT N", "HBLL OUT S", "IPHC FISS", "SABLE", # only have weights for certain species?
                       "MSSM QCS", "MSSM WCVI",
                       "HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI")
 
-# TODO: there appear to be a lot of samples from sets that were ultimately deemed un-usable that might be retrieved if I can get an updated dataframe that includes those sets
-# sable <- readRDS("data-raw/sablefish-w-loc.rds")
-# mssm <- readRDS("data-raw/dogfish-sets-with-mssm.rds") %>%
-#   filter(survey_abbrev %in% c("MSSM QCS", "MSSM WCVI"))
-# dset <- readRDS("data-raw/survey-sets.rds") %>% select( -sample_id) %>%
-  # bind_rows(sable) %>%
-  # bind_rows(mssm) %>%
-#   filter(species_common_name == tolower(species_list)) %>%
-#   rename(set_month = month)
-#
-# saveRDS(dset, "data-generated/set-data-used.rds")
-#
-# dat1 <- readRDS("data-raw/specimen-data.rds") %>%
-#   filter(species_common_name == tolower(species_list)) %>%
-#   mutate(survey_abbrev = ifelse(survey_abbrev %in% c("SABLE", "SABLE OFF",  "SABLE RAND"), "SABLE", survey_abbrev)) %>%
-#   rename(trip_month = month)
-#
-# dat <- left_join(
-#   # dat1,
-#   select(dat1,
-#          -grouping_code,
-#          # -month,
-#          -major_stat_area_code, -minor_stat_area_code,
-#          ),
-#   # select(dat1, species_common_name, fishing_event_id, year, length, sex, age, weight, usability_code, specimen_id),
-#   select(dset, # this data is missing some survey data so we rely on the sample data frame for that and bind on event id and species
-#          -survey_abbrev,
-#          -survey_series_id,
-#          -survey_series_desc,
-#          -survey_id),
-#   multiple = "all"
-# ) %>% filter(!(survey_abbrev %in% c("DOG", "SYN SOG", "HBLL INS N", "HBLL INS S"))
-#              ) %>%
-#   mutate(survey_group =
-#            ifelse(survey_abbrev %in% c("HBLL OUT N", "HBLL OUT S"), "HBLL",
-#             ifelse(survey_abbrev %in% c("SYN HS","SYN QCS","SYN WCHG","SYN WCVI"), "SYN",
-#               ifelse(survey_abbrev %in% c("MSSM QCS", "MSSM WCVI"), "MSSM",
-#                      survey_abbrev)
-#             )
-#            )
-#          )
-#
+# browser()
+
 dat <- readRDS("data-raw/survey-samples-all.rds") %>%
 # dat <- readRDS("data-raw/pcod-survey-samples-all.rds") %>%
   filter(species_common_name == tolower(species_list)) %>%
@@ -86,9 +47,6 @@ dat <- readRDS("data-raw/survey-samples-all.rds") %>%
   ) %>% distinct()
 # rename(trip_month = month)
 
-sort(unique(dset$survey_abbrev))
-sort(unique(dat$survey_abbrev))
-
 
 dset <- readRDS("data-raw/survey-sets-all.rds") %>%
   filter(survey_abbrev != "SABLE OFF") %>%
@@ -98,9 +56,10 @@ dset <- readRDS("data-raw/survey-sets-all.rds") %>%
 
 saveRDS(dset, "data-generated/set-data-used.rds")
 
-sort(unique(dset$survey_abbrev))
-unique(select(dset, usability_code, usability_desc)) %>% view()
 
+sort(unique(dat$survey_abbrev))
+sort(unique(dset$survey_abbrev))
+# unique(select(dset, usability_code, usability_desc)) %>% view()
 
 check_for_duplicates <- dset[duplicated(dset$fishing_event_id), ]
 check_for_duplicates <- dat[duplicated(dat$specimen_id), ]
@@ -185,7 +144,7 @@ dd$cond_fac <- dd$weight / dd$wbar
 plot(cond_fac ~ length, data = dd)
 
 # remove extreme outliers from a sample where the scale or board were clearly calibrated wrong.
-dd2 <- filter(dd, cond_fac < 100)
+dd2 <- filter(dd, cond_fac < 10)
 plot(cond_fac ~ length, data = dd2)
 
 # remove the most extreme outliers that are likely errors
@@ -195,8 +154,6 @@ plot(cond_fac ~ length, data = dd2)
 # TODO: could trim lower, but looking more balance without trimming for petrale
 dd2 <- filter(dd2, cond_fac > quantile(dd$cond_fac, probs = 0.0025))
 plot(cond_fac ~ length, data = dd2)
-
-
 
 group_by(dd2, year) %>%
   summarise(mcond = mean(cond_fac)) %>%
@@ -232,7 +189,6 @@ split_by_sex <- TRUE
 immatures_pooled <- TRUE
 
 
-
 if(species_list=="North Pacific Spiny Dogfish") {
   custom_maturity <- c(NA, 55)
 } else{
@@ -242,9 +198,6 @@ if(species_list=="North Pacific Spiny Dogfish") {
 
 # -----
 # does maturity data exist at all for this species?
-
-
-
 
 if (split_by_maturity) {
   maturity_codes <- unique(fish$maturity_code)
@@ -500,4 +453,7 @@ spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species_list)))
 
 dir.create(paste0("data-generated/condition-data/"), showWarnings = FALSE)
 saveRDS(ds, paste0("data-generated/condition-data/", spp, "-mat-", mat_threshold, "-condition.rds"))
+}
+
+pmap(species_list, get_condition_data)
 
