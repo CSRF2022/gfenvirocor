@@ -15,17 +15,16 @@ species_list <- c(
   "Pacific Cod"
 )
 
-#
-# mat_class <- "mat"
-# ## if mat_class == "mat" pick males, females, or both
-#
-# just_males <- TRUE
-#
+
+mat_class <- "mat"
+## if mat_class == "mat" pick males, females, or both
+just_males <- TRUE
+
 # just_males <- FALSE
 # just_females <- TRUE
-# #
-mat_class <- "imm"
-just_males <- just_females <- FALSE
+# # #
+# mat_class <- "imm"
+# just_males <- just_females <- FALSE
 
 
 mat_threshold <- 0.5
@@ -37,8 +36,15 @@ add_covariates <- FALSE
 fig_height <- 4 * 2
 fig_width <- 5 * 2
 
-# dens_model_name2 <- "-w-survey-factor-tw-15-km"
-dens_model_name2 <- "-dg-doy-1-22-10min-xt-offset-15-km"
+i = 1
+if(species_list[i]=="North Pacific Spiny Dogfish") {
+  dens_model_name2 <- "-lnm-doy-1-22-xt-offset-15-km"
+  # dens_model_name2 <- "-dgm-doy-1-22-xt-offset-15-km"
+} else{
+  # dens_model_name2 <- "-w-survey-factor-tw-15-km"
+  dens_model_name2 <- "-dg-doy-1-22-10min-xt-offset-15-km"
+}
+
 delta_dens_model <- TRUE
 
 spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species_list)))
@@ -350,7 +356,7 @@ if (!file.exists(mf)) {
     )
   )
 
-  refine_model <- function(m){
+  refine_cond_model <- function(m){
     s <- sanity(m)
     t <- tidy(m, "ran_pars", conf.int = TRUE)
     if (!all(s) & abs(diff(t$estimate[t$term == "range"])) < knot_distance) {
@@ -365,7 +371,7 @@ if (!file.exists(mf)) {
     return(m)
   }
 
-  m1 <- refine_model(m1)
+  m1 <- refine_cond_model(m1)
 
   dir.create(paste0("data-generated/condition-models-", group_tag, "/"), showWarnings = FALSE)
   saveRDS(m1, mf)
@@ -534,7 +540,6 @@ ggsave(paste0("figs/condition-map-", spp, "-", group_tag, model_name, "-", knot_
 )
 
 
-
 ind2 <- get_index(pc, area = grid$prop_density, bias_correct = FALSE)
 
 ggplot(ind2, aes(year, est)) +
@@ -557,7 +562,18 @@ inds <- purrr::map_dfr(preds, function(.x)
   get_index(.x, area = .x$data$prop_density_by_survey), .id = "region")
 
 
-ggplot(inds, aes(year, est, fill = region)) +
+
+survey_years <- m$data %>% select(survey_abbrev, year) %>% distinct() %>%
+  mutate(region = ifelse(survey_abbrev == "HS MSA", "SYN HS",
+                         ifelse(survey_abbrev == "MSSM QCS", "SYN QCS",
+                                ifelse(survey_abbrev == "MSSM WCVI", "SYN WCVI",
+                                       survey_abbrev))))
+
+ind3 <-
+  left_join(survey_years, inds, multiple = "all") %>%
+  filter(!is.na(est))
+
+ggplot(ind3, aes(year, est, fill = region)) +
   geom_line(aes(colour = region)) +
   geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.1) +
   xlab("Year") +
