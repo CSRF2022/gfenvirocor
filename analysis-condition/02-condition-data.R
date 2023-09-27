@@ -72,9 +72,8 @@ surveys_included <- c("HBLL OUT N",  "HBLL OUT S",  "IPHC FISS", "SABLE", # thes
 #            )
 #          )
 #
-
-
-dat <- readRDS("data-raw/pcod-survey-samples-all.rds") %>%
+dat <- readRDS("data-raw/survey-samples-all.rds") %>%
+# dat <- readRDS("data-raw/pcod-survey-samples-all.rds") %>%
   filter(species_common_name == tolower(species_list)) %>%
   filter((survey_abbrev %in% surveys_included)) %>%
   mutate(survey_group =
@@ -84,22 +83,23 @@ dat <- readRDS("data-raw/pcod-survey-samples-all.rds") %>%
                                 survey_abbrev)
                   )
            )
-  )
+  ) %>% distinct()
 # rename(trip_month = month)
 
 sort(unique(dset$survey_abbrev))
 sort(unique(dat$survey_abbrev))
 
 
-
-dset <- readRDS("data-raw/pcod-survey-sets-all.rds") %>%
+dset <- readRDS("data-raw/survey-sets-all.rds") %>%
+  filter(survey_abbrev != "SABLE OFF") %>%
+# dset <- readRDS("data-raw/pcod-survey-sets-all.rds") %>%
   filter(species_common_name == tolower(species_list))%>%
   filter((survey_abbrev %in% surveys_included), !is.na(longitude), !is.na(latitude))
+
 saveRDS(dset, "data-generated/set-data-used.rds")
 
 sort(unique(dset$survey_abbrev))
 unique(select(dset, usability_code, usability_desc)) %>% view()
-
 
 
 check_for_duplicates <- dset[duplicated(dset$fishing_event_id), ]
@@ -185,7 +185,7 @@ dd$cond_fac <- dd$weight / dd$wbar
 plot(cond_fac ~ length, data = dd)
 
 # remove extreme outliers from a sample where the scale or board were clearly calibrated wrong.
-dd2 <- filter(dd, cond_fac < 1000)
+dd2 <- filter(dd, cond_fac < 100)
 plot(cond_fac ~ length, data = dd2)
 
 # remove the most extreme outliers that are likely errors

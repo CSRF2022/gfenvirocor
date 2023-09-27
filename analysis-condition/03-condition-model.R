@@ -15,17 +15,17 @@ species_list <- c(
   "Pacific Cod"
 )
 
-
-mat_class <- "mat"
-## if mat_class == "mat" pick males, females, or both
-
+#
+# mat_class <- "mat"
+# ## if mat_class == "mat" pick males, females, or both
+#
 # just_males <- TRUE
 #
-just_males <- FALSE
-just_females <- TRUE
-#
-# mat_class <- "imm"
-# just_males <- just_females <- FALSE
+# just_males <- FALSE
+# just_females <- TRUE
+# #
+mat_class <- "imm"
+just_males <- just_females <- FALSE
 
 
 mat_threshold <- 0.5
@@ -37,20 +37,26 @@ add_covariates <- FALSE
 fig_height <- 4 * 2
 fig_width <- 5 * 2
 
-dens_model_name2 <- "-w-survey-factor-tw-15-km"
-delta_dens_model <- FALSE
+# dens_model_name2 <- "-w-survey-factor-tw-15-km"
+dens_model_name2 <- "-dg-doy-1-22-10min-xt-offset-15-km"
+delta_dens_model <- TRUE
 
 spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species_list)))
 
 
 # load condition data and attach lagged density estimates
-f <- paste0("data-generated/condition-data-w-lag-density/", spp, "-mat-", mat_threshold, "-condition-density.rds")
+f <- paste0("data-generated/condition-data-w-lag-density/", spp, "-mat-", mat_threshold, "-condition-dens-doy.rds")
 
 if (!file.exists(f)) {
-  ds <- readRDS(paste0("data-generated/condition-data/", spp, "-mat-", mat_threshold, "-condition.rds")) %>% ungroup()
+  ds <- readRDS(paste0("data-generated/condition-data/", spp, "-mat-", mat_threshold, "-condition.rds")) %>% ungroup() %>%
+    mutate(
+      log_depth_c = log_depth - 5,
+      DOY = as.numeric(strftime(time_deployed, format = "%j")),
+      days_to_solstice = DOY - 172)
 
   # ds$year_smooth <- ds$year
   ds <- ds %>% filter(!is.na(depth_m))
+  ds <- ds %>% filter(!is.na(days_to_solstice))
   ds <- ds %>% filter(!is.na(latitude))
   ds <- ds %>% filter(!is.na(longitude))
 
@@ -62,7 +68,12 @@ if (!file.exists(f)) {
 
   nd <- ds2 %>%
     select(year, survey_abbrev, fishing_event_id, X, Y, log_depth) %>%
-    mutate(survey_type = "SYN", year_true = year, year_density = year - 1, year = year_density) %>%
+    mutate(survey_type = "SYN",
+           days_to_solstice = 0,
+           log_depth_c = log_depth - 5,
+           year_true = year,
+           year_density = year - 1,
+           year = year_density) %>%
     filter(year > 2001) # can't predict prior to first year of density model
 
   m <- readRDS(paste0("data-generated/density-models/", spp, "-total", dens_model_name2, ".rds"))
@@ -133,7 +144,7 @@ if (mat_class == "mat") {
 
     # get current year density to scale condition index with
     gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p-mat-m", dens_model_name2, ".rds")) %>%
-      select(year, X, Y, survey, depth, log_depth, density) %>%
+      select(year, X, Y, survey, depth, days_to_solstice, log_depth, density) %>%
       group_by(year)  %>%
       mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density)) %>%
       ungroup() %>%
@@ -148,7 +159,7 @@ if (mat_class == "mat") {
 
     # get current year density to scale condition index with
     gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p-mat-fem", dens_model_name2, ".rds")) %>%
-      select(year, X, Y, survey, depth, log_depth, density) %>%
+      select(year, X, Y, survey, depth, days_to_solstice, log_depth, density) %>%
       group_by(year) %>%
       mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density)) %>%
       ungroup() %>%
@@ -166,7 +177,7 @@ if (mat_class == "mat") {
 
     # get current year density to scale condition index with
     gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p-all-mat", dens_model_name2, ".rds")) %>%
-      select(year, X, Y, survey, depth, log_depth, density) %>%
+      select(year, X, Y, survey, depth, days_to_solstice, log_depth, density) %>%
       group_by(year) %>%
       mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density)) %>%
       ungroup() %>%
@@ -182,7 +193,7 @@ if (mat_class == "mat") {
 
     # get current year density to scale condition index with
     gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p-imm", dens_model_name2, ".rds")) %>%
-      select(year, X, Y, survey, depth, log_depth, density) %>%
+      select(year, X, Y, survey, depth, days_to_solstice, log_depth, density) %>%
       group_by(year) %>%
       mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density)) %>%
       ungroup() %>%
@@ -195,7 +206,7 @@ if (mat_class == "mat") {
 
     # get current year density to scale condition index with
     gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p-total", dens_model_name2, ".rds")) %>%
-      select(year, X, Y, survey, depth, log_depth, density) %>%
+      select(year, X, Y, survey, depth, days_to_solstice, log_depth, density) %>%
       group_by(year)
     mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density)) %>%
       ungroup() %>%
@@ -207,7 +218,7 @@ if (mat_class == "mat") {
 if (add_covariates) {
   # load density predictions for full survey grid if going to be used as covariates condition
   gridB <- readRDS(paste0("data-generated/density-predictions/", spp, "-p-total", dens_model_name2, ".rds")) %>%
-    select(year, X, Y, survey, depth, log_depth, density) %>%
+    select(year, X, Y, survey, depth, days_to_solstice, log_depth, density) %>%
     mutate(
       year_density = year,
       year = year + 1,
@@ -273,7 +284,7 @@ ggplot() +
 
 
 # start with just an intercept model
-model_name <- "-all-surveys"
+model_name <- "-all-doy"
 d %>% group_by(survey_group) %>% summarise(n = n())
 
 
@@ -305,12 +316,13 @@ if (!file.exists(mf)) {
 
 
   if(length(unique(d$survey_group))==1){
-    cond_formula <- cond_fac ~ 1
-    model_name <- ""
+    cond_formula <- cond_fac ~ 1 + poly(days_to_solstice, 2)
+    model_name <- "-doy"
     mf <- paste0("data-generated/condition-models-", group_tag, "/", spp, "-c-",
                  group_tag, model_name, "-", knot_distance, "-km.rds")
   } else {
-    cond_formula <- cond_fac ~ as.factor(survey_group)
+    cond_formula <- cond_fac ~ as.factor(survey_group) +
+      poly(days_to_solstice, 2)
   }
 
   sort(unique(d$year))
@@ -340,12 +352,14 @@ if (!file.exists(mf)) {
 
   refine_model <- function(m){
     s <- sanity(m)
-    if (!all(s)) {
+    t <- tidy(m, "ran_pars", conf.int = TRUE)
+    if (!all(s) & abs(diff(t$estimate[t$term == "range"])) < knot_distance) {
       m <- update(m, share_range = TRUE)
       s <- sanity(m)
-      if (!all(s)) {
+      t <- tidy(m, "ran_pars", conf.int = TRUE)
+    }
+    if (!all(s) & t$estimate[t$term == "sigma_O"] < 0.001) {
         m <- update(m, spatial = "off")
-      }
     }
     sanity(m)
     return(m)
@@ -421,8 +435,6 @@ sort(unique(grid$year))
 grid <- filter(grid, year %in% unique(m$data$year))
 
 pc <- predict(m, newdata = grid, return_tmb_object = TRUE)
-
-
 
 
 p2 <- pc$data %>%
