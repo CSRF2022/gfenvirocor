@@ -1,13 +1,33 @@
 # compile dataset from gfsynopsis cache
 # could also be downloaded directly with gfdata
+
 library(tidyverse)
 dir.create("data-raw", showWarnings = FALSE)
 
 
-# list of species of interest
-species_list <- c("Petrale Sole", "Canary Rockfish", "Arrowtooth Flounder",
-                  "North Pacific Spiny Dogfish",
-                  "Pacific Cod")
+# # list of species of interest
+# species_list <- c("Petrale Sole", "Canary Rockfish", "Arrowtooth Flounder",
+#                   "North Pacific Spiny Dogfish",
+#                   "Pacific Cod")
+
+species_list <- c(
+  "Petrale Sole", #
+  "Arrowtooth Flounder",#
+  "English Sole",#
+  "Dover Sole",#
+  "Flathead Sole",#
+  "Southern Rock Sole",#
+  "Rex Sole", #
+  "Curlfin Sole",#
+  "Sand Sole",#
+  "Slender Sole",#
+  "Pacific Sanddab",#
+  "Pacific Halibut",#
+  "Butter Sole",#
+  "Starry Flounder",#
+  "C-O Sole", #
+  "Deepsea Sole" #
+)
 
 
 if (Sys.info()[["user"]] == "dfomac") {
