@@ -1,72 +1,100 @@
 # 1. Create a total biomass distribution model (to use for prediction grid)
 # 2. Create prediction grid with density and depth
 # TODO: get matching depth for use in models and on prediction grids?
+
+# devtools::load_all()
+library(future)
+library(tidyverse)
+
+options(scipen = 100, digits = 4)
+
 library(sdmTMB)
 library(gfplot)
 library(ggsidekick)
 library(tidyverse)
-devtools::load_all()
+library(gfenvirocor)
 
-options(scipen = 100, digits = 4)
+is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
+is_unix <- .Platform$OS.type == "unix"
+cores <- round(parallel::detectCores() / 2)
+(cores <- parallel::detectCores() - 6L)
+if (!is_rstudio && is_unix) plan(multicore, workers = cores) else plan(multisession, workers = cores)
+
+# species_list <- list(
+#   # "Petrale Sole", #
+#   # "Arrowtooth Flounder"#
+#   # "English Sole",#
+#   # "Dover Sole",#
+#   # "Flathead Sole",#
+#   # "Southern Rock Sole",#
+#   # "Rex Sole", #
+#   "Curlfin Sole",#
+#   # "Sand Sole",#
+#   # "Slender Sole",#
+#   # "Pacific Sanddab",#
+#   # "Pacific Halibut",#
+#   # "Butter Sole",#
+#   "Starry Flounder"#
+#   # #"C-O Sole", # way too few!
+#   # "Deepsea Sole" # no maturity
+# )
+# species_list <- list(species = species_list)
+#
+species <- "Curlfin Sole"
+set_spatial <- list("on", "off")
+
+# species <- "Petrale Sole"
+
+##### function for running species in parallel --------
+fit_all_distribution_models <- function(species) {
+#
+# options(scipen = 100, digits = 4)
+#
+# library(sdmTMB)
+# library(gfplot)
+# library(ggsidekick)
+# library(tidyverse)
+# library(gfenvirocor)
 
 theme_set(theme_sleek())
-
-species_list <- c(
-  # "Petrale Sole"
-  # "Canary Rockfish"
-  "Arrowtooth Flounder"
-  # "North Pacific Spiny Dogfish"
-  # "Pacific Cod"
-  )
-
-
-
-# knot_distance <- 5
-# knot_distance <- 12
-knot_distance <- 15
-# knot_distance <- 20
-
 mat_threshold <- 0.5
+knot_distance <- 15
+set_family <- delta_gamma()
+# dens_model_name <- "-dg-doy-1-22-10min-xt-offset"
+# dens_model_name <- "-dg-all-yrs-mssm-1-22-10min-xt-offset"
+dens_model_name <- "-dg-mssm-1-22-10min-xt-offset"
+# set_family <- tweedie()
+# dens_model_name <- "-tw-doy-1-22-10min-xt-offset"
+dens_model_name_long <- "survey type, depth, and DOY"
+
+
+# species <- "Petrale Sole"
+
 
 fig_height <- 4 * 2
 fig_width <- 5 * 2
 
 extra_years <- c(1985, 1986, 1988, 1990,
-                 1992, 1994, 1997, 1999, 2001)
-
-surveys_included <- c("HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI")
-
-dens_model_name_long <- "survey type, depth, and DOY"
-
-i = 1
-# for(i in seq_along(species_list)){
-
+                 1992, 1994, 1997, 1999, 2001, 2020)
 # extra_years <- NULL
-# dens_model_name <- "-w-survey-factor-tw-1-22"
-# # try adding vessel captain combo
-# dens_model_name <- "-w-survey-factor-tw-1-22-10min-vcc"
-# # try just vessel # didn't converge for petrale
-# dens_model_name <- "-w-survey-factor-tw-1-22-10min-v"
 
-# dens_model_name <- "-w-survey-factor-tw-1-22-10min-xt-vcc"
-# dens_model_name <- "-w-survey-factor-tw-1-22-10min-xt-vc"
-# dens_model_name <- "-w-survey-factor-tw-1-22-10min-xt-c"
-# dens_model_name <- "-w-survey-factor-dg-1-22-10min-xt-c"
-# dens_model_name <- "-w-survey-factor-tw-1-22-10min-xt-i"
-
-# dens_model_name <- "-w-survey-factor-dg-doy-1-22-10min-xt"
-
-# set_family <- delta_gamma()
-# dens_model_name <- "-dg-doy-1-22-10min-xt-offset"
-
-set_family <- tweedie()
-dens_model_name <- "-tw-doy-1-22-10min-xt-offset"
+surveys_included <- c("HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI", "MSSM QCS", "MSSM WCVI", "OTHER")
+# TODO: might need to change this for some species?
 
 set_family2 <- tweedie()
 
-# # try just vessel # didn't converge for petrale
-# dens_model_name <- "-w-survey-factor-tw-1-22-10min-xt-v"
 
+## NOTES on old model configs
+# 10 min refers to min cutoff for tow length
+# xt means extra time was provided
+# vcc = vessel-captian-combo
+# vc = vessel and captain separately, didn't converge
+# v = only vessel, didn't converge
+# i = set level intercept
+# dens_model_name <- "-w-survey-factor-tw-1-22-10min-xt-vcc"
+# dens_model_name <- "-w-survey-factor-tw-1-22-10min-xt-vc"
+# dens_model_name <- "-w-survey-factor-tw-1-22-10min-xt-c"
+# dens_model_name <- "-w-survey-factor-tw-1-22-10min-xt-i"
 
 if(length(set_family)== 6){
   set_spatial <- "on"
@@ -77,7 +105,7 @@ if(length(set_family)== 6){
 }
 
 
-if(species_list[i]=="North Pacific Spiny Dogfish") {
+if(species == "North Pacific Spiny Dogfish") {
  custom_maturity_code <- c(NA, 55)
  custom_length_threshold <- NULL
  # # # custom_length_threshold <- c(70.9, 86.2)
@@ -95,39 +123,65 @@ if(species_list[i]=="North Pacific Spiny Dogfish") {
   custom_length_threshold <- NULL
 }
 
-spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species_list[i])))
+spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species)))
 
-# TODO: extract a new version of survey sets that includes data dropped from the grid
-# all_set_dat <- readRDS("data-raw/survey-sets-all-species.rds")
-
-dset <- readRDS("data-raw/survey-sets-all.rds") %>%
-  filter(species_common_name == tolower(species_list[i])) %>%
-  # select(-sample_id) %>% # it seems multiple sample ids from the same set were frequently used when some fish were weighed and some not?
-  # filter(!(sample_id == 285491) | is.na(sample_id)) %>% # filter one of the 2 sample ids associated with duplicated event
-  # currently choosing the max series of years without a gap
-  # MSA occurs in 2002 and 2003, and SYN QCS starts in 2003
-  filter(survey_abbrev %in% surveys_included) %>%
+# dset <- readRDS("data-raw/survey-sets-all.rds") %>%
+dset1 <- readRDS("data-raw/survey-sets-flatfish.rds") %>%
+  filter(
+    survey_abbrev != "SABLE",
+  !(survey_series_id == 6 & latitude < 50), # some MSSM sets are in both as QCS and WCVI
+  !(survey_series_id == 7 & latitude > 50), # some MSSM sets are in both as QCS and WCVI
+  !(survey_abbrev == "OTHER" & !(survey_series_id %in% c(9, 11))), # 11 useful for deeper species, 9 from 1996 probably too limited
+  species_common_name == tolower(species)
+  ) %>%
+  mutate(survey_abbrev = ifelse(survey_abbrev == "MSSM" & latitude < 50, "MSSM WCVI",
+                                ifelse(survey_abbrev == "MSSM" & latitude > 50, "MSSM QCS", survey_abbrev))) %>%
   distinct()
 
-check_for_duplicates <- dset[duplicated(dset$fishing_event_id), ] # shouldn't be any unless something other than sample_ids can cause them
+dsum <- dset1 %>% filter(catch_weight > 0) %>%
+  # filter(survey_abbrev == "OTHER") %>%
+  group_by(survey_abbrev, survey_series_desc, survey_series_id) %>%
+  summarise(
+    sum = sum(catch_weight, na.rm = T),
+    count = sum(catch_count, na.rm = T),
+    n = n(),
+    min_year = min(year), max_year = max(year)
+    )
+# write.csv(dsum, "all-surveys.csv")
 
-dsamp <- readRDS("data-raw/survey-samples-all.rds") %>%
-  filter(survey_abbrev != "SABLE OFF") %>%
-  filter(species_common_name == tolower(species_list[i])) %>% distinct()
+# dset1 %>% filter(year == 1999) %>% View() # one unusable set has wrong year
+#
+# dset1 %>% filter(survey_series_id %in% c(1, 2, 3, 4, 6, 7, 9, 11,16)) %>%
+#   filter(usability_code %in% c(1, 22, 16, 6)) %>% ggplot() +
+#   facet_wrap(~year) +
+#   geom_point(aes(longitude, latitude, colour = as.factor(survey_series_id)), alpha = 0.1)
+
+# dsamp <- readRDS("data-raw/survey-samples-all.rds") %>%
+dsamp <- readRDS("data-raw/survey-samples-flatfish.rds") %>%
+  filter(survey_abbrev != "SABLE") %>%
+  filter(species_common_name == tolower(species)) %>% distinct()
 ## check against original function call
 # dsamp1 <- readRDS("data-raw/survey-samples-all-original.rds") %>%
 #   filter(survey_abbrev != "SABLE OFF") %>%
-#   filter(species_common_name == tolower(species_list[i])) %>% distinct()
+#   filter(species_common_name == tolower(species)) %>% distinct()
 
-# note that month in this data frame is inaccurate because it is derived from the start of the trip not the true sample date
+dset <- dset1 %>% filter(survey_abbrev %in% surveys_included) %>%
+  # keep those surveys with this species + all synoptic surveys
+  filter(survey_abbrev %in% dsum$survey_abbrev|survey_abbrev %in% c("SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI"))
 
-unique(dsamp$survey_abbrev)
+check_for_duplicates <- dset[duplicated(dset$fishing_event_id), ]
+# I'm not using sample is so shouldn't be any unless something else can cause this
+# test_event <- dset[ dset$fishing_event_id == 329270, ]
 
-unique(dsamp$maturity_code)
+
+
+# unique(dset$survey_abbrev)
+# unique(dsamp$survey_abbrev)
+# unique(dsamp$maturity_code)
 
 # dsamp2 <- filter(dsamp, survey_abbrev == "SYN WCVI")
 
-dss <- split_catch_by_sex(dset, dsamp,
+dss <- gfplot::split_catch_by_sex(dset, dsamp,
                           survey = surveys_included,
                           immatures_pooled = TRUE,
                           custom_maturity_at = custom_maturity_code,
@@ -164,9 +218,15 @@ ds <- dss$data %>% left_join(meandoors) %>%
     doorspread_m = ifelse(doorspread_m == 0, mean_doorspread, doorspread_m),
     log_depth = log(depth_m),
     log_depth_c = log_depth - 5, # mean and median for whole data set
-    survey_type = as.factor(ifelse(survey_abbrev == "HS MSA", "MSA", "SYN")),
+    survey_type = as.factor(ifelse(survey_abbrev == "HS MSA", "MSA",
+                            ifelse(survey_abbrev %in% c("MSSM WCVI", "MSSM QCS") & year > 2002 & year <= 2005, "MSSM 2003-05",
+                                   ifelse(survey_abbrev %in% c("MSSM WCVI", "MSSM QCS") & year > 2005, "MSSM post-2005",
+                                   ifelse(survey_abbrev %in% c("MSSM WCVI", "MSSM QCS") & year <= 2002, "MSSM pre-2003",
+                            ifelse(survey_abbrev == "OTHER", "OTHER", "SYN")))))),
     area_swept = ifelse(is.na(tow_length_m), doorspread_m * duration_min * speed_mpm, doorspread_m * tow_length_m)
-  ) #%>% filter(area_swept > 0)
+  ) %>%
+  # filter(area_swept > 0) %>%
+  filter(year > 1983) # too slow to fit using only MSSM from 1975 to 1983
 
 
 ds <- ds %>% filter(!is.na(catch_weight))
@@ -193,8 +253,7 @@ ds %>% filter(group_name == "Mature females") %>% distinct() %>%
 # ggsave("figs/all-usabilities-petrale.png", width = 17, height = 3.5)
 
 unique(ds$survey_abbrev)
-unique(ds$vessel_cap_combo)
-
+unique(ds$survey_type)
 sort(unique(ds$year))
 # ds %>% select(survey_abbrev, year,
 #               vessel_id, captain_id, vessel_cap_combo) %>% distinct() %>% View()
@@ -244,6 +303,7 @@ grid <- replicate_df(gfplot::synoptic_grid, time_name = "year",
 
 # check that my data and grid are on the same XY scale
 range(grid$year)
+range(d$year)
 range(d$X)
 range(grid$X)
 range(d$Y)
@@ -281,8 +341,7 @@ mesh$mesh$n
 # dens_model_name <- "-w-survey-factor-1range-dgm-tvyr"
 # dens_model_name <- "-w-survey-factor-1range-sigma2off"
 
-
-
+#browser()
 dir.create(paste0("data-generated/density-models/"), showWarnings = FALSE)
 fm <- paste0("data-generated/density-models/", spp, "-total", dens_model_name, "-", knot_distance, "-km.rds")
 
@@ -321,7 +380,9 @@ if (!file.exists(fm)) {
     )
   )
 
-if(length(set_family) == 6) {
+  saveRDS(m, fm)
+
+if(length(m$family) == 6) {
   m <- refine_delta_model(m)
 } else {
   m <- refine_model(m)
@@ -331,7 +392,20 @@ saveRDS(m, fm)
 
 } else {
   m <- readRDS(fm)
+
+  # browser()
+  if(!all(sanity(m))) {
+  if(length(m$family) == 6) {
+    m <- refine_delta_model(m)
+  } else {
+    m <- refine_model(m)
+  }
+    saveRDS(m, fm)
+  }
 }
+
+
+# browser()
 
 m
 m$sd_report
@@ -348,15 +422,21 @@ m0 <- sdmTMB(
   family = m$family
 )
 
-de <- 1 - (logLik(m)/logLik(m0))
-de[1]
+# de <- 1 - (logLik(m)/logLik(m0))
+# de[1]
+
+grid <- filter(grid, year %in% c(sort(unique(m$data$year))))
 
 p <- predict(m, re_form_iid = NA, newdata = grid, return_tmb_object = TRUE)
 
+pfn <- paste0("data-generated/density-predictions/", spp, "-p-", "total",
+              dens_model_name, "-", knot_distance, "-km.rds")
 
-map_density(p, "total", col_trans = "log10") +
-  labs(title = paste0(species_list[i], ": total biomass (", dens_model_name, ")"),
-       subtitle = paste0("Deviance explained:", round(de[1], 2)))
+map_density(p, pfn#, col_trans = "log10"
+                         ) +
+  labs(title = paste0(species, ": total biomass (", dens_model_name, ")"),
+       # subtitle = paste0("Deviance explained:", round(de[1], 2))
+       )
 
 ggsave(paste0("figs/density-map-", spp, "-total", dens_model_name, "-",
               knot_distance, "-km.png"),
@@ -371,10 +451,8 @@ ggsave(paste0("figs/density-map-", spp, "-total", dens_model_name, "-",
 
 ## mature females
 fmf <- paste0("data-generated/density-models/", spp, "-mat-fem", dens_model_name, "-", knot_distance, "-km.rds")
-d2 <- d1 %>% filter(year > 2001)
+d2 <- d1 %>% filter(year > 2001) %>% filter(!is.na(group_catch_est))
 mesh2 <- make_mesh(d2, c("X", "Y"), cutoff = knot_distance)
-
-grid2 <- grid %>% filter(year > 2001)
 
 
 if (!file.exists(fmf)) {
@@ -389,10 +467,9 @@ if (!file.exists(fmf)) {
                spatiotemporal = as.list(m[["spatiotemporal"]]),
                time = "year",
                family = m$family,
-               extra_time = NULL,
+               extra_time = c(2020),
                silent = FALSE,
                mesh = mesh2, data = d2)
-
   # mf <- update(m,
   #              group_catch_est ~ 1 + survey_type + poly(log_depth, 2), #+
   #              # # (1|captain),
@@ -404,27 +481,38 @@ if (!file.exists(fmf)) {
   #              extra_time = NULL,
   #              # silent = FALSE,
   #              mesh = mesh2, data = d2)
-
-  if (length(mf$family) == 6) {
-    mf <- refine_delta_model(mf)
-  } else {
-    mf <- refine_model(mf)
-  }
-
   saveRDS(mf, fmf)
-
+  if (length(mf$family) == 6) {
+    mf <- gfenvirocor::refine_delta_model(mf)
+  } else {
+    mf <- gfenvirocor::refine_model(mf)
+  }
+  saveRDS(mf, fmf)
 } else {
   mf <- readRDS(fmf)
+  if(!all(sanity(mf))) {
+  if (length(mf$family) == 6) {
+    mf <- gfenvirocor::refine_delta_model(mf)
+  } else {
+    mf <- gfenvirocor::refine_model(mf)
+  }
+  saveRDS(mf, fmf)
+  }
 }
 
 # check that model updated properly
 sort(unique(m$data$year))
 sort(unique(mf$data$year))
 
-pf <- predict(mf, re_form_iid = NA, newdata =filter(grid, year > 2001), return_tmb_object = TRUE)
+# pf <- predict(mf, re_form_iid = NA, newdata = filter(grid, year > 2001), return_tmb_object = TRUE)
 
-map_density(pf, "mat-fem") +
-  labs(title = paste0(species_list[i], ": mature female biomass (", dens_model_name, ")"))
+pf <- predict(mf, re_form_iid = NA, newdata = filter(grid, year %in% c(sort(unique(mf$data$year)))), return_tmb_object = TRUE)
+
+pmfn <- paste0("data-generated/density-predictions/", spp, "-p-", "mat-fem",
+               dens_model_name, "-", knot_distance, "-km.rds")
+
+map_density(pf, pmfn) +
+  labs(title = paste0(species, ": mature female biomass (", dens_model_name, ")"))
 
 ggsave(paste0("figs/density-map-", spp, "-mat-fem", dens_model_name, "-", knot_distance, "-km.png"),
        height = fig_height, width = fig_width
@@ -436,25 +524,38 @@ fmm <- paste0("data-generated/density-models/", spp, "-mat-m", dens_model_name, 
 
 if (!file.exists(fmm)) {
 
-  d2b <- d %>% filter(group_name == "Mature males") %>% filter(year > 2001)
+  d2b <- d %>% filter(group_name == "Mature males") %>%
+    filter(year > 2001) %>%
+    filter(!is.na(group_catch_est))
 
   mm <- update(mf, mesh = mesh2, data = d2b)
-
-  if (length(mm$family) == 6) {
-    mm <- refine_delta_model(mm)
-  } else {
-    mm <- refine_model(mm)
-  }
   saveRDS(mm, fmm)
 
+  if (length(mm$family) == 6) {
+    mm <- gfenvirocor::refine_delta_model(mm)
+  } else {
+    mm <- gfenvirocor::refine_model(mm)
+  }
+  saveRDS(mm, fmm)
 } else {
   mm <- readRDS(fmm)
+  if(!all(sanity(mm))) {
+  if (length(mm$family) == 6) {
+    mm <- gfenvirocor::refine_delta_model(mm)
+  } else {
+    mm <- gfenvirocor::refine_model(mm)
+  }
+  saveRDS(mm, fmm)
+  }
 }
 
 pm <- predict(mm, re_form_iid = NA, newdata =filter(grid, year > 2001), return_tmb_object = TRUE)
 
-map_density(pm, "mat-m") +
-  labs(title = paste0(species_list[i], ": mature male biomass (", dens_model_name, ")"))
+pmfn <- paste0("data-generated/density-predictions/", spp, "-p-", "mat-m",
+              dens_model_name, "-", knot_distance, "-km.rds")
+
+gfenvirocor::map_density(pm, pmfn) +
+  labs(title = paste0(species, ": mature male biomass (", dens_model_name, ")"))
 
 ggsave(paste0("figs/density-map-", spp, "-mat-m", dens_model_name, "-", knot_distance, "-km.png"),
        height = fig_height, width = fig_width
@@ -466,67 +567,100 @@ fmi <- paste0("data-generated/density-models/", spp, "-imm", dens_model_name, "-
 if (!file.exists(fmi)) {
   d4 <- d %>%
     filter(group_name %in% c("Immature")) %>%
-    filter(year > 2001)
+    filter(year > 2001) %>%
+    filter(!is.na(group_catch_est))
 
   mi <- update(mm,
                extra_time = NULL,
                data = d4)
-
+  saveRDS(mi, fmi)
   if (length(mi$family) == 6) {
-    mi <- refine_delta_model(mi)
+    mi <- gfenvirocor::refine_delta_model(mi)
   } else {
-    mi <- refine_model(mi)
+    mi <- gfenvirocor::refine_model(mi)
   }
   saveRDS(mi, fmi)
 } else {
   mi <- readRDS(fmi)
+  if(!all(sanity(mi))) {
+    if (length(mi$family) == 6) {
+      mi <- gfenvirocor::refine_delta_model(mi)
+    } else {
+      mi <- gfenvirocor::refine_model(mi)
+    }
+    saveRDS(mi, fmi)
+  }
 }
 
-pi <- predict(mi, re_form_iid = NA, newdata =filter(grid, year > 2001), return_tmb_object = TRUE)
+pi <- predict(mi, re_form_iid = NA, newdata = filter(grid, year > 2001), return_tmb_object = TRUE)
 
-map_density(pi, "imm") +
-  labs(title = paste0(species_list[i], ": immature biomass (", dens_model_name, ")"))
+pifn <- paste0("data-generated/density-predictions/", spp, "-p-", "imm",
+               dens_model_name, "-", knot_distance, "-km.rds")
+
+gfenvirocor::map_density(pi, pifn) +
+  labs(title = paste0(species, ": immature biomass (", dens_model_name, ")"))
 
 ggsave(paste0("figs/density-map-", spp, "-imm", dens_model_name, "-", knot_distance, "-km.png"),
   height = fig_height, width = fig_width
 )
 
-
-# Generate coastwide indices
-
-plot_index(p, "total") + ggtitle(paste0(species_list[i], ": total biomass (", dens_model_name, ")"))
-
-# ggsave(paste0("figs/density-index-", spp, "-total", dens_model_name, "-", knot_distance, "-km.png"),
-#   height = fig_height / 2, width = fig_width /1.5
-# )
-
-plot_index(pf, "mat-fem") +
-  ggtitle(paste0(species_list[i], ": mature female biomass (", dens_model_name, ")"))
-
-# ggsave(paste0("figs/density-index-", spp, "-mat-fem", dens_model_name, "-", knot_distance, "-km.png"),
-#   height = fig_height / 2, width = fig_width / 1.5
-# )
-
-plot_index(pm, "mat-m") +
-  ggtitle(paste0(species_list[i], ": mature male biomass (", dens_model_name, ")"))
-
-# ggsave(paste0("figs/density-index-", spp, "-mat-m", dens_model_name, "-", knot_distance, "-km.png"),
-#        height = fig_height / 2, width = fig_width / 1.5
-# )
-
-plot_index(pi, "imm") +
-  ggtitle(paste0(species_list[i], ": immature biomass (", dens_model_name, ")"))
-
-# ggsave(paste0("figs/density-index-", spp, "-imm", dens_model_name, "-", knot_distance, "-km.png"),
-#        height = fig_height / 2, width = fig_width / 1.5
-# )
-
-
+#browser()
 
 f0 <- paste0("data-generated/density-index/", spp, "-p-total", dens_model_name, "-", knot_distance, "-km.rds")
 f1 <- paste0("data-generated/density-index/", spp, "-p-mat-fem", dens_model_name, "-", knot_distance, "-km.rds")
 f2 <- paste0("data-generated/density-index/", spp, "-p-mat-m", dens_model_name, "-", knot_distance, "-km.rds")
 f3 <- paste0("data-generated/density-index/", spp, "-p-imm", dens_model_name, "-", knot_distance, "-km.rds")
+
+if (!file.exists(f0)) {
+# Generate coastwide indices
+i0 <- paste0("data-generated/density-index/",
+             spp, "-p-", "total", dens_model_name,
+             "-", knot_distance, "-km.rds")
+
+gfenvirocor::plot_index(p, extra_years = NULL, i0) +
+  ggtitle(paste0(species, ": total biomass (", dens_model_name, ")"))
+
+# ggsave(paste0("figs/density-index-", spp, "-total", dens_model_name, "-", knot_distance, "-km.png"),
+#   height = fig_height / 2, width = fig_width /1.5
+# )
+}
+if (!file.exists(f1)) {
+i1 <- paste0("data-generated/density-index/",
+             spp, "-p-", "mat-fem", dens_model_name,
+             "-", knot_distance, "-km.rds")
+
+gfenvirocor::plot_index(pf, extra_years, i1) +
+  ggtitle(paste0(species, ": mature female biomass (", dens_model_name, ")"))
+
+# ggsave(paste0("figs/density-index-", spp, "-mat-fem", dens_model_name, "-", knot_distance, "-km.png"),
+#   height = fig_height / 2, width = fig_width / 1.5
+# )
+}
+if (!file.exists(f2)) {
+i2 <- paste0("data-generated/density-index/",
+             spp, "-p-", "mat-m", dens_model_name,
+             "-", knot_distance, "-km.rds")
+
+gfenvirocor::plot_index(pm, extra_years, i2) +
+  ggtitle(paste0(species, ": mature male biomass (", dens_model_name, ")"))
+
+# ggsave(paste0("figs/density-index-", spp, "-mat-m", dens_model_name, "-", knot_distance, "-km.png"),
+#        height = fig_height / 2, width = fig_width / 1.5
+# )
+}
+
+if (!file.exists(f3)) {
+i3 <- paste0("data-generated/density-index/",
+                  spp, "-p-", "imm", dens_model_name,
+                  "-", knot_distance, "-km.rds")
+
+gfenvirocor::plot_index(pi, extra_years, i3) +
+  ggtitle(paste0(species, ": immature biomass (", dens_model_name, ")"))
+
+# ggsave(paste0("figs/density-index-", spp, "-imm", dens_model_name, "-", knot_distance, "-km.png"),
+#        height = fig_height / 2, width = fig_width / 1.5
+# )
+}
 
 ind0 <- readRDS(f0) %>% mutate(index = "Total")
 ind1 <- readRDS(f1) %>% mutate(index = "Mature female")
@@ -544,7 +678,7 @@ p1 <- bc_inds %>%  mutate(index = fct_relevel(index, rev)) %>%
   labs(colour = "Biomass Index", fill = "Biomass Index") +
   xlab("Year") +
   ylab("Biomass estimate (kg)")+
-  ggtitle(paste0(species_list[i]),
+  ggtitle(paste0(species),
           subtitle = paste0("Model: ", ifelse(
             length(m$family)==6, m$family[6], paste0(m$family[1],"(link = 'log')")
             ), ", spatial (", m[["spatial"]][1], ", ", m[["spatial"]][2],
@@ -555,9 +689,13 @@ p1
 #        height = fig_height / 2, width = fig_width / 1.5
 # )
 
-
 survey_years <- d1 %>% select(survey_abbrev, year) %>% distinct() %>%
-  mutate(survey = ifelse(survey_abbrev == "HS MSA", "SYN HS", survey_abbrev))
+  mutate(survey = ifelse(survey_abbrev == "HS MSA", "SYN HS",
+                    ifelse(survey_abbrev == "MSSM QCS", "SYN QCS",
+                           ifelse(survey_abbrev == "MSSM WCVI", "SYN WCVI",
+                         survey_abbrev
+                         )))
+         )
 
 grid2 <- grid %>% filter(year > 2001)
 
@@ -600,17 +738,20 @@ inds4$model <- paste0(ifelse(
   length(mi$family)==6, mi$family[6], paste0(mi$family[1],"(link = 'log')")
 ), "\nspatial (", mi[["spatial"]][1], ", ", mi[["spatial"]][2], ")")
 
-all_split_inds <- bind_rows(inds, inds2, inds3, inds4) %>%
-  left_join(survey_years, ., multiple = "all") %>%
-  filter(!is.na(est))
+all_split_inds <- bind_rows(inds, inds2, inds3, inds4)
 
 saveRDS(all_split_inds, fsi)
 } else {
 all_split_inds <- readRDS(fsi)
 }
 
+# browser()
 
 p2 <- all_split_inds %>%
+  left_join(survey_years, ., multiple = "all") %>%
+  select(-survey_abbrev) %>%
+  filter(!is.na(est)) %>%
+  distinct() %>%
   filter(index == "Total") %>%
   mutate(index = fct_relevel(index, rev)) %>%
   ggplot(aes(year, est)) +
@@ -628,7 +769,11 @@ p2 <- all_split_inds %>%
 
 p2
 
-p3dat <- filter(all_split_inds, index != "Total")
+p3dat <- filter(all_split_inds, index != "Total") %>%
+  left_join(survey_years, ., multiple = "all") %>%
+  select(-survey_abbrev) %>%
+  filter(!is.na(est)) %>%
+  distinct()
 
 p3 <- p3dat %>%
   mutate(index = fct_relevel(index, rev)) %>%
@@ -641,7 +786,7 @@ p3 <- p3dat %>%
     scale_fill_viridis_d(direction = -1, end = 0.9) +
   labs(colour = "Area", fill = "Area") +
   coord_cartesian(ylim = c(0, max(p3dat$est)*1.25)) +
-  # ggtitle(paste0(species_list[i], " (", dens_model_name, ")"))+
+  # ggtitle(paste0(species, " (", dens_model_name, ")"))+
     xlab("Year") +
     ylab("Biomass estimate (kg)")
 
@@ -657,9 +802,20 @@ p3a <- p3 + theme(axis.title.y = element_blank(), legend.position = "none")
 
 p1a + p2a + p3a + plot_layout(ncol = 1)
 
-ggsave(paste0("figs/density-index-", spp, "-all", dens_model_name, "-", knot_distance, "-km.png"),
+ggsave(paste0("figs/density-index-", spp, "-all2", dens_model_name, "-", knot_distance, "-km.png"),
        height = fig_height, width = fig_width
 )
+
+}
+
+
+# fit_all_distribution_models(species_list)
+
+## test runs
+pmap(species_list, fit_all_distribution_models)
+
+# furrr::future_pmap(species_list, fit_all_distribution_models)
+
 
 
 # dir.create(paste0("data-generated/density-depth-curves/"), showWarnings = FALSE)
@@ -681,7 +837,7 @@ ggsave(paste0("figs/density-index-", spp, "-all", dens_model_name, "-", knot_dis
 #
 #   mm2 <- update(mf, group_catch_est2 ~ 1 + survey_type + poly(log_depth, 2), data = d3)
 #
-#   mm2 <- refine_model(mm2)
+#   mm2 <- gfenvirocor::refine_model(mm2)
 #   saveRDS(mm2, fmm2)
 # } else {
 #   mm2 <- readRDS(fmm2)
@@ -690,13 +846,13 @@ ggsave(paste0("figs/density-index-", spp, "-all", dens_model_name, "-", knot_dis
 # pm2 <- predict(mm2, re_form_iid = NA, newdata =filter(grid, year > 2001), return_tmb_object = TRUE)
 #
 # map_density(pm2, "all-mat") +
-#   labs(title = paste0(species_list[i], ": mature biomass (", dens_model_name, ")"))
+#   labs(title = paste0(species, ": mature biomass (", dens_model_name, ")"))
 #
 # ggsave(paste0("figs/density-map-", spp, "-all-mat", dens_model_name, "-", knot_distance, "-km.png"),
 #   height = fig_height, width = fig_width
 # )
 #
-# plot_index(pm2, "all-mat") + ggtitle(paste0(species_list[i], ": mature biomass (", dens_model_name, ")"))
+# plot_index(pm2, "all-mat") + ggtitle(paste0(species, ": mature biomass (", dens_model_name, ")"))
 # ggsave(paste0("figs/density-index-", spp, "-all-mat", dens_model_name, "-", knot_distance, "-km.png"),
 #   height = fig_height / 2, width = fig_width / 2
 # )
