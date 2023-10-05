@@ -16,6 +16,10 @@ refine_delta_model <- function(m){
     m <- update(m, spatial = list("on", "off"))
     s <- sanity(m)
   }
+  if (!s$hessian_ok) {
+    m <- update(m, family = set_family2)
+    s <- sanity(m)
+  } else {
   if (!s$se_magnitude_ok|!s$se_na_ok|!s$sigmas_ok) {
     m <- update(m, spatial = list("off", "off"))
     s <- sanity(m)
@@ -34,7 +38,8 @@ refine_delta_model <- function(m){
                 share_range = FALSE)
     s <- sanity(m)
   }
-  if(!s$range_ok){
+  }
+  if(!all(s)){
     m <- update(m, share_range = TRUE)
     s <- sanity(m)
   }
@@ -80,14 +85,17 @@ refine_model <- function(m){
 #'
 #' @export
 #'
-plot_index <- function(dat, type) {
-  f <- paste0("data-generated/density-index/", spp, "-p-", type, dens_model_name, "-", knot_distance, "-km.rds")
-  if (!file.exists(f)) {
+plot_index <- function(dat, extra_years,
+                       filename = paste0("data-generated/density-index/",
+                                         spp, "-p-", type, dens_model_name,
+                                         "-", knot_distance, "-km.rds")
+                       ) {
+  if (!file.exists(filename)) {
     dir.create(paste0("data-generated/density-index/"), showWarnings = FALSE)
-    ind <- get_index(dat, bias_correct = FALSE)
-    saveRDS(ind, f)
+    ind <- get_index(dat, bias_correct = TRUE)
+    saveRDS(ind, filename)
   } else {
-    ind <- readRDS(f)
+    ind <- readRDS(filename)
   }
 
   if(!is.null(extra_years)) {
@@ -105,20 +113,22 @@ plot_index <- function(dat, type) {
 #'
 #' @export
 #'
-map_density <- function(dat, type, col_trans = fourth_root_power_trans()
+map_density <- function(dat, filename,
+                        col_trans = fourth_root_power_trans()
 ) {
 
   if (length(dat$fit_obj$family) == 6) {
-    p1 <- dat$data %>% mutate(density = plogis(est1) * exp(est2))
+    p1 <- dat$data %>% mutate(density = plogis(est1) * exp(est2),
+                              density_trimmed = ifelse(density > quantile(density, 0.995), quantile(density, 0.995), density)
+                              )
   } else {
     p1 <- dat$data %>% mutate(density = exp(est))
   }
 
   dir.create(paste0("data-generated/density-predictions/"), showWarnings = FALSE)
-  saveRDS(p1, paste0("data-generated/density-predictions/", spp, "-p-", type,
-                     dens_model_name, "-", knot_distance, "-km.rds"))
+  saveRDS(p1, filename)
 
-  ggplot(p1, aes(X, Y, colour = density, fill = density)) +
+  ggplot(p1, aes(X, Y, colour = density_trimmed, fill = density_trimmed)) +
     geom_tile(width = 2, height = 2, alpha = 1) +
     facet_wrap(~year) +
     scale_fill_viridis_c(trans = col_trans) +
