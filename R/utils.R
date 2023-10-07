@@ -1,50 +1,66 @@
 #' helper functions
 #' refine delta model
 #' @export
-refine_delta_model <- function(m){
+refine_delta_model <- function(m, alternate_family = set_family2){
   s <- sanity(m)
   # browser()
   if (!s$range_ok) {
-    m <- update(m, share_range = TRUE)
+    m <- update(m, share_range = TRUE,
+                spatial = as.list(m[["spatial"]]),
+                spatiotemporal = as.list(m[["spatiotemporal"]]),
+                data = m$data, family = m$family, mesh = m$spde)
     s <- sanity(m)
   }
   if (!s$hessian_ok & !s$nlminb_ok) {
-    m <- update(m, family = set_family2)
+    m <- update(m, family = alternate_family)
     s <- sanity(m)
   }
   if (!s$se_magnitude_ok|!s$se_na_ok|!s$sigmas_ok) {
-    m <- update(m, spatial = list("on", "off"))
+    m <- update(m, spatial = list("on", "off"),
+                spatial = as.list(m[["spatial"]]),
+                spatiotemporal = as.list(m[["spatiotemporal"]]),
+                data = m$data, family = m$family, mesh = m$spde)
     s <- sanity(m)
   }
   if (!s$hessian_ok) {
-    m <- update(m, family = set_family2)
+    m <- update(m, family = alternate_family,
+                spatial = as.list(m[["spatial"]]),
+                spatiotemporal = as.list(m[["spatiotemporal"]]),
+                data = m$data, mesh = m$spde)
     s <- sanity(m)
   } else {
-  if (!s$se_magnitude_ok|!s$se_na_ok|!s$sigmas_ok) {
-    m <- update(m, spatial = list("off", "off"))
-    s <- sanity(m)
-  }
+    if (!s$se_magnitude_ok|!s$se_na_ok|!s$sigmas_ok) {
+      m <- update(m, spatial = list("off", "off"),
+                  spatiotemporal = as.list(m[["spatiotemporal"]]),
+                  data = m$data, family = m$family, mesh = m$spde)
+      s <- sanity(m)
+    }
 
-  if (!s$se_magnitude_ok|!s$se_na_ok|!s$sigmas_ok) {
-    m <- update(m, spatial = list("on", "off"), spatiotemporal = c("off", "rw"))
-    s <- sanity(m)
-  }
+    if (!s$se_magnitude_ok|!s$se_na_ok|!s$sigmas_ok) {
+      m <- update(m, spatial = list("on", "off"),
+                  spatiotemporal = c("off", "rw"),
+                  data = m$data, family = m$family, mesh = m$spde)
+      s <- sanity(m)
+    }
 
-  if (!s$se_magnitude_ok|!s$se_na_ok) {
-    m <- update(m,
-                spatial = "on",
-                spatiotemporal = "rw",
-                family = set_family2,
-                share_range = FALSE)
-    s <- sanity(m)
-  }
+    if (!s$se_magnitude_ok|!s$se_na_ok) {
+      m <- update(m,
+                  spatial = "on",
+                  spatiotemporal = "rw",
+                  family = alternate_family,
+                  share_range = FALSE,
+                  data = m$data, mesh = m$spde)
+      s <- sanity(m)
+    }
   }
   if(!all(s)){
     m <- update(m, share_range = TRUE)
     s <- sanity(m)
   }
   if (!s$se_magnitude_ok|!s$se_na_ok) {
-    m <- update(m, spatial = "off")
+    m <- update(m, spatial = "off",
+                spatiotemporal = as.list(m[["spatiotemporal"]]),
+                data = m$data, family = m$family, mesh = m$spde)
     s <- sanity(m)
   }
   if(!s$gradients_ok){
@@ -66,11 +82,16 @@ refine_model <- function(m){
   #   s <- sanity(m)
   # }
   if(!s$se_magnitude_ok|!s$se_na_ok){
-    m <- update(m, share_range = TRUE)
+    m <- update(m, share_range = TRUE,
+                spatial = as.list(m[["spatial"]]),
+                spatiotemporal = as.list(m[["spatiotemporal"]]),
+                data = m$data, family = m$family, mesh = m$spde)
     s <- sanity(m)
   }
   if (!s$se_magnitude_ok|!s$se_na_ok) {
-    m <- update(m, spatial = "off")
+    m <- update(m, spatial = "off",
+                spatiotemporal = as.list(m[["spatiotemporal"]]),
+                data = m$data, family = m$family, mesh = m$spde)
     s <- sanity(m)
   }
   if(!s$gradients_ok){
@@ -82,16 +103,12 @@ refine_model <- function(m){
 }
 
 
+
 #'
 #' @export
 #'
-plot_index <- function(dat, extra_years,
-                       filename = paste0("data-generated/density-index/",
-                                         spp, "-p-", type, dens_model_name,
-                                         "-", knot_distance, "-km.rds")
-                       ) {
+plot_index <- function(dat, extra_years = NULL, filename){
   if (!file.exists(filename)) {
-    dir.create(paste0("data-generated/density-index/"), showWarnings = FALSE)
     ind <- get_index(dat, bias_correct = TRUE)
     saveRDS(ind, filename)
   } else {
@@ -109,26 +126,50 @@ plot_index <- function(dat, extra_years,
     ylab("Biomass estimate (kg)")
 }
 
+#'
+#' @export
+#'
+split_index_by_survey <- function(model, grid, model_name){
+
+  grid <- filter(grid, year %in% c(sort(unique(model$data$year))))
+
+  p <- grid |>
+    split(grid$survey) |>
+    lapply(function(x) predict(model, re_form_iid = NA, newdata = x, return_tmb_object = TRUE))
+  i <- purrr::map_dfr(p, get_index, area = 4, .id = "survey")
+  i$surveys <- paste0(unique(model$data$survey_type), collapse=", ")
+  i$group <- model_name
+  i$index <- paste(i$group, "(", i$surveys, ")")
+  i$model <- paste0(ifelse(
+    length(model$family)==6, model$family[6], paste0(model$family[1],"(link = 'log')")
+  ), "\nspatial (", model[["spatial"]][1], ", ", model[["spatial"]][2], ")")
+}
+
+
 
 #'
 #' @export
 #'
-map_density <- function(dat, filename,
+map_density <- function(dat, filename, variable = "density_trimmed",
                         col_trans = fourth_root_power_trans()
 ) {
 
-  if (length(dat$fit_obj$family) == 6) {
-    p1 <- dat$data %>% mutate(density = plogis(est1) * exp(est2),
-                              density_trimmed = ifelse(density > quantile(density, 0.995), quantile(density, 0.995), density)
-                              )
+ if(!is(dat, "data.frame")){
+  if (length(dat$fit_obj$family$family)>1) {
+    p1 <- dat$data %>% mutate(
+      density = dat$fit_obj$family[[1]]$linkinv(est1) * dat$fit_obj$family[[2]]$linkinv(est2),
+      density_trimmed = ifelse(density > quantile(density, 0.995),
+                               quantile(density, 0.995),
+                               density))
   } else {
-    p1 <- dat$data %>% mutate(density = exp(est))
+    p1 <- dat$data %>% mutate(density = dat$fit_obj$family$linkinv(est))
   }
+   saveRDS(p1, filename)
 
-  dir.create(paste0("data-generated/density-predictions/"), showWarnings = FALSE)
-  saveRDS(p1, filename)
-
-  ggplot(p1, aes(X, Y, colour = density_trimmed, fill = density_trimmed)) +
+ } else {
+   p1 <- dat
+ }
+  ggplot(p1, aes_string("X", "Y", colour = variable, fill = variable)) +
     geom_tile(width = 2, height = 2, alpha = 1) +
     facet_wrap(~year) +
     scale_fill_viridis_c(trans = col_trans) +
@@ -140,6 +181,7 @@ map_density <- function(dat, filename,
 get_wraper <- function(x) {
   lapply(strwrap(x, width = 30, simplify = FALSE), paste, collapse="\n")
 }
+
 
 
 ## old version of delta function
