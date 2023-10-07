@@ -162,7 +162,10 @@ map_density <- function(dat, filename, variable = "density_trimmed",
                                quantile(density, 0.995),
                                density))
   } else {
-    p1 <- dat$data %>% mutate(density = dat$fit_obj$family$linkinv(est))
+    p1 <- dat$data %>% mutate(density = dat$fit_obj$family$linkinv(est),
+                              density_trimmed = ifelse(density > quantile(density, 0.995),
+                                                       quantile(density, 0.995),
+                                                       density))
   }
    saveRDS(p1, filename)
 
