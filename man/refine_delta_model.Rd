@@ -5,7 +5,7 @@
 \title{helper functions
 refine delta model}
 \usage{
-refine_delta_model(m)
+refine_delta_model(m, alternate_family = set_family2)
 }
 \description{
 helper functions
