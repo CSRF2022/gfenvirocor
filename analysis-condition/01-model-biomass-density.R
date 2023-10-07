@@ -2,7 +2,7 @@
 # 2. Create prediction grid with density and depth
 # TODO: get matching depth for use in models and on prediction grids?
 
-# devtools::load_all()
+devtools::load_all()
 options(scipen = 100, digits = 4)
 
 library(future)
@@ -35,7 +35,6 @@ species_list <- list(
 species_list <- list(species = species_list)
 #
 # species <- "Curlfin Sole"
-# set_spatial <- list("on", "off")
 # species <- "Pacific Halibut"
 # species <- "Petrale Sole"
 # species <- "Arrowtooth Flounder"
@@ -59,15 +58,18 @@ fit_all_distribution_models <- function(species) {
   mat_threshold <- 0.5
 
   knot_distance <- 15
+
+  # only including years using when splitting by maturity
   extra_years <- c(2001, 2020)
-  #
+
+  # # full timeframe for MSA
   # extra_years <- c(1985, 1986, 1988, 1990,
   #                  1992, 1994, 1997, 1999, 2001, 2020)
   # extra_years <- NULL
 
 
   set_family <- delta_gamma()
-  dens_model_name <- "-dg-st2000-all-10min-500m-xt-offset"
+  dens_model_name <- "-dg-st2000-all-500m-xt-offset"
   # # dens_model_name <- "-dg-doy-1-22-10min-xt-offset"
   # # dens_model_name <- "-dg-all-yrs-mssm-1-22-10min-xt-offset"
   # # dens_model_name <- "-dg-all-yrs-other-1-22-10min-xt-offset"
@@ -89,46 +91,32 @@ fit_all_distribution_models <- function(species) {
 
 
   surveys_included <- c(
-    "HS MSA", "SYN HS", "SYN QCS",
+    "HS MSA",
+    "SYN HS", "SYN QCS",
     "SYN WCHG", "SYN WCVI",
-    "MSSM QCS", "MSSM WCVI", "OTHER"
+    "MSSM QCS", "MSSM WCVI",
+    "OTHER"
   )
 
-
-  ## NOTES on old model configs
-  # 10 min refers to min cutoff for tow length
-  # xt means extra time was provided
-  # vcc = vessel-captian-combo
-  # vc = vessel and captain separately, didn't converge
-  # v = only vessel, didn't converge
-  # i = set level intercept
-  # dens_model_name <- "-w-survey-factor-tw-1-22-10min-xt-vcc"
-  # dens_model_name <- "-w-survey-factor-tw-1-22-10min-xt-vc"
-  # dens_model_name <- "-w-survey-factor-tw-1-22-10min-xt-c"
-  # dens_model_name <- "-w-survey-factor-tw-1-22-10min-xt-i"
-
-
-  if (length(set_family) == 6) {
+  if (length(set_family$family) > 1) {
     set_spatial <- "on"
+    # set_spatial <- list("on", "off")
     set_spatiotemporal <- list("rw", "rw")
   } else {
     set_spatial <- "on"
     set_spatiotemporal <- "rw"
   }
 
-
   if (species == "North Pacific Spiny Dogfish") {
     custom_maturity_code <- c(NA, 55)
     custom_length_threshold <- NULL
-    # # # custom_length_threshold <- c(70.9, 86.2)
+    # custom_length_threshold <- c(70.9, 86.2)
     # set_family <- delta_lognormal_mix()
     # set_family2 <- delta_lognormal()
     set_family <- delta_gamma_mix()
     set_family2 <- delta_gamma()
+    # set_spatial <- list("on", "off")
     # set_spatiotemporal <- list("rw", "off")
-    # # dens_model_name <- "-w-survey-factor-tw-exp"
-    # dens_model_name <- "-w-survey-factor-lnm-nosp-1-22-xt"
-    # dens_model_name <- "-lnm-doy-1-22-xt-offset"
     dens_model_name <- "-dgm-doy-1-22-xt-offset"
   } else {
     custom_maturity_code <- NULL
@@ -137,7 +125,7 @@ fit_all_distribution_models <- function(species) {
 
   spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species)))
 
-  # set naming convention
+  # set naming conventions ----
   m0 <- paste0(spp, "-total", dens_model_name, "-", knot_distance, "-km")
   m1 <- paste0(spp, "-mat-fem", dens_model_name, "-", knot_distance, "-km")
   m2 <- paste0(spp, "-mat-m", dens_model_name, "-", knot_distance, "-km")
@@ -168,8 +156,7 @@ fit_all_distribution_models <- function(species) {
   i3 <- paste0("data-generated/density-index/i-", m3, ".rds")
 
 
-
-
+  # load data ----
   # dset <- readRDS("data-raw/survey-sets-all.rds") %>%
   dset1 <- readRDS("data-raw/survey-sets-flatfish.rds") %>%
     filter(
@@ -186,6 +173,14 @@ fit_all_distribution_models <- function(species) {
     )) %>%
     distinct()
 
+  # dsamp <- readRDS("data-raw/survey-samples-all.rds") %>%
+  dsamp <- readRDS("data-raw/survey-samples-flatfish.rds") %>%
+    filter(survey_abbrev != "SABLE") %>%
+    filter(species_common_name == tolower(species)) %>%
+    distinct()
+
+
+  # # data exploration and processing ----
   dsum <- dset1 %>%
     filter(catch_weight > 0) %>%
     # filter(survey_abbrev == "OTHER") %>%
@@ -197,23 +192,13 @@ fit_all_distribution_models <- function(species) {
       min_year = min(year), max_year = max(year)
     )
   # write.csv(dsum, "all-surveys.csv")
-
+  #
   # dset1 %>% filter(year == 1999) %>% View() # one unusable set has wrong year
   #
   # dset1 %>% filter(survey_series_id %in% c(1, 2, 3, 4, 6, 7, 9, 11,16)) %>%
   #   filter(usability_code %in% c(1, 22, 16, 6)) %>% ggplot() +
   #   facet_wrap(~year) +
   #   geom_point(aes(longitude, latitude, colour = as.factor(survey_series_id)), alpha = 0.1)
-
-  # dsamp <- readRDS("data-raw/survey-samples-all.rds") %>%
-  dsamp <- readRDS("data-raw/survey-samples-flatfish.rds") %>%
-    filter(survey_abbrev != "SABLE") %>%
-    filter(species_common_name == tolower(species)) %>%
-    distinct()
-  ## check against original function call
-  # dsamp1 <- readRDS("data-raw/survey-samples-all-original.rds") %>%
-  #   filter(survey_abbrev != "SABLE OFF") %>%
-  #   filter(species_common_name == tolower(species)) %>% distinct()
 
   dsum2 <- dsamp %>%
     filter(!is.na(length), sex %in% c(1, 2)) %>%
@@ -222,6 +207,10 @@ fit_all_distribution_models <- function(species) {
       n = n()
     )
   # while there are lengths going back to 1984, no weight or sex before 2002
+  ## check against original function call
+  # dsamp1 <- readRDS("data-raw/survey-samples-all-original.rds") %>%
+  #   filter(survey_abbrev != "SABLE OFF") %>%
+  #   filter(species_common_name == tolower(species)) %>% distinct()
 
   dset <- dset1 %>% filter(survey_abbrev %in% surveys_included) %>%
     # keep those surveys with this species + all synoptic surveys
@@ -232,13 +221,10 @@ fit_all_distribution_models <- function(species) {
   # I'm not using sample is so shouldn't be any unless something else can cause this
   # test_event <- dset[ dset$fishing_event_id == 329270, ]
 
-
-
   # unique(dset$survey_abbrev)
   # unique(dsamp$survey_abbrev)
   # unique(dsamp$maturity_code)
 
-  # dsamp2 <- filter(dsamp, survey_abbrev == "SYN WCVI")
 
   dss <- gfplot::split_catch_by_sex(dset, dsamp,
     survey = surveys_included,
@@ -266,7 +252,6 @@ fit_all_distribution_models <- function(species) {
     # filter(!(usability_code %in% c(5,9,13))) %>%
     # filter(usability_code %in% c(1, 22)) %>%
     filter(usability_code %in% c(1, 22, 16, 6)) %>%
-    filter(duration_min >= 10) %>%
     mutate(
       DOY = as.numeric(strftime(time_deployed, format = "%j")),
       days_to_solstice = DOY - 172,
@@ -298,7 +283,12 @@ fit_all_distribution_models <- function(species) {
         doorspread_m * tow_length_m
       )
     ) %>%
-    filter(tow_length_m > 500) %>%
+    # if speed recorded, it isn't too slow
+    filter(!is.na(speed_mpm) & speed_mpm != 0 & speed_mpm >= 50) %>%
+    # if time recorded, it was at least 10 min
+    filter(!is.na(duration_min) & duration_min != 0 & duration_min >= 10) %>%
+    # if tow length available it's at least 200m
+    filter(is.na(tow_length_m) | tow_length_m > 500) %>%
     filter(area_swept > 0) %>%
     # filter(year > 1983) # too slow to fit using only MSSM from 1975 to 1983
     # early MSSM not reliable for small fish
@@ -824,6 +814,7 @@ fit_all_distribution_models <- function(species) {
   )
 
   if (!file.exists(fsi)) {
+
     inds <- split_index_by_survey(m, grid, "Total")
     inds2 <- split_index_by_survey(mf, grid, "Mature female")
     inds3 <- split_index_by_survey(mm, grid, "Mature male")
