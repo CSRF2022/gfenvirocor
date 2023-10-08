@@ -8,6 +8,7 @@ refine_delta_model <- function(m, alternate_family = set_family2){
     m <- update(m, share_range = TRUE,
                 spatial = as.list(m[["spatial"]]),
                 spatiotemporal = as.list(m[["spatiotemporal"]]),
+                extra_time = m$extra_time,
                 data = m$data, family = m$family, mesh = m$spde)
     s <- sanity(m)
   }
@@ -143,6 +144,10 @@ split_index_by_survey <- function(model, grid, model_name){
   i$model <- paste0(ifelse(
     length(model$family)==6, model$family[6], paste0(model$family[1],"(link = 'log')")
   ), "\nspatial (", model[["spatial"]][1], ", ", model[["spatial"]][2], ")")
+
+  saveRDS(i, paste0("temp-index-split-", gsub(" ", "-", model_name),".rds"))
+
+  return(i)
 }
 
 

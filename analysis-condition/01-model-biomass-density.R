@@ -15,8 +15,8 @@ library(tidyverse)
 
 
 species_list <- list(
-  "Arrowtooth Flounder", #
-  "Petrale Sole" #
+  # "Arrowtooth Flounder", #
+  # "Petrale Sole", #
   # "English Sole",#
   # "Dover Sole",#
   # "Flathead Sole",#
@@ -26,9 +26,9 @@ species_list <- list(
   # "Sand Sole",#
   # "Slender Sole",#
   # "Pacific Sanddab",#
-  # "Pacific Halibut",#
-  # "Butter Sole",#
-  # "Starry Flounder"#
+  "Pacific Halibut",#
+  "Butter Sole",#
+  "Starry Flounder"#
   # #"C-O Sole", # way too few!
   # "Deepsea Sole" # no maturity
 )
@@ -52,12 +52,11 @@ species_list <- list(species = species_list)
 
 
 fit_all_distribution_models <- function(species) {
+
   options(scipen = 100, digits = 4)
   theme_set(theme_sleek())
-
   mat_threshold <- 0.5
-
-  knot_distance <- 15
+  knot_distance <<- 15
 
   # only including years using when splitting by maturity
   extra_years <- c(2001, 2020)
@@ -69,6 +68,7 @@ fit_all_distribution_models <- function(species) {
 
 
   set_family <- delta_gamma()
+  # dens_model_name <- "-dg-st2000-all-10min-xt-offset"
   dens_model_name <- "-dg-st2000-all-500m-xt-offset"
   # # dens_model_name <- "-dg-doy-1-22-10min-xt-offset"
   # # dens_model_name <- "-dg-all-yrs-mssm-1-22-10min-xt-offset"
@@ -334,6 +334,8 @@ fit_all_distribution_models <- function(species) {
     geom_histogram(aes(offset)) +
     facet_wrap(~year)
 
+
+  # make grid ----
   ds$X <- NULL
   ds$Y <- NULL
 
@@ -389,6 +391,7 @@ fit_all_distribution_models <- function(species) {
   # # Keep only synoptic data
   # d <- filter(d, survey_type == "SYN")
 
+  # make mesh for total density
   d1 <- d %>% filter(group_name == "Mature females")
 
   mesh <- make_mesh(d1, c("X", "Y"), cutoff = knot_distance)
@@ -404,7 +407,9 @@ fit_all_distribution_models <- function(species) {
 
   mesh$mesh$n
 
-  # browser()
+  browser()
+
+  # start modeling ----
 
   if (!file.exists(fm)) {
     m <- sdmTMB(
@@ -813,8 +818,9 @@ fit_all_distribution_models <- function(species) {
     dens_model_name, "-", knot_distance, "-km.rds"
   )
 
-  if (!file.exists(fsi)) {
+  # browser()
 
+  if (!file.exists(fsi)) {
     inds <- split_index_by_survey(m, grid, "Total")
     inds2 <- split_index_by_survey(mf, grid, "Mature female")
     inds3 <- split_index_by_survey(mm, grid, "Mature male")
