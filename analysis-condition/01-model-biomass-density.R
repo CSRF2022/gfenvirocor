@@ -5,27 +5,28 @@
 devtools::load_all()
 options(scipen = 100, digits = 4)
 
+
 library(future)
 library(tidyverse)
 library(sdmTMB)
 library(gfplot)
 library(ggsidekick)
-library(tidyverse)
+library(patchwork)
 # library(gfenvirocor)
 
 
 species_list <- list(
   # "Arrowtooth Flounder", #
-  # "Petrale Sole", #
-  # "English Sole",#
-  # "Dover Sole",#
-  # "Flathead Sole",#
-  # "Southern Rock Sole",#
-  # "Rex Sole", #
-  # "Curlfin Sole",#
-  # "Sand Sole",#
-  # "Slender Sole",#
-  # "Pacific Sanddab",#
+  "Petrale Sole", #
+  "English Sole",#
+  "Dover Sole",#
+  "Rex Sole", #
+  "Flathead Sole",#
+  "Southern Rock Sole",#
+  "Curlfin Sole",#
+  "Sand Sole",#
+  "Slender Sole",#
+  "Pacific Sanddab",#
   "Pacific Halibut",#
   "Butter Sole",#
   "Starry Flounder"#
@@ -42,7 +43,7 @@ species_list <- list(species = species_list)
 
 
 
-# ##### function for running species in parallel --------
+# Function for running species in parallel --------
 #
 # is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
 # is_unix <- .Platform$OS.type == "unix"
@@ -55,6 +56,9 @@ fit_all_distribution_models <- function(species) {
 
   options(scipen = 100, digits = 4)
   theme_set(theme_sleek())
+
+  dens_model_name_long <- "depth, DOY, and survey type"
+
   mat_threshold <- 0.5
   knot_distance <<- 15
 
@@ -66,10 +70,10 @@ fit_all_distribution_models <- function(species) {
   #                  1992, 1994, 1997, 1999, 2001, 2020)
   # extra_years <- NULL
 
-
   set_family <- delta_gamma()
   # dens_model_name <- "-dg-st2000-all-10min-xt-offset"
-  dens_model_name <- "-dg-st2000-all-500m-xt-offset"
+  # dens_model_name <- "-dg-st2000-all-500m-xt-offset" # includes all mssm stages post 2000
+  dens_model_name <- "-dg-st2000-mssm-03-500m-xt-offset"
   # # dens_model_name <- "-dg-doy-1-22-10min-xt-offset"
   # # dens_model_name <- "-dg-all-yrs-mssm-1-22-10min-xt-offset"
   # # dens_model_name <- "-dg-all-yrs-other-1-22-10min-xt-offset"
@@ -78,17 +82,15 @@ fit_all_distribution_models <- function(species) {
   # set_family <- delta_poisson_link_gamma()
   # dens_model_name <- "-dplg-st2000-all-10min-xt-offset"
   # dens_model_name <- "-dplg-mssm-1-22-10min-xt-offset"
-
+  #
   # set_family <- tweedie()
   # dens_model_name <- "-tw-doy-1-22-10min-xt-offset"
-  dens_model_name_long <- "depth, DOY, and survey type"
 
   # set_family2 <- tweedie()
   set_family2 <- delta_gamma()
 
   fig_height <- 4 * 2
   fig_width <- 5 * 2
-
 
   surveys_included <- c(
     "HS MSA",
@@ -125,7 +127,7 @@ fit_all_distribution_models <- function(species) {
 
   spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species)))
 
-  # set naming conventions ----
+  # Set naming conventions ----
   m0 <- paste0(spp, "-total", dens_model_name, "-", knot_distance, "-km")
   m1 <- paste0(spp, "-mat-fem", dens_model_name, "-", knot_distance, "-km")
   m2 <- paste0(spp, "-mat-m", dens_model_name, "-", knot_distance, "-km")
@@ -156,7 +158,7 @@ fit_all_distribution_models <- function(species) {
   i3 <- paste0("data-generated/density-index/i-", m3, ".rds")
 
 
-  # load data ----
+  # # Load data ----
   # dset <- readRDS("data-raw/survey-sets-all.rds") %>%
   dset1 <- readRDS("data-raw/survey-sets-flatfish.rds") %>%
     filter(
@@ -180,7 +182,7 @@ fit_all_distribution_models <- function(species) {
     distinct()
 
 
-  # # data exploration and processing ----
+  # # Data exploration and processing ----
   dsum <- dset1 %>%
     filter(catch_weight > 0) %>%
     # filter(survey_abbrev == "OTHER") %>%
@@ -225,7 +227,6 @@ fit_all_distribution_models <- function(species) {
   # unique(dsamp$survey_abbrev)
   # unique(dsamp$maturity_code)
 
-
   dss <- gfplot::split_catch_by_sex(dset, dsamp,
     survey = surveys_included,
     immatures_pooled = TRUE,
@@ -249,9 +250,6 @@ fit_all_distribution_models <- function(species) {
 
   ds <- dss$data %>%
     left_join(meandoors) %>%
-    # filter(!(usability_code %in% c(5,9,13))) %>%
-    # filter(usability_code %in% c(1, 22)) %>%
-    filter(usability_code %in% c(1, 22, 16, 6)) %>%
     mutate(
       DOY = as.numeric(strftime(time_deployed, format = "%j")),
       days_to_solstice = DOY - 172,
@@ -268,21 +266,25 @@ fit_all_distribution_models <- function(species) {
       log_depth_c = log_depth - 5, # mean and median for whole data set
       survey_type = as.factor(ifelse(survey_abbrev == "HS MSA", "MSA",
         ifelse(survey_abbrev %in% c("MSSM WCVI", "MSSM QCS") &
-          year > 2002 & year <= 2005, "MSSM 2003-05",
+          year > 2002 & year <= 2005, "MSSM<=05",
         ifelse(survey_abbrev %in% c("MSSM WCVI", "MSSM QCS") &
-          year > 2005, "MSSM post-2005",
+          year > 2005, "MSSM>05",
         ifelse(survey_abbrev %in% c("MSSM WCVI", "MSSM QCS") &
-          year <= 2002, "MSSM pre-2003",
+          year <= 2002, "MSSM <03",
         ifelse(survey_abbrev == "OTHER", "OTHER", "SYN")
-        )
-        )
-        )
-      )),
+        ))))),
       area_swept = ifelse(is.na(tow_length_m),
         doorspread_m * duration_min * speed_mpm,
         doorspread_m * tow_length_m
       )
-    ) %>%
+    )
+
+
+  # Select what data to include ----
+  ds <- ds %>%
+    # filter(!(usability_code %in% c(5,9,13))) %>%
+    # filter(usability_code %in% c(1, 22)) %>%
+    filter(usability_code %in% c(1, 22, 16, 6)) %>%
     # if speed recorded, it isn't too slow
     filter(!is.na(speed_mpm) & speed_mpm != 0 & speed_mpm >= 50) %>%
     # if time recorded, it was at least 10 min
@@ -292,7 +294,7 @@ fit_all_distribution_models <- function(species) {
     filter(area_swept > 0) %>%
     # filter(year > 1983) # too slow to fit using only MSSM from 1975 to 1983
     # early MSSM not reliable for small fish
-    filter(survey_type != "MSSM pre-2003" & year >= 2000)
+    filter(survey_type != "MSSM <03" & year >= 2000)
 
   ds <- ds %>% filter(!is.na(catch_weight))
   ds <- ds %>% filter(!is.na(depth_m))
@@ -301,11 +303,25 @@ fit_all_distribution_models <- function(species) {
   ds <- ds %>% filter(!is.na(longitude))
   ds$offset <- log(ds$area_swept / 100000)
 
+  # # Keep only synoptic data
+  # ds <- filter(ds, survey_type == "SYN")
+
+  # keep only surveys that caught this species at least 20 times
+  which_surv <- ds %>%
+    filter(catch_weight > 0) %>%
+    group_by(survey_type) %>%
+    summarise(n = n()) %>%
+    filter(n > 20)
+
+  ds <- filter(ds, survey_type %in% which_surv$survey_type)
+
   # ds %>% group_by(usability_code, usability_desc, survey_type) %>% summarise(
   #   mean_catch = mean(catch_weight, na.rm = TRUE),
   #   sum_catch = sum(catch_weight, na.rm = TRUE),
   #   n = n()
   # )
+  # ds %>% select(survey_abbrev, year,
+  #               vessel_id, captain_id, vessel_cap_combo) %>% distinct() %>% View()
 
   ds %>%
     filter(group_name == "Mature females") %>%
@@ -316,14 +332,11 @@ fit_all_distribution_models <- function(species) {
     scale_y_discrete(limits = rev) +
     facet_grid(~survey_abbrev, scales = "free") +
     theme(axis.title.y = element_blank())
-  #
-  # ggsave("figs/all-usabilities-petrale.png", width = 17, height = 3.5)
+  # ggsave(paste0("figs/all-usabilities-", spp, ".png"), width = 17, height = 3.5)
 
   unique(ds$survey_abbrev)
   unique(ds$survey_type)
   sort(unique(ds$year))
-  # ds %>% select(survey_abbrev, year,
-  #               vessel_id, captain_id, vessel_cap_combo) %>% distinct() %>% View()
 
   # check that offset doesn't contain NAs of Inf
   range(ds$offset)
@@ -335,11 +348,12 @@ fit_all_distribution_models <- function(species) {
     facet_wrap(~year)
 
 
-  # make grid ----
+  # Make grid ----
   ds$X <- NULL
   ds$Y <- NULL
 
-  d <- sdmTMB::add_utm_columns(ds, ll_names = c("longitude", "latitude"), utm_crs = 32609)
+  d <- sdmTMB::add_utm_columns(ds, ll_names = c("longitude", "latitude"),
+                               utm_crs = 32609)
 
   if (is.null(extra_years)) {
     grid <- replicate_df(gfplot::synoptic_grid,
@@ -374,6 +388,16 @@ fit_all_distribution_models <- function(species) {
       )
   }
 
+  ## check what years we have data for ----
+  ## used to filter grid
+  survey_years <- d %>%
+    select(survey_abbrev, year) %>%
+    distinct() %>%
+    mutate(survey = ifelse(survey_abbrev == "HS MSA", "SYN HS",
+      ifelse(survey_abbrev == "MSSM QCS", "SYN QCS",
+        ifelse(survey_abbrev %in% c("OTHER", "MSSM WCVI"), "SYN WCVI",
+          survey_abbrev))
+    ))
 
   # check that my data and grid are on the same XY scale
   range(grid$year)
@@ -383,13 +407,10 @@ fit_all_distribution_models <- function(species) {
   range(d$Y)
   range(grid$Y)
 
-  dp <- d %>% filter(catch_weight > 1)
+  dp <- d %>% filter(catch_weight > 0)
 
   hist(log(dp$catch_weight))
   range(d$catch_weight)
-
-  # # Keep only synoptic data
-  # d <- filter(d, survey_type == "SYN")
 
   # make mesh for total density
   d1 <- d %>% filter(group_name == "Mature females")
@@ -407,9 +428,9 @@ fit_all_distribution_models <- function(species) {
 
   mesh$mesh$n
 
-  browser()
+  # browser()
 
-  # start modeling ----
+  # Start modeling ----
 
   if (!file.exists(fm)) {
     m <- sdmTMB(
@@ -469,26 +490,14 @@ fit_all_distribution_models <- function(species) {
     }
   }
 
-
-  # browser()
-
+  browser()
   m
   m$sd_report
   tidy(m, "ran_pars", conf.int = TRUE, model = 1)
   try(tidy(m, "ran_pars", conf.int = TRUE, model = 2))
 
-  # m0 <- sdmTMB(
-  #   catch_weight ~ 1,
-  #   # mesh = mesh,
-  #   data = m$data,
-  #   spatial = "off",
-  #   spatiotemporal = "off",
-  #   silent = FALSE,
-  #   family = m$family
-  # )
-  #
-  # de <- 1 - (logLik(m)/logLik(m0))
-  # de[1]
+  # TODO: add R2 once it's working for delta models
+  # r2_total <- r2.sdmTMB(m)
 
   grid <- filter(grid, year %in% c(sort(unique(m$data$year))))
 
@@ -498,9 +507,8 @@ fit_all_distribution_models <- function(species) {
     p <- predict(m, re_form_iid = NA, newdata = grid, return_tmb_object = TRUE)
 
     map_density(p, pfn, variable = "density_trimmed") +
-      labs(
-        title = paste0(species, ": total biomass (", dens_model_name, ")"),
-        # subtitle = paste0("Deviance explained:", round(de[1], 2))
+      labs(title = paste0(species, ": total biomass (", dens_model_name, ")"),
+        # subtitle = paste0("Variance explained:", TODO: r2_total$R2[1])
       )
 
     ggsave(paste0("figs/density-map-", m0, ".png"),
@@ -520,7 +528,7 @@ fit_all_distribution_models <- function(species) {
   #   range(d$log_depth)[1], ":", range(d$log_depth)[2], "by=0.05]"))
   # plot(g)
 
-  ## mature females
+  ## mature female model ----
   d2 <- d1 %>%
     filter(year > 2001) %>%
     filter(!is.na(group_catch_est))
@@ -570,6 +578,8 @@ fit_all_distribution_models <- function(species) {
   sort(unique(m$data$year))
   sort(unique(mf$data$year))
 
+  # TODO: add R2 once it's working for delta models
+  # r2_mf <- r2.sdmTMB(mf)
 
   if (file.exists(pmfn) & file.exists(i1)) {
     pf <- readRDS(pmfn)
@@ -593,7 +603,7 @@ fit_all_distribution_models <- function(species) {
   }
 
 
-  ## mature males
+  ## mature male model ----
 
   if (!file.exists(fmm)) {
     d2b <- d %>%
@@ -634,7 +644,8 @@ fit_all_distribution_models <- function(species) {
     }
   }
 
-
+  # TODO: add R2 once it's working for delta models
+  # r2_mm <- r2.sdmTMB(mm)
 
   if (file.exists(pmfn2) & file.exists(i2)) {
     pm <- readRDS(pmfn2)
@@ -652,6 +663,9 @@ fit_all_distribution_models <- function(species) {
       height = fig_height, width = fig_width
     )
   }
+
+
+  ## immature model ----
 
   if (!file.exists(fmi)) {
 
@@ -704,6 +718,9 @@ fit_all_distribution_models <- function(species) {
     }
   }
 
+  # TODO: add R2 once it's working for delta models
+  # r2_i <- r2.sdmTMB(mi)
+
   s <- sanity(mi)
 
   if (all(s)) {
@@ -716,7 +733,6 @@ fit_all_distribution_models <- function(species) {
         return_tmb_object = TRUE
       )
 
-
       map_density(pi, pifn) +
         labs(title = paste0(species, ": immature biomass (", dens_model_name, ")"))
 
@@ -724,12 +740,12 @@ fit_all_distribution_models <- function(species) {
         height = fig_height, width = fig_width
       )
     }
-    # browser()
   }
 
-  if (!file.exists(i0)) {
-    # Generate coastwide indices
 
+  # Generate all coastwide indices ----
+  # browser()
+  if (!file.exists(i0)) {
     plot_index(p, extra_years = NULL, i0) +
       ggtitle(paste0(species, ": total biomass (", dens_model_name, ")"))
 
@@ -753,7 +769,6 @@ fit_all_distribution_models <- function(species) {
     # height = fig_height / 2, width = fig_width / 1.5
     # )
   }
-
   if (!file.exists(i3)) {
     try(plot_index(pi, extra_years = NULL, i3) +
       ggtitle(paste0(species, ": immature biomass (", dens_model_name, ")")))
@@ -773,6 +788,8 @@ fit_all_distribution_models <- function(species) {
 
   # browser()
 
+  ## Plot coastwide indices ----
+
   p1 <- bc_inds %>%
     mutate(index = fct_relevel(index, rev)) %>%
     ggplot(aes(year, est)) +
@@ -791,60 +808,57 @@ fit_all_distribution_models <- function(species) {
       " (", paste(unique(m$data$survey_type), collapse = ", "), ")"
     ))
 
-  p1
-
+  # p1
   # ggsave(paste0("figs/density-index-", spp, "-all",
   # dens_model_name, "-", knot_distance, "-km.png"),
   # height = fig_height / 2, width = fig_width / 1.5
   # )
 
-  survey_years <- d1 %>%
-    select(survey_abbrev, year) %>%
-    distinct() %>%
-    mutate(survey = ifelse(survey_abbrev == "HS MSA", "SYN HS",
-      ifelse(survey_abbrev == "MSSM QCS", "SYN QCS",
-        ifelse(survey_abbrev %in% c("OTHER", "MSSM WCVI"), "SYN WCVI",
-          survey_abbrev
-        )
-      )
-    ))
-  #
-  # grid2 <- grid %>%
-  #   # filter(year > 2001)
-  #   filter(year %in% c(sort(unique(mm$data$year))))
-
+  # Generate split indices ----
   fsi <- paste0(
     "data-generated/density-index/", spp, "-split-",
     dens_model_name, "-", knot_distance, "-km.rds"
   )
 
-  # browser()
-
   if (!file.exists(fsi)) {
-    inds <- split_index_by_survey(m, grid, "Total")
-    inds2 <- split_index_by_survey(mf, grid, "Mature female")
-    inds3 <- split_index_by_survey(mm, grid, "Mature male")
 
-    all_split_inds <- bind_rows(inds, inds2, inds3)
+    # inds0 <- readRDS(paste0("temp-index-split-",
+    #   gsub(" ", "-", gsub("\\/", "-", tolower(species))),
+    #   "-", gsub(" ", "-", "Total"), ".rds"))
+    # inds1 <- readRDS(paste0("temp-index-split-",
+    #   gsub(" ", "-", gsub("\\/", "-", tolower(species))),
+    #   "-", gsub(" ", "-", "Mature female"), ".rds"))
+    # inds2 <- readRDS(paste0("temp-index-split-",
+    #   gsub(" ", "-", gsub("\\/", "-", tolower(species))),
+    #   "-", gsub(" ", "-", "Mature male"), ".rds"))
+    # inds3 <- readRDS(paste0("temp-index-split-",
+    #   gsub(" ", "-", gsub("\\/", "-", tolower(species))),
+    #   "-", gsub(" ", "-", "Immature"), ".rds"))
 
-    if (file.exists(f3)) {
-      inds4 <- split_index_by_survey(mi, grid, "Immature")
-      all_split_inds <- bind_rows(inds, inds2, inds3, inds4)
+    inds0 <- split_index_by_survey(m, grid, species, "Total")
+    inds1 <- split_index_by_survey(mf, grid, species, "Mature female")
+    inds2 <- split_index_by_survey(mm, grid, species, "Mature male")
+
+    all_split_inds <- bind_rows(inds0, inds1, inds2)
+    saveRDS(all_split_inds, fsi)
+
+    if (file.exists(i3)) {
+      inds3 <- split_index_by_survey(mi, grid, species, "Immature")
+      all_split_inds <- bind_rows(inds0, inds1, inds2, inds3)
     }
-
     saveRDS(all_split_inds, fsi)
   } else {
     all_split_inds <- readRDS(fsi)
   }
 
-  # browser()
 
+  ## Plot split indices ----
   p2 <- all_split_inds %>%
     left_join(survey_years, ., multiple = "all") %>%
     select(-survey_abbrev) %>%
     filter(!is.na(est)) %>%
     distinct() %>%
-    filter(index == "Total") %>%
+    filter(group == "Total") %>%
     mutate(index = fct_relevel(index, rev)) %>%
     ggplot(aes(year, est)) +
     geom_ribbon(aes(ymin = lwr, ymax = upr, fill = survey), alpha = 0.3) +
@@ -861,7 +875,7 @@ fit_all_distribution_models <- function(species) {
 
   p2
 
-  p3dat <- filter(all_split_inds, index != "Total") %>%
+  p3dat <- filter(all_split_inds, group != "Total") %>%
     left_join(survey_years, ., multiple = "all") %>%
     select(-survey_abbrev) %>%
     filter(!is.na(est)) %>%
@@ -888,7 +902,6 @@ fit_all_distribution_models <- function(species) {
     )
   }
 
-  library(patchwork)
   p1a <- p1 + theme(axis.text.x = element_blank(), axis.title = element_blank())
   p2a <- p2 + theme(axis.title.x = element_blank())
   p3a <- p3 + theme(axis.title.y = element_blank(), legend.position = "none")
@@ -901,12 +914,13 @@ fit_all_distribution_models <- function(species) {
   ),
   height = fig_height, width = fig_width
   )
+
 }
 
 
 # fit_all_distribution_models(species_list)
 
-## test runs
+## Run with pmap -----
 pmap(species_list, fit_all_distribution_models)
 
 # furrr::future_pmap(species_list, fit_all_distribution_models)
@@ -952,3 +966,5 @@ pmap(species_list, fit_all_distribution_models)
 #   height = fig_height / 2, width = fig_width / 2
 # )
 #
+
+

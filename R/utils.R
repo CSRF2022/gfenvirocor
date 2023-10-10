@@ -13,13 +13,17 @@ refine_delta_model <- function(m, alternate_family = set_family2){
     s <- sanity(m)
   }
   if (!s$hessian_ok & !s$nlminb_ok) {
-    m <- update(m, family = alternate_family)
+    m <- update(m, family = alternate_family,
+                spatial = as.list(m[["spatial"]]),
+                spatiotemporal = as.list(m[["spatiotemporal"]]),
+                extra_time = m$extra_time,
+                data = m$data, mesh = m$spde)
     s <- sanity(m)
   }
   if (!s$se_magnitude_ok|!s$se_na_ok|!s$sigmas_ok) {
     m <- update(m, spatial = list("on", "off"),
-                spatial = as.list(m[["spatial"]]),
                 spatiotemporal = as.list(m[["spatiotemporal"]]),
+                extra_time = m$extra_time,
                 data = m$data, family = m$family, mesh = m$spde)
     s <- sanity(m)
   }
@@ -27,12 +31,14 @@ refine_delta_model <- function(m, alternate_family = set_family2){
     m <- update(m, family = alternate_family,
                 spatial = as.list(m[["spatial"]]),
                 spatiotemporal = as.list(m[["spatiotemporal"]]),
+                extra_time = m$extra_time,
                 data = m$data, mesh = m$spde)
     s <- sanity(m)
   } else {
     if (!s$se_magnitude_ok|!s$se_na_ok|!s$sigmas_ok) {
       m <- update(m, spatial = list("off", "off"),
                   spatiotemporal = as.list(m[["spatiotemporal"]]),
+                  extra_time = m$extra_time,
                   data = m$data, family = m$family, mesh = m$spde)
       s <- sanity(m)
     }
@@ -40,6 +46,7 @@ refine_delta_model <- function(m, alternate_family = set_family2){
     if (!s$se_magnitude_ok|!s$se_na_ok|!s$sigmas_ok) {
       m <- update(m, spatial = list("on", "off"),
                   spatiotemporal = c("off", "rw"),
+                  extra_time = m$extra_time,
                   data = m$data, family = m$family, mesh = m$spde)
       s <- sanity(m)
     }
@@ -50,17 +57,23 @@ refine_delta_model <- function(m, alternate_family = set_family2){
                   spatiotemporal = "rw",
                   family = alternate_family,
                   share_range = FALSE,
+                  extra_time = m$extra_time,
                   data = m$data, mesh = m$spde)
       s <- sanity(m)
     }
   }
   if(!all(s)){
-    m <- update(m, share_range = TRUE)
+    m <- update(m, share_range = TRUE,
+                spatial = as.list(m[["spatial"]]),
+                spatiotemporal = as.list(m[["spatiotemporal"]]),
+                extra_time = m$extra_time,
+                data = m$data, family = m$family, mesh = m$spde)
     s <- sanity(m)
   }
   if (!s$se_magnitude_ok|!s$se_na_ok) {
     m <- update(m, spatial = "off",
                 spatiotemporal = as.list(m[["spatiotemporal"]]),
+                extra_time = m$extra_time,
                 data = m$data, family = m$family, mesh = m$spde)
     s <- sanity(m)
   }
@@ -86,12 +99,14 @@ refine_model <- function(m){
     m <- update(m, share_range = TRUE,
                 spatial = as.list(m[["spatial"]]),
                 spatiotemporal = as.list(m[["spatiotemporal"]]),
+                extra_time = m$extra_time,
                 data = m$data, family = m$family, mesh = m$spde)
     s <- sanity(m)
   }
   if (!s$se_magnitude_ok|!s$se_na_ok) {
     m <- update(m, spatial = "off",
                 spatiotemporal = as.list(m[["spatiotemporal"]]),
+                extra_time = m$extra_time,
                 data = m$data, family = m$family, mesh = m$spde)
     s <- sanity(m)
   }
@@ -130,22 +145,23 @@ plot_index <- function(dat, extra_years = NULL, filename){
 #'
 #' @export
 #'
-split_index_by_survey <- function(model, grid, model_name){
+split_index_by_survey <- function(model, grid, species, model_name){
 
   grid <- filter(grid, year %in% c(sort(unique(model$data$year))))
-
+# browser()
   p <- grid |>
     split(grid$survey) |>
     lapply(function(x) predict(model, re_form_iid = NA, newdata = x, return_tmb_object = TRUE))
   i <- purrr::map_dfr(p, get_index, area = 4, .id = "survey")
   i$surveys <- paste0(unique(model$data$survey_type), collapse=", ")
+  i$species <- species
   i$group <- model_name
-  i$index <- paste(i$group, "(", i$surveys, ")")
+  i$index <- paste0(i$group, "\n(", i$surveys, ")")
   i$model <- paste0(ifelse(
     length(model$family)==6, model$family[6], paste0(model$family[1],"(link = 'log')")
   ), "\nspatial (", model[["spatial"]][1], ", ", model[["spatial"]][2], ")")
 
-  saveRDS(i, paste0("temp-index-split-", gsub(" ", "-", model_name),".rds"))
+  saveRDS(i, paste0("temp-index-split-", gsub(" ", "-", gsub("\\/", "-", tolower(species))), "-", gsub(" ", "-", model_name), ".rds"))
 
   return(i)
 }
