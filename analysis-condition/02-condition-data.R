@@ -5,17 +5,38 @@
 library(tidyverse)
 library(gfplot)
 
-species <- c(
-  "Petrale Sole",
-  "Canary Rockfish",
-  "Arrowtooth Flounder",
-  "North Pacific Spiny Dogfish",
-  "Pacific Cod"
+# species <- c(
+#   "Petrale Sole",
+#   "Canary Rockfish",
+#   "Arrowtooth Flounder",
+#   "North Pacific Spiny Dogfish",
+#   "Pacific Cod"
+# )
+species_list <- list(
+  "Arrowtooth Flounder", #
+  "Petrale Sole", #
+  "English Sole",#
+  "Dover Sole",#
+  "Rex Sole", #
+  "Flathead Sole",#
+  "Southern Rock Sole" #,
+  # "Curlfin Sole",#
+  # "Sand Sole",#
+  # "Slender Sole",#
+  # "Pacific Sanddab",#
+  # "Pacific Halibut",#
+  # "Butter Sole",#
+  # "Starry Flounder"#
+  # # #"C-O Sole", # way too few!
+  # # "Deepsea Sole" # no maturity
 )
 
-species_list <- list(species_list = species)
+species_list <- list(species = species_list)
 
-get_condition_data <- function(species_list){
+get_condition_data <- function(species){
+
+## code checking within function
+# species <- "Arrowtooth Flounder"
 
 # mat_threshold  <-  0.05
 mat_threshold <- 0.5
@@ -29,32 +50,78 @@ mat_threshold <- 0.5
 
 surveys_included <- c("HBLL OUT N", "HBLL OUT S", "IPHC FISS", "SABLE", # only have weights for certain species?
                       "MSSM QCS", "MSSM WCVI",
+                      "OTHER", # filtered to only include two older bottom trawl surveys
                       "HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI")
 
 # browser()
 
-dat <- readRDS("data-raw/survey-samples-all.rds") %>%
+# dat <- readRDS("data-raw/survey-samples-all.rds") %>%
 # dat <- readRDS("data-raw/pcod-survey-samples-all.rds") %>%
-  filter(species_common_name == tolower(species_list)) %>%
+dat <- readRDS("data-raw/survey-samples-flatfish.rds") %>%
+  # filter(survey_abbrev == "OTHER" & !is.na(weight))
+  filter(species_common_name == tolower(species)) %>%
   filter((survey_abbrev %in% surveys_included)) %>%
-  mutate(survey_group =
-           ifelse(survey_abbrev %in% c("HBLL OUT N", "HBLL OUT S"), "HBLL",
-                  ifelse(survey_abbrev %in% c("SYN HS","SYN QCS","SYN WCHG","SYN WCVI"), "SYN",
-                         ifelse(survey_abbrev %in% c("MSSM QCS", "MSSM WCVI"), "MSSM",
-                                survey_abbrev)
-                  )
-           )
-  ) %>% distinct()
-# rename(trip_month = month)
+  # filter(!is.na(weight), !is.na(length)) %>%
+  mutate(
+    # is dataset currently but
+    survey_abbrev = ifelse(survey_abbrev %in% c("MSSM", "MSSM QCS", "MSSM WCVI") & latitude < 50, "MSSM WCVI",
+                    ifelse(survey_abbrev %in% c("MSSM", "MSSM QCS", "MSSM WCVI") & latitude > 50, "MSSM QCS",
+                           survey_abbrev)),
+    survey_group =
+      ifelse(survey_abbrev %in% c("HBLL OUT N", "HBLL OUT S"), "HBLL",
+        ifelse(survey_abbrev %in% c("OTHER", "HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI"), "TRAWL",
+          ifelse(survey_abbrev %in% c("MSSM QCS", "MSSM WCVI"), "MSSM",
+            survey_abbrev
+          )
+        )
+      )#,
+    # survey_type = as.factor(ifelse(survey_abbrev == "HS MSA", "MSA",
+    #   ifelse(survey_abbrev %in% c("MSSM WCVI", "MSSM QCS") &
+    #     year > 2002 & year <= 2005, "MSSM<=05",
+    #   ifelse(survey_abbrev %in% c("MSSM WCVI", "MSSM QCS") &
+    #     year > 2005, "MSSM>05",
+    #   ifelse(survey_abbrev %in% c("MSSM WCVI", "MSSM QCS") &
+    #     year <= 2002, "MSSM <03",
+    #   ifelse(survey_abbrev == "OTHER", "OTHER",
+    #   ifelse(survey_abbrev %in% c("HBLL OUT N", "HBLL OUT S"), "HBLL",
+    #   ifelse(survey_abbrev %in% c("SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI"), "SYN",
+    #     survey_abbrev
+    #     )))))))),
+    ) %>%
+  distinct()
 
 
-dset <- readRDS("data-raw/survey-sets-all.rds") %>%
-  filter(survey_abbrev != "SABLE OFF") %>%
+## not needed because only the more common length type populates the length variable
+## alternates are included only in their own columns
+# dat <- filter(dat, length_type = which.max(table(dat$length_type)))
+
+
+# dset <- readRDS("data-raw/survey-sets-all.rds") %>%
 # dset <- readRDS("data-raw/pcod-survey-sets-all.rds") %>%
-  filter(species_common_name == tolower(species_list))%>%
+dset <- readRDS("data-raw/survey-sets-flatfish.rds") %>%
+  filter(
+    !(survey_abbrev %in% c("SABLE INLET", "SABLE OFF", "SABLE RAND")),
+    # some MSSM sets are in both as QCS and WCVI
+    !(survey_series_id == 6 & latitude < 50),
+    !(survey_series_id == 7 & latitude > 50),
+    # 11 useful for deeper species, 9 from 1996 probably too limited
+    !(survey_abbrev == "OTHER" & !(survey_series_id %in% c(9, 11)))
+  ) %>%
+  mutate(survey_abbrev = ifelse(survey_abbrev == "MSSM" & latitude < 50, "MSSM WCVI",
+                                ifelse(survey_abbrev == "MSSM" & latitude > 50, "MSSM QCS", survey_abbrev)),
+    survey_group =
+      ifelse(survey_abbrev %in% c("HBLL OUT N", "HBLL OUT S"), "HBLL",
+      ifelse(survey_abbrev %in% c("OTHER", "HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI"), "TRAWL",
+      ifelse(survey_abbrev %in% c("MSSM QCS", "MSSM WCVI"), "MSSM",
+        survey_abbrev
+        )))
+  ) %>%
   filter((survey_abbrev %in% surveys_included), !is.na(longitude), !is.na(latitude))
 
 saveRDS(dset, "data-generated/set-data-used.rds")
+
+
+dset <- dset %>% filter(species_common_name == tolower(species))
 
 
 sort(unique(dat$survey_abbrev))
@@ -189,7 +256,7 @@ split_by_sex <- TRUE
 immatures_pooled <- TRUE
 
 
-if(species_list=="North Pacific Spiny Dogfish") {
+if(species=="North Pacific Spiny Dogfish") {
   custom_maturity <- c(NA, 55)
 } else{
   custom_maturity <- NULL
@@ -449,7 +516,7 @@ hist(ds$sample_multiplier)
 plot(log(ds$sample_multiplier_by_weight) ~ log(ds$sample_multiplier))
 
 # save data
-spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species_list)))
+spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species)))
 
 dir.create(paste0("data-generated/condition-data/"), showWarnings = FALSE)
 saveRDS(ds, paste0("data-generated/condition-data/", spp, "-mat-", mat_threshold, "-condition.rds"))
