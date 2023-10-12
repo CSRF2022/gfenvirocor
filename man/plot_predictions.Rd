@@ -28,6 +28,7 @@ plot_predictions(
   show_axes = FALSE,
   xlim = NULL,
   ylim = NULL,
+  bounds = NULL,
   x_buffer = c(-0.3, 0.5),
   y_buffer = c(-0.1, 0.1),
   include_bath = FALSE,
@@ -93,6 +94,8 @@ These should be in UTM coordinates.}
 
 \item{ylim}{Y axis limits in UTM coordinates. The synopsis report uses
 \code{c(5275, 6155)}. Defaults to the range of the data.}
+
+\item{bounds}{dataframe of coordinates from which to get limits.}
 
 \item{x_buffer}{A buffer in UTM coordinates to extend the X axis. Mostly
 useful if the axis limits aren't explicitly specified.}
