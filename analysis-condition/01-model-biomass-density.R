@@ -699,7 +699,7 @@ fit_all_distribution_models <- function(species) {
       data = d3
     ))
 
-    if(exists(mi)){
+    if(exists("mi")){
     saveRDS(mi, fmi)
 
     if (length(mi$family) == 6) {
