@@ -14,22 +14,22 @@ devtools::load_all(".")
 # )
 
 species_list <- list(
-  "Arrowtooth Flounder", #
-  "Petrale Sole", #
-  "English Sole",#
-  "Dover Sole",#
-  "Rex Sole", #
-  "Flathead Sole",#
-  "Southern Rock Sole" #,
-  # "Curlfin Sole",#
-  # "Sand Sole",#
-  # "Slender Sole",#
-  # "Pacific Sanddab",#
-  # "Pacific Halibut",#
-  # "Butter Sole",#
-  # "Starry Flounder"#
-  # # #"C-O Sole", # way too few!
-  # # "Deepsea Sole" # no maturity
+  "Arrowtooth Flounder"#, #
+  # "Petrale Sole", #
+  # "English Sole",#
+  # "Dover Sole",#
+  # "Rex Sole", #
+  # "Flathead Sole",#
+  # "Southern Rock Sole", #,
+  # "Curlfin Sole"#
+  # # "Sand Sole",#
+  # # "Slender Sole",#
+  # # "Pacific Sanddab",#
+  # # "Pacific Halibut",#
+  # # "Butter Sole",#
+  # # "Starry Flounder"#
+  # # # #"C-O Sole", # way too few!
+  # # # "Deepsea Sole" # no maturity
 )
 
 
@@ -38,7 +38,6 @@ index_list <- expand.grid(species = species_list, maturity = c("mat", "imm"), ma
          males = ifelse(maturity == "imm", FALSE, males)
          ) %>% distinct()
 
-# index_list <- index_list[4:6,]
 
 # Function for generating condition indices ----
 
@@ -53,6 +52,8 @@ just_males <- males
 just_females <- females
 
 # browser()
+
+print(paste(species, maturity, "(males:", just_males, ")"))
 
 if(species=="North Pacific Spiny Dogfish") {
 
@@ -80,15 +81,18 @@ if(species=="North Pacific Spiny Dogfish") {
 # just_males <- TRUE
 # just_females <- TRUE
 # just_males <- just_females <- FALSE
-add_covariates <- FALSE
+add_density <- FALSE
+# add_density <- TRUE
 mat_threshold <- 0.5
 # knot_distance <- 5
 # knot_distance <- 10
-knot_distance <<- 15
+knot_distance <- 15
 # knot_distance <- 20
 fig_height <- 4 * 2
 fig_width <- 5 * 2
 delta_dens_model <- TRUE
+
+browser()
 
 # Load condition data and attach lagged density estimates ----
 f <- paste0("data-generated/condition-data-w-lag-density/", spp, "-mat-", mat_threshold, "-condition-dens-doy.rds")
@@ -111,8 +115,15 @@ if (!file.exists(f)) {
   ds2 <- sdmTMB::add_utm_columns(ds, ll_names = c("longitude", "latitude"), utm_crs = 32609) %>%
     filter(year > 2001) # can't predict prior to first year of density model
 
+  nd0 <- ds2 %>%
+    select(year, survey_abbrev, fishing_event_id, X, Y, log_depth) %>%
+    mutate(survey_group = "TRAWL",
+           survey_type = "SYN",
+           days_to_solstice = 0,
+           log_depth_c = log_depth - 5)  # can't predict prior to first year of density model
 
-  nd <- ds2 %>%
+
+  nd1 <- ds2 %>%
     select(year, survey_abbrev, fishing_event_id, X, Y, log_depth) %>%
     mutate(survey_group = "TRAWL",
            survey_type = "SYN",
@@ -125,15 +136,29 @@ if (!file.exists(f)) {
 
   md <- readRDS(paste0("data-generated/density-models/", spp, "-total", dens_model_name2, ".rds"))
 
-  pd <- predict(md, newdata = nd)
+  pd0 <- predict(md, newdata = nd0)
+  pd1 <- predict(md, newdata = nd1)
 
   if (delta_dens_model) {
-    pd2 <- pd %>% mutate(density_lag1 = plogis(est1) * exp(est2))
+    pd0 <- pd0 %>% mutate(density = plogis(est1) * exp(est2))
+    pd1 <- pd1 %>% mutate(density_lag1 = plogis(est1) * exp(est2))
   } else {
-    pd2 <- pd %>% mutate(density_lag1 = exp(est))
+    pd0 <- pd0 %>% mutate(density = exp(est))
+    pd1 <- pd1 %>% mutate(density_lag1 = exp(est))
   }
 
-  pd2 <- pd2 %>%
+  pd0 <- pd0 %>%
+    mutate(
+      log_density = log(density),
+      model = dens_model_name2
+    ) %>%
+    select(
+      year, survey_abbrev, fishing_event_id, X, Y, log_depth,
+      density, log_density, model
+    ) %>%
+    distinct()
+
+  pd1 <- pd1 %>%
     mutate(
       year = year_true,
       log_density_lag1 = log(density_lag1),
@@ -145,13 +170,15 @@ if (!file.exists(f)) {
     ) %>%
     distinct()
 
-  d2 <- left_join(ds2, pd2)
+  d2 <- left_join(ds2, pd0) %>% left_join(pd1)
   dir.create(paste0("data-generated/condition-data-w-lag-density/"), showWarnings = FALSE)
   saveRDS(d2, f)
 } else {
   d2 <- readRDS(f)
 }
 
+
+if(add_density){
 # # load density predictions for full survey grid if going to be used as covariates condition
 # gridA <- readRDS(paste0("data-generated/density-predictions/", spp, "-p", dens_model_name2, ".rds")) %>%
 #   select(year, X, Y, survey, depth, log_depth, density) %>%
@@ -180,6 +207,8 @@ if (!file.exists(f)) {
 #     # !(year == 2020) &
 #     year <= 2022 & year >= 2003
 #   )
+}
+
 
 # Select relevant data and grid ----
 
@@ -187,84 +216,132 @@ if (!file.exists(f)) {
 
 if (mat_class == "mat") {
   if (just_males) {
+    pf <- paste0("data-generated/density-predictions/p-", spp,
+                 "-mat-m", dens_model_name2, ".rds")
+    if(file.exists(pf)){
     d <- d2 %>% filter(group_name == "Mature males")
     group_tag <- "mat-m"
     group_label <- "mature males"
 
     # get current year density to scale condition index with
-    gridA <- readRDS(paste0("data-generated/density-predictions/p-", spp, "-mat-m", dens_model_name2, ".rds")) %>%
+    gridA <- readRDS(pf) %>%
       select(year, X, Y, survey, depth, days_to_solstice, log_depth, density) %>%
       group_by(year)  %>%
-      mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density)) %>%
+      mutate(sum_density = sum(density),
+             prop_density = density / sum_density,
+             log_density = log(density)) %>%
       ungroup() %>%
       group_by(year, survey) %>%
-      mutate(survey_density = sum(density), prop_density_by_survey = density / survey_density)
+      mutate(survey_density = sum(density),
+             prop_density_by_survey = density / survey_density)
+    } else {
+      print(paste("No density predictions for mature male ", species, "densities."))
+      return(NA)
+    }
   } else {
 
   if (just_females) {
+    pf <- paste0("data-generated/density-predictions/p-", spp,
+                 "-mat-fem", dens_model_name2, ".rds")
+    if(file.exists(pf)){
     d <- d2 %>% filter(group_name == "Mature females")
     group_tag <- "mat-fem"
     group_label <- "mature females"
 
     # get current year density to scale condition index with
-    gridA <- readRDS(paste0("data-generated/density-predictions/p-", spp, "-mat-fem", dens_model_name2, ".rds")) %>%
+    gridA <- readRDS(pf) %>%
       select(year, X, Y, survey, depth, days_to_solstice, log_depth, density) %>%
       group_by(year) %>%
-      mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density)) %>%
+      mutate(sum_density = sum(density),
+             prop_density = density / sum_density,
+             log_density = log(density)) %>%
       ungroup() %>%
       group_by(year, survey) %>%
-      mutate(survey_density = sum(density), prop_density_by_survey = density / survey_density)
+      mutate(survey_density = sum(density),
+             prop_density_by_survey = density / survey_density)
+    } else {
+      print(paste("No density predictions for mature female ", species, "densities."))
+      return(NA)
+    }
   } else {
+    pf <- paste0("data-generated/density-predictions/p-", spp,
+                 "-all-mat", dens_model_name2, ".rds")
+    if(file.exists(pf)){
     d <- d2 %>% filter(group_name %in% c("Mature females", "Mature males")) %>%
       rename(group_catch_weight_split = group_catch_weight)
     d3 <- d %>% group_by(fishing_event_id, group_name) %>%
-      select(fishing_event_id, group_name, group_catch_weight_split) %>% distinct() %>% ungroup() %>%
-      group_by(fishing_event_id) %>% summarise(group_catch_weight = sum(group_catch_weight_split))
+      select(fishing_event_id, group_name, group_catch_weight_split) %>%
+      distinct() %>% ungroup() %>%
+      group_by(fishing_event_id) %>%
+      summarise(group_catch_weight = sum(group_catch_weight_split))
     d <- left_join(d, d3)
     group_tag <- "mat"
     group_label <- "mature (females and males)"
 
     # get current year density to scale condition index with
-    gridA <- readRDS(paste0("data-generated/density-predictions/p-", spp, "-all-mat", dens_model_name2, ".rds")) %>%
+    gridA <- readRDS(pf) %>%
       select(year, X, Y, survey, depth, days_to_solstice, log_depth, density) %>%
       group_by(year) %>%
       mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density)) %>%
       ungroup() %>%
       group_by(year, survey) %>%
       mutate(survey_density = sum(density), prop_density_by_survey = density / survey_density)
+    } else {
+      print(paste("No density predictions for all mature ", species, "densities."))
+      return(NA)
+    }
   }
   }
 } else {
   if (mat_class == "imm") {
+    pf <- paste0("data-generated/density-predictions/p-", spp,
+                 "-imm", dens_model_name2, ".rds")
+    if(file.exists(pf)){
+
     d <- d2 %>% filter(group_name %in% c("Immature"))
     group_tag <- "imm"
     group_label <- "immatures"
 
     # get current year density to scale condition index with
-    gridA <- readRDS(paste0("data-generated/density-predictions/p-", spp, "-imm", dens_model_name2, ".rds")) %>%
+    gridA <- readRDS(pf) %>%
       select(year, X, Y, survey, depth, days_to_solstice, log_depth, density) %>%
       group_by(year) %>%
-      mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density)) %>%
+      mutate(sum_density = sum(density),
+             prop_density = density / sum_density,
+             log_density = log(density)) %>%
       ungroup() %>%
       group_by(year, survey) %>%
-      mutate(survey_density = sum(density), prop_density_by_survey = density / survey_density)
-  } else {
+      mutate(survey_density = sum(density),
+             prop_density_by_survey = density / survey_density)
 
+      # browser()
+    } else {
+      print(paste("No density predictions for immature ", species, "densities."))
+      return(NA)
+    }
+  } else {
+    pf <- paste0("data-generated/density-predictions/p-", spp,
+                 "-total", dens_model_name2, ".rds")
+    if(file.exists(pf)){
     # model everything together
     d <- d2
 
     # get current year density to scale condition index with
-    gridA <- readRDS(paste0("data-generated/density-predictions/p-", spp, "-total", dens_model_name2, ".rds")) %>%
+    gridA <- readRDS(pf) %>%
       select(year, X, Y, survey, depth, days_to_solstice, log_depth, density) %>%
       group_by(year)
     mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density)) %>%
       ungroup() %>%
       group_by(year, survey) %>%
       mutate(survey_density = sum(density), prop_density_by_survey = density / survey_density)
-  }
+  } else {
+  print(paste("No density predictions for total ", species, "densities."))
+  return(NA)
+}
+}
 }
 
-if (add_covariates) {
+if (add_density) {
   # load density predictions for full survey grid if going to be used as covariates condition
   gridB <- readRDS(paste0("data-generated/density-predictions/p-", spp, "-total", dens_model_name2, ".rds")) %>%
     select(year, X, Y, survey, depth, days_to_solstice, log_depth, density) %>%
@@ -314,7 +391,7 @@ if (add_covariates) {
 hist(d$cond_fac)
 hist(log(d$cond_fac))
 
-mesh <- make_mesh(d, c("X", "Y"), cutoff = 15)
+mesh <- make_mesh(d, c("X", "Y"), cutoff = knot_distance)
 
 ggplot() +
   inlabru::gg(mesh$mesh) +
@@ -332,20 +409,66 @@ ggplot() +
   facet_wrap(~year) +
   scale_color_gradient2()
 
+# load refine function
+refine_cond_model <- function(m, set_formula = cond_formula, dist = knot_distance){
+  s <- sanity(m)
+  t <- tidy(m, "ran_pars", conf.int = TRUE)
+  if (!all(s) & !m$call$share_range) {
+    # browser()
+    if (abs(diff(t$estimate[t$term == "range"])) < dist) {
+    m <- update(m,
+                formula = set_formula,
+                # formula = as.list(m[["formula"]]),
+                share_range = TRUE,
+                weights = m$data$sample_multiplier,
+                # spatial = as.list(m[["spatial"]]),
+                # spatiotemporal = as.list(m[["spatiotemporal"]]),
+                # extra_time = m$extra_time,
+                # family = m$family,
+                data = m$data, mesh = m$spde)
+    s <- sanity(m)
+    t <- tidy(m, "ran_pars", conf.int = TRUE)
+    }
+  }
+  if (!all(s)) {
+    if(t$estimate[t$term == "sigma_O"] < 0.001){
+    m <- update(m,
+                formula = set_formula,
+                weights = m$data$sample_multiplier,
+                spatial = "off",
+                data = m$data, mesh = m$spde)
+    }
+  }
+  sanity(m)
+  return(m)
+}
 
 # Estimate condition model ----
 ## start with just an intercept model ----
 
-# browser()
 
-model_name <-  "-all-st2002-doy"
 d %>% group_by(survey_group) %>% summarise(n = n())
 
+# browser()
 
-mf <- paste0("data-generated/condition-models-", group_tag, "/", spp, "-c-",
-             group_tag, model_name, "-", knot_distance, "-km.rds")
+if(length(unique(d$survey_group))==1){
+  cond_formula <- cond_fac ~ 1 + poly(days_to_solstice, 2)
+  model_name <- "-doy"
+  mf <- paste0("data-generated/condition-models-", group_tag, "/", spp, "-c-",
+               group_tag, model_name, "-", knot_distance, "-km.rds")
+} else {
+  cond_formula <- cond_fac ~ as.factor(survey_group) +
+    poly(days_to_solstice, 2)
+  model_name <-  "-all-st2002-doy"
+  mf <- paste0("data-generated/condition-models-", group_tag, "/", spp, "-c-",
+               group_tag, model_name, "-", knot_distance, "-km.rds")
+}
 
-if (!file.exists(mf)) {
+if (file.exists(mf)) {
+  try(m1 <- readRDS(mf))
+}
+
+if(!exists("m1")) {
 
  # TODO: Add DOY with cyclic smoother?
   # require(mgcv)
@@ -367,15 +490,7 @@ if (!file.exists(mf)) {
   # plot(x,y);plot(b,select=1,shade=TRUE);lines(x,f-mean(f),col=2)
   # plot(b,select=2,shade=TRUE);plot(fitted(b),residuals(b))
 
-  if(length(unique(d$survey_group))==1){
-    cond_formula <- cond_fac ~ 1 + poly(days_to_solstice, 2)
-    model_name <- "-doy"
-    mf <- paste0("data-generated/condition-models-", group_tag, "/", spp, "-c-",
-                 group_tag, model_name, "-", knot_distance, "-km.rds")
-  } else {
-    cond_formula <- cond_fac ~ as.factor(survey_group) +
-      poly(days_to_solstice, 2)
-  }
+
 
   sort(unique(d$year))
 
@@ -388,7 +503,7 @@ if (!file.exists(mf)) {
     # spatiotemporal = "off",
     # spatial_varying = ~ dens_dev,
     # spatial_varying = ~ log_mean_density_lag1,
-    extra_time = c(2002, 2007, 2016, 2020),
+    extra_time = c(2002, 2006, 2007, 2010, 2016, 2020),
     share_range = FALSE,
     silent = FALSE,
     time = "year",
@@ -402,39 +517,13 @@ if (!file.exists(mf)) {
     )
   )
 
-  refine_cond_model <- function(m){
-    s <- sanity(m)
-    t <- tidy(m, "ran_pars", conf.int = TRUE)
-    if (!all(s) & abs(diff(t$estimate[t$term == "range"])) < knot_distance) {
-      m <- update(m, share_range = TRUE,
-                  weights = m$data$sample_multiplier,
-                  # spatial = as.list(m[["spatial"]]),
-                  # spatiotemporal = as.list(m[["spatiotemporal"]]),
-                  # extra_time = m$extra_time,
-                  # family = m$family,
-                  data = m$data, mesh = m$spde)
-      s <- sanity(m)
-      t <- tidy(m, "ran_pars", conf.int = TRUE)
-    }
-    if (!all(s) & t$estimate[t$term == "sigma_O"] < 0.001) {
-        m <- update(m,
-                    weights = m$data$sample_multiplier,
-                    spatial = "off",
-                    data = m$data, mesh = m$spde)
-    }
-    sanity(m)
-    return(m)
-  }
-
-  # m1 <- refine_cond_model(m1)
-
-  dir.create(paste0("data-generated/condition-models-", group_tag, "/"), showWarnings = FALSE)
+  m1 <- refine_cond_model(m1, set_formula = cond_formula, dist = knot_distance)
   saveRDS(m1, mf)
-
-} else {
-  # mf <- "data-generated/condition-models-mat-fem/petrale-sole-c-mat-fem-15-km.rds"
-  m1 <- readRDS(mf)
-}
+  } else {
+    # make sure if converged last time
+    m1 <- refine_cond_model(m1, set_formula = cond_formula, dist = knot_distance)
+    saveRDS(m1, mf)
+  }
 
 m1
 m1$sd_report
@@ -444,29 +533,49 @@ m <- m1
 
 # Could add covariates ----
 ## don't do this for now, but can be used to explore utility of covariates
-if (add_covariates) {
-  model_name <- "-pmd-pdev"
-  model_name <- "-dlag1"
+if (add_density) {
 
-  mf <- paste0(
-    "data-generated/condition-models-", group_tag, "/",
-    spp, "-c-", group_tag, model_name, "-", knot_distance, "-km.rds"
-  )
 
-  if (!file.exists(mf)) {
-    m2 <- update(m1, cond_fac ~ 1 +
-      # # log_density +
-      # poly(log_density, 2) +
-      # log_density_lag1 +
-      poly(log_density_lag1, 2) +
-      # log_mean_density_lag1 +
-      # poly(log_mean_density_lag1, 2) +
-      # dens_dev +
-      # # poly(dens_dev, 2)  +
-      poly(log_depth, 2))
-    saveRDS(m2, mf)
+  if(length(unique(d$survey_group))==1){
+    cond_formula2 <- cond_fac ~ 1 + poly(days_to_solstice, 2) +
+      poly(log_density_lag1, 2)
+    model_name <- "1-st2002-doy-dlag1"
+    mf <- paste0("data-generated/condition-models-", group_tag, "/", spp, "-c-",
+                 group_tag, model_name, "-", knot_distance, "-km.rds")
   } else {
-    m2 <- readRDS(mf)
+    cond_formula2 <- cond_fac ~ as.factor(survey_group) +
+      poly(days_to_solstice, 2) +
+      poly(log_density_lag1, 2)
+
+    # # # log_density +
+    # # poly(log_density, 2) +
+    # # log_density_lag1 +
+    # poly(log_density_lag1, 2) +
+    # # log_mean_density_lag1 +
+    # # poly(log_mean_density_lag1, 2) +
+    # # dens_dev +
+    # # # poly(dens_dev, 2)  +
+    # poly(log_depth, 2)
+
+    model_name <- "-all-st2002-doy-dlag1"
+
+    mf <- paste0(
+      "data-generated/condition-models-", group_tag, "/",
+      spp, "-c-", group_tag, model_name, "-", knot_distance, "-km.rds"
+    )
+  }
+
+
+  if (file.exists(mf)) {
+    try(m2 <- readRDS(mf))
+  }
+
+  if(!exists("m2")) {
+
+    m2 <- update(m1, cond_formula2)
+    saveRDS(m2, mf)
+    m2 <- refine_cond_model(m2, set_formula = cond_formula2, dist = knot_distance)
+    saveRDS(m2, mf)
   }
 
   sanity(m2)
@@ -477,7 +586,7 @@ if (add_covariates) {
 }
 
 # Filter grid ----
-if (add_covariates) {
+if (add_density) {
   grid <- left_join(gridA, gridB) %>% filter(
     # !(year == 2020) &
     year <= 2022 & year >= 2002
@@ -693,7 +802,7 @@ ggsave(paste0("figs/condition-index-", spp, "-", group_tag, model_name, "-", kno
 #
 ## ggsave(paste0("figs/condition-epsilon-map-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.png"), height = fig_height, width = fig_width)
 
-if (add_covariates) {
+if (add_density) {
 
   # TODO: not been tested with recent model configurations
 
@@ -822,7 +931,9 @@ if (add_covariates) {
 }
 
 # Run with pmap -----
-pmap(index_list, calc_condition_indices)
+
+index_list2 <- index_list[2,]
+pmap(index_list2, calc_condition_indices)
 
 # Run with furrr ----
 
