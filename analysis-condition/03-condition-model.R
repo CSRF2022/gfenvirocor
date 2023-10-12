@@ -752,19 +752,13 @@ calc_condition_indices <- function(species, maturity, males, females) {
     rotation_angle = 30, show_raw_data = TRUE
   )
 
-  g <- g + facet_wrap(~year, ncol = 7) + ggtitle(paste0(species, ": ", group_label, " ", model_name))
+  g <- g + facet_wrap(~year, ncol = 7) +
+    ggtitle(paste0(species, ": ", group_label, " ", model_name))
 
-  ggsave(paste0("figs/condition-map-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.png"),
-    height = fig_height * 1.5, width = fig_width
+  ggsave(paste0("figs/condition-map-", spp, "-", group_tag,
+                model_name, "-", knot_distance, "-km.png"),
+         height = fig_height * 1.5, width = fig_width
   )
-
-  # # experiment with using gfplot function
-  # library(gfplot)
-  # fit <- fit_survey_sets(dset,
-  #                        years = 2015,
-  #                        survey = "SYN QCS")
-  # # names(fit)
-  # plot_survey_sets(fit$predictions, fit$data, fill_column = "combined", rotation_angle = 40, show_raw_data = FALSE)
 
 
   # Get coastwide index ----
@@ -793,7 +787,6 @@ calc_condition_indices <- function(species, maturity, males, females) {
   )
 
 
-
   # # Get survey indices ----
   # i2 <- paste0("data-generated/cond-index/survey-cond-indices-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.rds")
   #
@@ -809,9 +802,9 @@ calc_condition_indices <- function(species, maturity, males, females) {
   #
   # survey_years <- m$data %>% select(survey_abbrev, year) %>% distinct() %>%
   #   mutate(region = ifelse(survey_abbrev == "HS MSA", "SYN HS",
-  #                          ifelse(survey_abbrev == "MSSM QCS", "SYN QCS",
-  #                                 ifelse(survey_abbrev == "MSSM WCVI", "SYN WCVI",
-  #                                        survey_abbrev))))
+  #                   ifelse(survey_abbrev == "MSSM QCS", "SYN QCS",
+  #                   ifelse(survey_abbrev == "MSSM WCVI", "SYN WCVI",
+  #                          survey_abbrev))))
   #
   # ind3 <- left_join(survey_years, inds, multiple = "all") %>%
   #   filter(!is.na(est))
@@ -840,8 +833,10 @@ calc_condition_indices <- function(species, maturity, males, females) {
 
   # dir.create(paste0("data-generated/cond-predictions/"), showWarnings = FALSE)
   # dir.create(paste0("data-generated/cond-index/"), showWarnings = FALSE)
-  # saveRDS(p2, paste0("data-generated/cond-predictions/", spp, "-pc", "-", group_tag, model_name, "-", knot_distance, "-km.rds"))
-  # saveRDS(ind2, paste0("data-generated/cond-index/", spp, "-pc", "-", group_tag, model_name, "-", knot_distance, "-km.rds"))
+  # saveRDS(p2, paste0("data-generated/cond-predictions/", spp,
+  #  "-pc", "-", group_tag, model_name, "-", knot_distance, "-km.rds"))
+  # saveRDS(ind2, paste0("data-generated/cond-index/", spp, "-pc",
+  #  "-", group_tag, model_name, "-", knot_distance, "-km.rds"))
 
 
   ## probably don't need these for every model but keeping here for interest
@@ -852,7 +847,8 @@ calc_condition_indices <- function(species, maturity, males, females) {
   #   scale_fill_viridis_c() +
   #   scale_colour_viridis_c()
   #
-  ## ggsave(paste0("figs/density-map-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.png"), height = fig_height, width = fig_width)
+  ## ggsave(paste0("figs/density-map-", spp, "-", group_tag, model_name,
+  #   "-", knot_distance, "-km.png"), height = fig_height, width = fig_width)
   # ggplot(p2, aes(X, Y,
   #                colour = omega_s,
   #                fill = omega_s)) +
@@ -861,7 +857,8 @@ calc_condition_indices <- function(species, maturity, males, females) {
   #   scale_fill_gradient2() +
   #   scale_colour_gradient2()
   #
-  ## ggsave(paste0("figs/condition-omega-map-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.png"), height = fig_height, width = fig_width)
+  ## ggsave(paste0("figs/condition-omega-map-", spp, "-", group_tag,
+  ##  model_name, "-", knot_distance, "-km.png"), height = fig_height, width = fig_width)
   #
   #
   # ggplot(p2, aes(X, Y, colour = epsilon_st, fill = epsilon_st)) +
@@ -870,8 +867,11 @@ calc_condition_indices <- function(species, maturity, males, females) {
   #   scale_fill_gradient2() +
   #   scale_colour_gradient2()
   #
-  ## ggsave(paste0("figs/condition-epsilon-map-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.png"), height = fig_height, width = fig_width)
+  ## ggsave(paste0("figs/condition-epsilon-map-", spp, "-", group_tag,
+  ##  model_name, "-", knot_distance, "-km.png"), height = fig_height, width = fig_width)
+
   plot_covariates <- FALSE
+
   if (plot_covariates) {
 
     # TODO: not been tested with recent model configurations
@@ -882,7 +882,8 @@ calc_condition_indices <- function(species, maturity, males, females) {
       scale_fill_gradient2() +
       scale_colour_gradient2()
 
-    ggsave(paste0("figs/condition-dd-map-", spp, model_name, "-", knot_distance, "-km.png"))
+    ggsave(paste0("figs/condition-dd-map-", spp, model_name, "-",
+                  knot_distance, "-km.png"))
 
     g <- g2 <- g3 <- g4 <- pd <- NULL
 
@@ -893,20 +894,20 @@ calc_condition_indices <- function(species, maturity, males, females) {
     plot(g)
 
     g2 <- ggeffects::ggeffect(m, paste0(
-      "log_mean_density_lag1 [",
-      range(d$log_mean_density_lag1)[1], ":", range(d$log_mean_density_lag1)[2], "by=0.1]"
+      "log_mean_density_lag1 [", range(d$log_mean_density_lag1)[1],
+      ":", range(d$log_mean_density_lag1)[2], "by=0.1]"
     ))
     plot(g2)
 
     g3 <- ggeffects::ggeffect(m, paste0(
-      "dens_dev [",
-      range(d$dens_dev)[1], ":", range(d$dens_dev)[2], "by=0.1]"
+      "dens_dev [", range(d$dens_dev)[1], ":",
+      range(d$dens_dev)[2], "by=0.1]"
     ))
     plot(g3)
 
     g4 <- ggeffects::ggeffect(m, paste0(
-      "log_density_lag1 [",
-      range(d$log_density_lag1)[1], ":", range(d$log_density_lag1)[2], "by=0.1]"
+      "log_density_lag1 [", range(d$log_density_lag1)[1], ":",
+      range(d$log_density_lag1)[2], "by=0.1]"
     ))
     plot(g4)
 
@@ -926,7 +927,8 @@ calc_condition_indices <- function(species, maturity, males, females) {
     pd <- predict(m2, newdata = nd, se_fit = TRUE, re_form = NA)
     pd <- pd %>%
       group_by(year) %>%
-      mutate(max_est = max(est, na.rm = T), xintercept = log_depth[est == max_est])
+      mutate(max_est = max(est, na.rm = T),
+             xintercept = log_depth[est == max_est])
 
 
     ggplot(pd, aes(exp(log_depth), exp(est),
@@ -950,7 +952,8 @@ calc_condition_indices <- function(species, maturity, males, females) {
       ) +
       # coord_cartesian(expand = F, ylim = c(NA, 1)) +
       # facet_wrap(~year_bin) +
-      geom_rug(data = filter(m2$data, catch_weight > 0), aes(depth_m), inherit.aes = FALSE, alpha = 0.02) +
+      geom_rug(data = filter(m2$data, catch_weight > 0),
+               aes(depth_m), inherit.aes = FALSE, alpha = 0.02) +
       labs(x = "Depth (m)", y = "Condition factor") +
       # labs(x = "Depth (m)", y = "Biomass density (kg/km2)") +
       # ylab(paste(group, "biomass density")) +

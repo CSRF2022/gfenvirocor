@@ -13,14 +13,14 @@ library(gfplot)
 #   "Pacific Cod"
 # )
 species_list <- list(
-  "Arrowtooth Flounder", #
-  "Petrale Sole", #
-  "English Sole",#
-  "Dover Sole",#
-  "Rex Sole", #
-  "Flathead Sole",#
-  "Southern Rock Sole" #,
-  # "Curlfin Sole",#
+  # "Arrowtooth Flounder", #
+  # "Petrale Sole", #
+  # "English Sole",#
+  # "Dover Sole",#
+  # "Rex Sole", #
+  # "Flathead Sole",#
+  # "Southern Rock Sole" #,
+  "Curlfin Sole"#
   # "Sand Sole",#
   # "Slender Sole",#
   # "Pacific Sanddab",#
@@ -48,9 +48,11 @@ mat_threshold <- 0.5
 #   "OTHER"
 # )
 
-surveys_included <- c("HBLL OUT N", "HBLL OUT S", "IPHC FISS", "SABLE", # only have weights for certain species?
+surveys_included <- c("HBLL OUT N", "HBLL OUT S",
+                      "IPHC FISS",
+                      "SABLE", # only have weights for certain species?
                       "MSSM QCS", "MSSM WCVI",
-                      "OTHER", # filtered to only include two older bottom trawl surveys
+                      "OTHER", # filtered to two older bottom trawl surveys
                       "HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI")
 
 # browser()
@@ -63,18 +65,23 @@ dat <- readRDS("data-raw/survey-samples-flatfish.rds") %>%
   filter((survey_abbrev %in% surveys_included)) %>%
   # filter(!is.na(weight), !is.na(length)) %>%
   mutate(
-    # is dataset currently but
-    survey_abbrev = ifelse(survey_abbrev %in% c("MSSM", "MSSM QCS", "MSSM WCVI") & latitude < 50, "MSSM WCVI",
-                    ifelse(survey_abbrev %in% c("MSSM", "MSSM QCS", "MSSM WCVI") & latitude > 50, "MSSM QCS",
-                           survey_abbrev)),
-    survey_group =
-      ifelse(survey_abbrev %in% c("HBLL OUT N", "HBLL OUT S"), "HBLL",
-        ifelse(survey_abbrev %in% c("OTHER", "HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI"), "TRAWL",
-          ifelse(survey_abbrev %in% c("MSSM QCS", "MSSM WCVI"), "MSSM",
-            survey_abbrev
+    survey_abbrev = ifelse(
+      survey_abbrev %in% c("MSSM", "MSSM QCS", "MSSM WCVI") & latitude < 50,
+      "MSSM WCVI", ifelse(
+        survey_abbrev %in% c("MSSM", "MSSM QCS", "MSSM WCVI") & latitude > 50,
+        "MSSM QCS", survey_abbrev
+        )
+      ),
+    survey_group = ifelse(
+      survey_abbrev %in% c("HBLL OUT N", "HBLL OUT S"),
+      "HBLL", ifelse(
+        survey_abbrev %in% c("OTHER", "HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI"),
+        "TRAWL", ifelse(
+          survey_abbrev %in% c("MSSM QCS", "MSSM WCVI"), "MSSM", survey_abbrev
           )
         )
       )#,
+    ## density model survey types
     # survey_type = as.factor(ifelse(survey_abbrev == "HS MSA", "MSA",
     #   ifelse(survey_abbrev %in% c("MSSM WCVI", "MSSM QCS") &
     #     year > 2002 & year <= 2005, "MSSM<=05",
@@ -107,14 +114,19 @@ dset <- readRDS("data-raw/survey-sets-flatfish.rds") %>%
     # 11 useful for deeper species, 9 from 1996 probably too limited
     !(survey_abbrev == "OTHER" & !(survey_series_id %in% c(9, 11)))
   ) %>%
-  mutate(survey_abbrev = ifelse(survey_abbrev == "MSSM" & latitude < 50, "MSSM WCVI",
-                                ifelse(survey_abbrev == "MSSM" & latitude > 50, "MSSM QCS", survey_abbrev)),
-    survey_group =
-      ifelse(survey_abbrev %in% c("HBLL OUT N", "HBLL OUT S"), "HBLL",
-      ifelse(survey_abbrev %in% c("OTHER", "HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI"), "TRAWL",
-      ifelse(survey_abbrev %in% c("MSSM QCS", "MSSM WCVI"), "MSSM",
-        survey_abbrev
-        )))
+  mutate(survey_abbrev = ifelse(
+    survey_abbrev == "MSSM" & latitude < 50, "MSSM WCVI", ifelse(
+      survey_abbrev == "MSSM" & latitude > 50, "MSSM QCS", survey_abbrev
+      )
+    ),
+    survey_group = ifelse(
+      survey_abbrev %in% c("HBLL OUT N", "HBLL OUT S"), "HBLL", ifelse(
+        survey_abbrev %in% c("OTHER", "HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI"),
+        "TRAWL", ifelse(
+          survey_abbrev %in% c("MSSM QCS", "MSSM WCVI"), "MSSM", survey_abbrev
+          )
+        )
+      )
   ) %>%
   filter((survey_abbrev %in% surveys_included), !is.na(longitude), !is.na(latitude))
 
@@ -310,8 +322,6 @@ if (split_by_maturity) {
     mutate(year_f = as.character(year))
 
 
-
-
   if (min(levels_per_year) < 3) { # some years lack maturity data
 
     if (length(levels_per_year) < 1) { # TODO: check if this threshold should actually be 2
@@ -341,11 +351,11 @@ if (split_by_maturity) {
     }
   } else {
     if (year_re) {
-      #
+
       # sample_id_re <- FALSE
-      #       # p_threshold <- 0.5 # Probability of maturity to split at. Default = 0.5. Alternatives are 0.05 or 0.95.
-      #       year_re <- FALSE
-      #
+      # p_threshold <- 0.5
+      # Probability of maturity to split at Default = 0.5. Alternatives are 0.05 or 0.95.
+      # year_re <- FALSE
 
       m <- fit_mat_ogive(fish,
         type = "length",
@@ -462,11 +472,14 @@ ds <- fish_groups %>%
     num_sampled = n(),
     mean_weight = mean(weight, na.rm = T) / 1000,
     # area_swept = ifelse(
-    #   is.na(tow_length_m), doorspread_m * duration_min * speed_mpm, doorspread_m * tow_length_m
+    #   is.na(tow_length_m),
+    #   doorspread_m * duration_min * speed_mpm,
+    #   doorspread_m * tow_length_m
     #   ),
     total_weight = ifelse(
-      is.na(catch_weight) & catch_count > 0, catch_count * mean_weight,
-      ifelse(catch_weight > sampled_weight, catch_weight, sampled_weight)
+      is.na(catch_weight) & catch_count > 0, catch_count * mean_weight, ifelse(
+        catch_weight > sampled_weight, catch_weight, sampled_weight
+        )
       ),
     est_count = round(total_weight / mean_weight),
     est_count = ifelse(num_sampled > est_count, num_sampled, est_count),
@@ -497,8 +510,6 @@ ds <- fish_groups %>%
 #     prop_n_in_group, est_count, est_num_unsampled_group_members, sample_multiplier
 #   ) %>%
 #   View()
-
-
 #
 # ds %>% select(fishing_event_id, year, length, sex, age, weight, specimen_id,
 #               survey_abbrev, wbar, cond_fac) %>% View()
