@@ -151,17 +151,20 @@ split_index_by_survey <- function(model, grid, species, model_name){
 # browser()
   p <- grid |>
     split(grid$survey) |>
-    lapply(function(x) predict(model, re_form_iid = NA, newdata = x, return_tmb_object = TRUE))
+    lapply(function(x) predict(model, re_form_iid = NA, newdata = x,
+                               return_tmb_object = TRUE))
   i <- purrr::map_dfr(p, get_index, area = 4, .id = "survey")
   i$surveys <- paste0(unique(model$data$survey_type), collapse=", ")
   i$species <- species
   i$group <- model_name
   i$index <- paste0(i$group, "\n(", i$surveys, ")")
-  i$model <- paste0(ifelse(
-    length(model$family)==6, model$family[6], paste0(model$family[1],"(link = 'log')")
-  ), "\nspatial (", model[["spatial"]][1], ", ", model[["spatial"]][2], ")")
+  i$model <- paste0(ifelse(length(model$family)==6, model$family[6],
+    paste0(model$family[1],"(link = 'log')")), "\nspatial (",
+    model[["spatial"]][1], ", ", model[["spatial"]][2], ")")
 
-  saveRDS(i, paste0("temp-index-split-", gsub(" ", "-", gsub("\\/", "-", tolower(species))), "-", gsub(" ", "-", model_name), ".rds"))
+  saveRDS(i, paste0("data-generated/density-split-ind/temp-index-split-",
+                    gsub(" ", "-", gsub("\\/", "-", tolower(species))), "-",
+                    gsub(" ", "-", model_name), ".rds"))
 
   return(i)
 }

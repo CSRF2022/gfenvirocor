@@ -151,6 +151,7 @@ fit_all_distribution_models <- function(species) {
 
   ### filenames for all generated indices
   dir.create(paste0("data-generated/density-index/"), showWarnings = FALSE)
+  dir.create(paste0("data-generated/density-split-ind/"), showWarnings = FALSE)
 
   i0 <- paste0("data-generated/density-index/i-", m0, ".rds")
   i1 <- paste0("data-generated/density-index/i-", m1, ".rds")
@@ -490,7 +491,7 @@ fit_all_distribution_models <- function(species) {
     }
   }
 
-  browser()
+  # browser()
   m
   m$sd_report
   tidy(m, "ran_pars", conf.int = TRUE, model = 1)
@@ -819,7 +820,7 @@ fit_all_distribution_models <- function(species) {
 
   # Generate split indices ----
   fsi <- paste0(
-    "data-generated/density-index/", spp, "-split-",
+    "data-generated/density-split-ind/", spp, "-split-",
     dens_model_name, "-", knot_distance, "-km.rds"
   )
 
