@@ -17,13 +17,13 @@ library(patchwork)
 
 species_list <- list(
   # "Arrowtooth Flounder", #
-  "Petrale Sole", #
-  "English Sole",#
-  "Dover Sole",#
-  "Rex Sole", #
-  "Flathead Sole",#
-  "Southern Rock Sole",#
-  "Curlfin Sole",#
+  # "Petrale Sole", #
+  # "English Sole",#
+  # "Dover Sole",#
+  # "Rex Sole", #
+  # "Flathead Sole",#
+  # "Southern Rock Sole",#
+  # "Curlfin Sole",#
   "Sand Sole",#
   "Slender Sole",#
   "Pacific Sanddab",#
@@ -692,12 +692,13 @@ fit_all_distribution_models <- function(species) {
 
     mesh3 <- make_mesh(d3, c("X", "Y"), cutoff = knot_distance)
 
-    mi <- update(mm,
+    try(mi <- update(mm,
       # spatial = simpspatial,
       mesh = mesh3,
       data = d3
-    )
+    ))
 
+    if(exists(mi)){
     saveRDS(mi, fmi)
 
     if (length(mi$family) == 6) {
@@ -706,6 +707,8 @@ fit_all_distribution_models <- function(species) {
       mi <- refine_model(mi)
     }
     saveRDS(mi, fmi)
+    }
+
   } else {
     mi <- readRDS(fmi)
     if (!all(sanity(mi))) {
