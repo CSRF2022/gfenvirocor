@@ -45,7 +45,7 @@ refine_delta_model <- function(m, alternate_family = set_family2){
 
     if (!s$se_magnitude_ok|!s$se_na_ok|!s$sigmas_ok) {
       m <- update(m, spatial = list("on", "off"),
-                  spatiotemporal = c("off", "rw"),
+                  spatiotemporal = list("off", "rw"),
                   extra_time = m$extra_time,
                   data = m$data, family = m$family, mesh = m$spde)
       s <- sanity(m)
