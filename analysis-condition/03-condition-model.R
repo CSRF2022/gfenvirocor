@@ -14,14 +14,14 @@ devtools::load_all(".")
 # )
 
 species_list <- list(
-  "Arrowtooth Flounder"#, #
-  # "Petrale Sole", #
-  # "English Sole",#
-  # "Dover Sole",#
-  # "Rex Sole", #
-  # "Flathead Sole",#
-  # "Southern Rock Sole", #,
-  # "Curlfin Sole"#
+  "Arrowtooth Flounder", #
+  "Petrale Sole", #
+  "English Sole",#
+  "Dover Sole",#
+  "Rex Sole", #
+  "Flathead Sole",#
+  "Southern Rock Sole", #,
+  "Curlfin Sole"#
   # # "Sand Sole",#
   # # "Slender Sole",#
   # # "Pacific Sanddab",#
@@ -539,31 +539,31 @@ m <- m1
 ## don't do this for now, but can be used to explore utility of covariates
 if (add_density) {
 
+  d$log_density_c <- d$log_density - mean(d$log_density, na.rm =TRUE)
+  d$log_density_lag1_c <- d$log_density_lag1 - mean(d$log_density_lag1, na.rm =TRUE)
+
+
   if(length(unique(d$survey_group))==1){
 
     # model_name <- "1-st2002-doy-dlag1"
-    model_name <- "1-st2002-doy-d0"
+    model_name <- "1-st2002-doy-d0c"
 
     cond_formula2 <- cond_fac ~ 1 + poly(days_to_solstice, 2) +
-      poly(log_density_lag1, 2)
-      # poly(log_density, 2)
+      # poly(log_density_lag1_c, 2)
+      poly(log_density_c, 2)
 
     mf <- paste0("data-generated/condition-models-", group_tag, "/", spp, "-c-",
                  group_tag, model_name, "-", knot_distance, "-km.rds")
   } else {
 
     # model_name <- "-all-st2002-doy-dlag1"
-    model_name <- "-all-st2002-doy-d0"
+    model_name <- "-all-st2002-doy-d0c"
 
     cond_formula2 <- cond_fac ~ as.factor(survey_group) +
       poly(days_to_solstice, 2) +
-      # poly(log_density_lag1, 2)
-      poly(log_density, 2)
+      # poly(log_density_lag1_c, 2)
+      poly(log_density_c, 2)
 
-    # # # log_density +
-    # # poly(log_density, 2) +
-    # # log_density_lag1 +
-    # poly(log_density_lag1, 2) +
     # # log_mean_density_lag1 +
     # # poly(log_mean_density_lag1, 2) +
     # # dens_dev +
@@ -606,8 +606,8 @@ if (add_density) {
     year <= 2022 & year >= 2001
   )
 
-  grid$log_density <- mean(gridA$log_density)
-  grid$log_density_lag1 <- mean(gridB$log_density_lag1)
+  grid$log_density_c <- 0
+  grid$log_density_lag1_c <- 0
 
 } else {
   grid <- gridA %>% filter(
