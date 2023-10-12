@@ -14,17 +14,17 @@ devtools::load_all(".")
 # )
 
 species_list <- list(
-  "Arrowtooth Flounder", #
-  "Petrale Sole", #
-  "English Sole", #
-  "Dover Sole", #
-  "Rex Sole", #
-  "Flathead Sole", #
-  "Southern Rock Sole", # ,
-  "Curlfin Sole" #
-  # # "Sand Sole",#
-  # # "Slender Sole",#
-  # # "Pacific Sanddab",#
+  # "Arrowtooth Flounder", #
+  # "Petrale Sole", #
+  # "English Sole", #
+  # "Dover Sole", #
+  # "Rex Sole", #
+  # "Flathead Sole", #
+  # "Southern Rock Sole", # ,
+  # "Curlfin Sole" #
+  "Sand Sole",#
+  "Slender Sole",#
+  "Pacific Sanddab"#
   # # "Pacific Halibut",#
   # # "Butter Sole",#
   # # "Starry Flounder"#
@@ -82,8 +82,8 @@ calc_condition_indices <- function(species, maturity, males, females) {
   # just_males <- TRUE
   # just_females <- TRUE
   # just_males <- just_females <- FALSE
-  # add_density <- FALSE
-  add_density <- TRUE
+  add_density <- FALSE
+  # add_density <- TRUE
   mat_threshold <- 0.5
   # knot_distance <- 5
   # knot_distance <- 10
@@ -492,19 +492,27 @@ calc_condition_indices <- function(species, maturity, males, females) {
   # browser()
 
   if (length(unique(d$survey_group)) == 1) {
+
+    model_name <- "doy"
+    dir.create(paste0("data-generated/cond-index/", model_name, "/"), showWarnings = FALSE)
+
     cond_formula <- cond_fac ~ 1 + poly(days_to_solstice, 2)
-    model_name <- "-doy"
+
     mf <- paste0(
       "data-generated/condition-models-", group_tag, "/", spp, "-c-",
-      group_tag, model_name, "-", knot_distance, "-km.rds"
+      group_tag, "-", model_name, "-", knot_distance, "-km.rds"
     )
   } else {
+
+    model_name <- "all-st2002-doy"
+    dir.create(paste0("data-generated/cond-index/", model_name, "/"), showWarnings = FALSE)
+
     cond_formula <- cond_fac ~ as.factor(survey_group) +
       poly(days_to_solstice, 2)
-    model_name <- "-all-st2002-doy"
+
     mf <- paste0(
       "data-generated/condition-models-", group_tag, "/", spp, "-c-",
-      group_tag, model_name, "-", knot_distance, "-km.rds"
+      group_tag, "-", model_name, "-", knot_distance, "-km.rds"
     )
   }
 
@@ -586,6 +594,7 @@ calc_condition_indices <- function(species, maturity, males, females) {
 
       # model_name <- "1-st2002-doy-dlag1"
       model_name <- "1-st2002-doy-d0c"
+      dir.create(paste0("data-generated/cond-index/", model_name, "/"), showWarnings = FALSE)
 
       cond_formula2 <- cond_fac ~ 1 + poly(days_to_solstice, 2) +
         # poly(log_density_lag1_c, 2)
@@ -593,12 +602,13 @@ calc_condition_indices <- function(species, maturity, males, females) {
 
       mf <- paste0(
         "data-generated/condition-models-", group_tag, "/", spp, "-c-",
-        group_tag, model_name, "-", knot_distance, "-km.rds"
+        group_tag, "-", model_name, "-", knot_distance, "-km.rds"
       )
     } else {
 
-      # model_name <- "-all-st2002-doy-dlag1"
-      model_name <- "-all-st2002-doy-d0c"
+      # model_name <- "all-st2002-doy-dlag1"
+      model_name <- "all-st2002-doy-d0c"
+      dir.create(paste0("data-generated/cond-index/", model_name, "/"), showWarnings = FALSE)
 
       cond_formula2 <- cond_fac ~ as.factor(survey_group) +
         poly(days_to_solstice, 2) +
@@ -613,7 +623,7 @@ calc_condition_indices <- function(species, maturity, males, females) {
 
       mf <- paste0(
         "data-generated/condition-models-", group_tag, "/",
-        spp, "-c-", group_tag, model_name, "-", knot_distance, "-km.rds"
+        spp, "-c-", group_tag, "-", model_name, "-", knot_distance, "-km.rds"
       )
     }
 
@@ -685,7 +695,7 @@ calc_condition_indices <- function(species, maturity, males, females) {
     scale_colour_viridis_c() +
     # scale_fill_gradient2() +
     # scale_colour_gradient2() +
-    labs(title = paste0(species, ": ", group_label, " ", model_name), x = "", y = "")
+    labs(title = paste0(species, ": ", group_label, " ", "-", model_name), x = "", y = "")
 
   # ggsave(paste0("figs/condition-map-", spp, "-", group_tag,
   #        model_name, "-", knot_distance, "-km.png"),
@@ -753,7 +763,7 @@ calc_condition_indices <- function(species, maturity, males, females) {
   )
 
   g <- g + facet_wrap(~year, ncol = 7) +
-    ggtitle(paste0(species, ": ", group_label, " ", model_name))
+    ggtitle(paste0(species, ": ", group_label, " ", "-", model_name))
 
   ggsave(paste0("figs/condition-map-", spp, "-", group_tag,
                 model_name, "-", knot_distance, "-km.png"),
@@ -763,7 +773,7 @@ calc_condition_indices <- function(species, maturity, males, females) {
 
   # Get coastwide index ----
   i1 <- paste0(
-    "data-generated/cond-index/cond-index-", group_tag, "-", spp,
+    "data-generated/cond-index/", model_name, "/cond-index-", group_tag, "-", spp,
     model_name, "-", knot_distance, "-km.rds"
   )
 
@@ -780,15 +790,15 @@ calc_condition_indices <- function(species, maturity, males, females) {
     geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.4) +
     xlab("Year") +
     ylab("Predicted average condition factor") +
-    labs(title = paste0(species, ": ", group_label, " ", model_name))
+    labs(title = paste0(species, ": ", group_label, " ", "-", model_name))
 
-  ggsave(paste0("figs/condition-index-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.png"),
+  ggsave(paste0("figs/condition-index-", spp, "-", group_tag, "-", model_name, "-", knot_distance, "-km.png"),
     height = fig_height / 2, width = fig_width / 2
   )
 
 
   # # Get survey indices ----
-  # i2 <- paste0("data-generated/cond-index/survey-cond-indices-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.rds")
+  # i2 <- paste0("data-generated/cond-index/", model_name, "/survey-cond-indices-", spp, "-", group_tag, "-", model_name, "-", knot_distance, "-km.rds")
   #
   # if(!file.exists(i2)) {
   #
@@ -820,9 +830,9 @@ calc_condition_indices <- function(species, maturity, males, females) {
   #   geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.1) +
   #   xlab("Year") +
   #   ylab("Predicted average condition factor") +
-  #   labs(title = paste0(species, ": ", group_label, " ", model_name))
+  #   labs(title = paste0(species, ": ", group_label, " ", "-", model_name))
   #
-  # ggsave(paste0("figs/condition-index-", spp, "-split-", group_tag, model_name, "-", knot_distance, "-km.png"),
+  # ggsave(paste0("figs/condition-index-", spp, "-split-", group_tag, "-", model_name, "-", knot_distance, "-km.png"),
   #        height = fig_height / 2, width = fig_width/1.5
   # )
 
@@ -831,12 +841,10 @@ calc_condition_indices <- function(species, maturity, males, females) {
   #   bind_rows(.id = "survey")
 
 
-  # dir.create(paste0("data-generated/cond-predictions/"), showWarnings = FALSE)
-  # dir.create(paste0("data-generated/cond-index/"), showWarnings = FALSE)
   # saveRDS(p2, paste0("data-generated/cond-predictions/", spp,
-  #  "-pc", "-", group_tag, model_name, "-", knot_distance, "-km.rds"))
-  # saveRDS(ind2, paste0("data-generated/cond-index/", spp, "-pc",
-  #  "-", group_tag, model_name, "-", knot_distance, "-km.rds"))
+  #  "-pc", "-", group_tag, "-", model_name, "-", knot_distance, "-km.rds"))
+  # saveRDS(ind2, paste0("data-generated/cond-index/", model_name, "/", spp, "-pc",
+  #  "-", group_tag, "-", model_name, "-", knot_distance, "-km.rds"))
 
 
   ## probably don't need these for every model but keeping here for interest
@@ -847,7 +855,7 @@ calc_condition_indices <- function(species, maturity, males, females) {
   #   scale_fill_viridis_c() +
   #   scale_colour_viridis_c()
   #
-  ## ggsave(paste0("figs/density-map-", spp, "-", group_tag, model_name,
+  ## ggsave(paste0("figs/density-map-", spp, "-", group_tag, "-", model_name,
   #   "-", knot_distance, "-km.png"), height = fig_height, width = fig_width)
   # ggplot(p2, aes(X, Y,
   #                colour = omega_s,
@@ -882,7 +890,7 @@ calc_condition_indices <- function(species, maturity, males, females) {
       scale_fill_gradient2() +
       scale_colour_gradient2()
 
-    ggsave(paste0("figs/condition-dd-map-", spp, model_name, "-",
+    ggsave(paste0("figs/condition-dd-map-", spp, "-", model_name, "-",
                   knot_distance, "-km.png"))
 
     g <- g2 <- g3 <- g4 <- pd <- NULL
@@ -962,7 +970,7 @@ calc_condition_indices <- function(species, maturity, males, females) {
 
     # gg <- list(g, g2, g3, g4, pd)
     # dir.create(paste0("data-generated/cond-effects/"), showWarnings = FALSE)
-    # saveRDS(gg, paste0("data-generated/cond-effects/", spp, "-", group_tag, model_name, "-", knot_distance, "-km.rds"))
+    # saveRDS(gg, paste0("data-generated/cond-effects/", spp, "-", group_tag, "-", model_name, "-", knot_distance, "-km.rds"))
 
 
     ## SVC plots
@@ -999,14 +1007,14 @@ calc_condition_indices <- function(species, maturity, males, females) {
     #   scale_fill_gradient2() +
     #   scale_colour_gradient2()
     #
-    # ggsave(paste0("figs/condition-zeta-map-", spp, "-", group_tag, model_name, "-", knot_distance, "-km.png"), height = fig_height, width = fig_width)
+    # ggsave(paste0("figs/condition-zeta-map-", spp, "-", group_tag, "-", model_name, "-", knot_distance, "-km.png"), height = fig_height, width = fig_width)
   }
 }
 
 # Run with pmap -----
 
 index_list2 <- index_list[2, ]
-pmap(index_list2, calc_condition_indices)
+pmap(index_list, calc_condition_indices)
 
 # Run with furrr ----
 
