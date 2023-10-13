@@ -14,22 +14,22 @@ devtools::load_all(".")
 # )
 
 species_list <- list(
-  # "Arrowtooth Flounder", #
-  # "Petrale Sole", #
-  # "English Sole", #
-  # "Dover Sole", #
-  # "Rex Sole", #
-  # "Flathead Sole", #
-  # "Southern Rock Sole", # ,
-  # "Curlfin Sole" #
+  "Arrowtooth Flounder", #
+  "Petrale Sole", #
+  "English Sole", #
+  "Dover Sole", #
+  "Rex Sole", #
+  "Flathead Sole", #
+  "Southern Rock Sole", # ,
+  "Curlfin Sole", #
   "Sand Sole",#
   "Slender Sole",#
-  "Pacific Sanddab"#
-  # # "Pacific Halibut",#
-  # # "Butter Sole",#
-  # # "Starry Flounder"#
-  # # # #"C-O Sole", # way too few!
-  # # # "Deepsea Sole" # no maturity
+  "Pacific Sanddab",#
+  "Pacific Halibut",
+  "Butter Sole"#
+  ## "Starry Flounder"# too few males!
+  ## "C-O Sole", # way too few!
+  ## "Deepsea Sole" # no maturity
 )
 
 
@@ -82,8 +82,8 @@ calc_condition_indices <- function(species, maturity, males, females) {
   # just_males <- TRUE
   # just_females <- TRUE
   # just_males <- just_females <- FALSE
-  add_density <- FALSE
-  # add_density <- TRUE
+  # add_density <- FALSE
+  add_density <- TRUE
   mat_threshold <- 0.5
   # knot_distance <- 5
   # knot_distance <- 10
@@ -206,9 +206,11 @@ calc_condition_indices <- function(species, maturity, males, females) {
           mutate(
             sum_density = sum(density),
             prop_density = density / sum_density,
-            log_density = log(density)
+            log_density = log(density),
+            ann_log_density = mean(log_density)
           ) %>%
           ungroup() %>%
+          mutate(dens_dev = log_density - ann_log_density) %>%
           group_by(year, survey) %>%
           mutate(
             survey_density = sum(density),
@@ -236,9 +238,11 @@ calc_condition_indices <- function(species, maturity, males, females) {
             mutate(
               sum_density = sum(density),
               prop_density = density / sum_density,
-              log_density = log(density)
+              log_density = log(density),
+              ann_log_density = mean(log_density)
             ) %>%
             ungroup() %>%
+            mutate(dens_dev = log_density - ann_log_density) %>%
             group_by(year, survey) %>%
             mutate(
               survey_density = sum(density),
@@ -272,8 +276,13 @@ calc_condition_indices <- function(species, maturity, males, females) {
           gridA <- readRDS(pf) %>%
             select(year, X, Y, survey, depth, days_to_solstice, log_depth, density) %>%
             group_by(year) %>%
-            mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density)) %>%
+            mutate(sum_density = sum(density),
+                   prop_density = density / sum_density,
+                   log_density = log(density),
+                   ann_log_density = mean(log_density)
+            ) %>%
             ungroup() %>%
+            mutate(dens_dev = log_density - ann_log_density) %>%
             group_by(year, survey) %>%
             mutate(survey_density = sum(density), prop_density_by_survey = density / survey_density)
         } else {
@@ -300,9 +309,11 @@ calc_condition_indices <- function(species, maturity, males, females) {
           mutate(
             sum_density = sum(density),
             prop_density = density / sum_density,
-            log_density = log(density)
+            log_density = log(density),
+            ann_log_density = mean(log_density)
           ) %>%
           ungroup() %>%
+          mutate(dens_dev = log_density - ann_log_density) %>%
           group_by(year, survey) %>%
           mutate(
             survey_density = sum(density),
@@ -326,11 +337,18 @@ calc_condition_indices <- function(species, maturity, males, females) {
         # get current year density to scale condition index with
         gridA <- readRDS(pf) %>%
           select(year, X, Y, survey, depth, days_to_solstice, log_depth, density) %>%
-          group_by(year)
-        mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density)) %>%
+          group_by(year) %>%
+        mutate(sum_density = sum(density),
+               prop_density = density / sum_density,
+               log_density = log(density),
+               ann_log_density = mean(log_density)
+        ) %>%
           ungroup() %>%
+          mutate(dens_dev = log_density - ann_log_density
+               ) %>%
           group_by(year, survey) %>%
           mutate(survey_density = sum(density), prop_density_by_survey = density / survey_density)
+        ungroup()
       } else {
         print(paste("No density predictions for total ", species, "densities."))
         return(NA)
@@ -338,89 +356,42 @@ calc_condition_indices <- function(species, maturity, males, females) {
     }
   }
 
-  #
+  # Add density covariates ----
 
   if (add_density) {
-    # load density predictions for full survey grid if going to be used as covariates condition
-    gridB <- readRDS(paste0(
-      "data-generated/density-predictions/p-", spp,
-      "-total", dens_model_name2, ".rds"
-    )) %>%
-      select(year, X, Y, survey, depth, days_to_solstice, log_depth, density) %>%
-      mutate(
-        year_density = year,
-        year = year + 1,
-        density_lag1 = density,
-        log_density_lag1 = log(density)
-      ) %>%
-      select(-density) %>%
-      group_by(year) %>%
-      mutate(
-        mean_density_lag1 = mean(density_lag1),
-        log_mean_density_lag1 = log(mean_density_lag1)
-      ) %>%
-      ungroup() %>%
-      mutate(dens_dev = log_density_lag1 - log_mean_density_lag1)
 
-    # mean_den <- select(gridA, year, mean_density_lag1, log_mean_density_lag1) %>% distinct()
-    # d <- d %>%
-    #   left_join(mean_den) %>%
-    #   mutate(dens_dev = log_density_lag1 - log_mean_density_lag1)
+    mean_den <- select(gridA, year, ann_log_density) %>% distinct()
+
+    d <- d %>%
+      left_join(mean_den, multiple = "all") %>%
+      mutate(dens_dev = log_density - ann_log_density,
+             ann_log_density_c = ann_log_density - mean(mean_den$ann_log_density, na.rm = TRUE)
+      )
+
+
+    # # load lagged density predictions for full survey grid if going to be used as covariates condition
+    # gridB <- readRDS(paste0(
+    #   "data-generated/density-predictions/p-", spp,
+    #   "-total", dens_model_name2, ".rds"
+    # )) %>%
+    #   select(year, X, Y, survey, depth, days_to_solstice, log_depth, density) %>%
+    #   mutate(
+    #     year_density = year,
+    #     year = year + 1,
+    #     density_lag1 = density,
+    #     log_density_lag1 = log(density)
+    #   ) %>%
+    #   select(-density) %>%
+    #   group_by(year) %>%
+    #   mutate(
+    #     mean_density_lag1 = mean(density_lag1),
+    #     log_mean_density_lag1 = log(mean_density_lag1)
+    #   ) %>%
+    #   ungroup() %>%
+    #   mutate(dens_dev_lag1 = log_density_lag1 - log_mean_density_lag1)
+    # mean_lag_den <- select(gridB, year, mean_density_lag1, log_mean_density_lag1) %>% distinct()
     #
-    # # see how current total biomass density correlates with last year's total biomass density
-    # d$density <- d$total_weight / (d$area_swept / 10000)
-    # hist(d$density)
-    # hist(log(d$density))
-    # hist(log(d$density_lag1))
-    # d$log_density <- log(d$density)
-    # d$log_mean_density_lag1 <- log(d$mean_density_lag1)
-    # plot(d$log_density ~ d$log_density_lag1)
-    #
-    # # TODO: I don't think density needs centering, but depth might?
-    # hist(d$depth_m)
-    # hist(log(d$depth_m))
-    # hist((d$mean_density_lag1))
-    # hist(log(d$mean_density_lag1))
-    #
-    # hist((d$log_density))
-    #
-    # # d$log_depth_c <- d$log_depth - log()
-    # ## name this model version (knot distance added for file name later)
   }
-
-
-
-  # if(add_density){
-  #   # load density predictions for full survey grid if going to be used as covariates condition
-  #   gridA <- readRDS(paste0("data-generated/density-predictions/p-", spp, "", dens_model_name2, ".rds")) %>%
-  #     select(year, X, Y, survey, depth, log_depth, density) %>%
-  #     mutate(
-  #       year_density = year,
-  #       year = year + 1,
-  #       density_lag1 = density,
-  #       log_density_lag1 = log(density)
-  #     ) %>%
-  #     select(-density) %>%
-  #     group_by(year) %>% mutate(mean_density_lag1 = mean(density_lag1),
-  #                               log_mean_density_lag1 = log(mean_density_lag1)) %>%
-  #     ungroup() %>% mutate(dens_dev = log_density_lag1 - log_mean_density_lag1)
-  #
-  #   mean_den <- select(gridA, year, mean_density_lag1, log_mean_density_lag1) %>% distinct()
-  #
-  #
-  #   # get current year density to scale condition index with
-  #   gridB <- readRDS(paste0("data-generated/density-predictions/p-", spp, "", dens_model_name2, ".rds")) %>%
-  #     select(year, X, Y, survey, depth, log_depth, density) %>%
-  #     group_by(year) %>%
-  #     mutate(sum_density = sum(density), prop_density = density / sum_density, log_density = log(density))
-  #
-  #   grid <- left_join(gridA, gridB) %>%
-  #     filter(
-  #       # !(year == 2020) &
-  #       year <= 2022 & year >= 2000
-  #     )
-  # }
-
 
 
   # Make mesh ----
@@ -451,6 +422,7 @@ calc_condition_indices <- function(species, maturity, males, females) {
     t <- tidy(m, "ran_pars", conf.int = TRUE)
     if (!all(s) & !m$call$share_range) {
       # browser()
+      t <- tidy(m, "ran_pars", conf.int = TRUE)
       if (abs(diff(t$estimate[t$term == "range"])) < dist) {
         m <- update(m,
           formula = set_formula,
@@ -493,7 +465,7 @@ calc_condition_indices <- function(species, maturity, males, females) {
 
   if (length(unique(d$survey_group)) == 1) {
 
-    model_name <- "doy"
+    model_name <- "all-st2002-doy"
     dir.create(paste0("data-generated/cond-index/", model_name, "/"), showWarnings = FALSE)
 
     cond_formula <- cond_fac ~ 1 + poly(days_to_solstice, 2)
@@ -555,7 +527,7 @@ calc_condition_indices <- function(species, maturity, males, females) {
       # spatiotemporal = "off",
       # spatial_varying = ~ dens_dev,
       # spatial_varying = ~ log_mean_density_lag1,
-      extra_time = c(2002, 2006, 2007, 2010, 2016, 2020),
+      extra_time = c(2002:2021),
       share_range = FALSE,
       silent = FALSE,
       time = "year",
@@ -569,12 +541,15 @@ calc_condition_indices <- function(species, maturity, males, females) {
       )
     )
 
+    print(paste(species, maturity, "(males:", just_males, ")"))
+
     m1 <- refine_cond_model(m1, set_formula = cond_formula, dist = knot_distance)
     saveRDS(m1, mf)
   } else {
-    # make sure if converged last time
-    m1 <- refine_cond_model(m1, set_formula = cond_formula, dist = knot_distance)
-    saveRDS(m1, mf)
+
+    ## make sure if converged last time
+    # m1 <- refine_cond_model(m1, set_formula = cond_formula, dist = knot_distance)
+    # saveRDS(m1, mf)
   }
 
   m1
@@ -592,28 +567,31 @@ calc_condition_indices <- function(species, maturity, males, females) {
 
     if (length(unique(d$survey_group)) == 1) {
 
+      model_name <- "all-st2002-doy-ddev"
       # model_name <- "1-st2002-doy-dlag1"
-      model_name <- "1-st2002-doy-d0c"
+      # model_name <- "1-st2002-doy-d0c"
       dir.create(paste0("data-generated/cond-index/", model_name, "/"), showWarnings = FALSE)
 
       cond_formula2 <- cond_fac ~ 1 + poly(days_to_solstice, 2) +
+        poly(ann_log_density_c, 2) + poly(dens_dev, 2)
         # poly(log_density_lag1_c, 2)
-        poly(log_density_c, 2)
+        # poly(log_density_c, 2)
 
       mf <- paste0(
         "data-generated/condition-models-", group_tag, "/", spp, "-c-",
         group_tag, "-", model_name, "-", knot_distance, "-km.rds"
       )
     } else {
-
+      model_name <- "all-st2002-doy-ddev"
       # model_name <- "all-st2002-doy-dlag1"
-      model_name <- "all-st2002-doy-d0c"
+      # model_name <- "all-st2002-doy-d0c"
       dir.create(paste0("data-generated/cond-index/", model_name, "/"), showWarnings = FALSE)
 
       cond_formula2 <- cond_fac ~ as.factor(survey_group) +
         poly(days_to_solstice, 2) +
+        poly(ann_log_density_c, 2) + poly(dens_dev, 2)
         # poly(log_density_lag1_c, 2)
-        poly(log_density_c, 2)
+        # poly(log_density_c, 2)
 
       # # log_mean_density_lag1 +
       # # poly(log_mean_density_lag1, 2) +
@@ -653,13 +631,19 @@ calc_condition_indices <- function(species, maturity, males, females) {
 
   # Filter grid ----
   if (add_density) {
-    grid <- left_join(gridA, gridB) %>% filter(
-      # !(year == 2020) &
-      year <= 2022 & year >= 2001
-    )
+    grid <- gridA %>%
+    # if lags required
+    # grid <- left_join(gridA, gridB) %>%
+      filter(
+        # !(year == 2020) &
+        year <= 2022 & year >= 2001
+      )
 
     grid$log_density_c <- 0
     grid$log_density_lag1_c <- 0
+    grid$ann_log_density_c <- 0
+    grid$dens_dev <- 0
+
   } else {
     grid <- gridA %>% filter(
       # !(year == 2020) &
@@ -674,6 +658,20 @@ calc_condition_indices <- function(species, maturity, males, females) {
 
   # might be redundant
   grid <- filter(grid, year %in% unique(m$data$year))
+
+
+  # Has this model been run before? ----
+  i1 <- paste0(
+    "data-generated/cond-index/", model_name, "/cond-index-", group_tag, "-", spp, "-",
+    model_name, "-", knot_distance, "-km.rds"
+  )
+
+  i2 <- paste0(
+    "data-generated/cond-index/", model_name, "/cond-index-", spp, "-", group_tag, "-",
+    model_name, "-", knot_distance, "-km.rds"
+  )
+  # browser()
+  if (!file.exists(i1) & !file.exists(i2)) {
 
   pc <- predict(m, newdata = grid, return_tmb_object = TRUE)
 
@@ -772,17 +770,33 @@ calc_condition_indices <- function(species, maturity, males, females) {
 
 
   # Get coastwide index ----
-  i1 <- paste0(
-    "data-generated/cond-index/", model_name, "/cond-index-", group_tag, "-", spp,
-    model_name, "-", knot_distance, "-km.rds"
-  )
+  # i1 <- paste0(
+  #   "data-generated/cond-index/", model_name, "/cond-index-", group_tag, "-", spp, "-",
+  #   model_name, "-", knot_distance, "-km.rds"
+  # )
+  #
+  # i2 <- paste0(
+  #   "data-generated/cond-index/", model_name, "/cond-index-", spp, "-", group_tag, "-",
+  #   model_name, "-", knot_distance, "-km.rds"
+  # )
 
-  if (!file.exists(i1)) {
+  # if (!file.exists(i1) & !file.exists(i2)) {
+
     ind2 <- get_index(pc, area = grid$prop_density, bias_correct = TRUE)
+    ind2$species <- species
+    ind2$group <- group_label
+    ind2$model_string <- model_name
 
     saveRDS(ind2, i1)
   } else {
-    ind2 <- readRDS(i1)
+    try(ind2 <- readRDS(i1))
+    try(ind2 <- readRDS(i2))
+
+    ind2$species <- species
+    ind2$group <- group_label
+    ind2$model_string <- model_name
+
+    saveRDS(ind2, i1)
   }
 
   ggplot(ind2, aes(year, est)) +
@@ -790,7 +804,7 @@ calc_condition_indices <- function(species, maturity, males, females) {
     geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.4) +
     xlab("Year") +
     ylab("Predicted average condition factor") +
-    labs(title = paste0(species, ": ", group_label, " ", "-", model_name))
+    labs(title = paste0(species, ": ", group_label, " ", model_name))
 
   ggsave(paste0("figs/condition-index-", spp, "-", group_tag, "-", model_name, "-", knot_distance, "-km.png"),
     height = fig_height / 2, width = fig_width / 2
@@ -1013,7 +1027,7 @@ calc_condition_indices <- function(species, maturity, males, females) {
 
 # Run with pmap -----
 
-index_list2 <- index_list[2, ]
+# index_list <- index_list[2, ]
 pmap(index_list, calc_condition_indices)
 
 # Run with furrr ----
