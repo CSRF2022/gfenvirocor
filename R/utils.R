@@ -123,19 +123,26 @@ refine_model <- function(m){
 #'
 #' @export
 #'
-plot_index <- function(dat, extra_years = NULL, filename){
+plot_index <- function(dat, species, group_name, model_string, extra_years = NULL, filename){
   if (!file.exists(filename)) {
-    ind <- get_index(dat, bias_correct = TRUE)
-    saveRDS(ind, filename)
+    i <- get_index(dat, bias_correct = TRUE)
+    saveRDS(i, filename)
   } else {
-    ind <- readRDS(filename)
+    i <- readRDS(filename)
+    i$species <- species
+    i$group <- group_name
+    i$model_string <- model_string
   }
 
   if(!is.null(extra_years)) {
-    ind <- filter(ind, !(year %in% extra_years))
+    i <- filter(i, !(year %in% extra_years))
   }
 
-  ggplot(ind, aes(year, est)) +
+  i$species <- species
+  i$group <- group_name
+  i$model_string <- model_string
+
+  ggplot(i, aes(year, est)) +
     geom_line() +
     geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.4) +
     xlab("Year") +
@@ -145,7 +152,7 @@ plot_index <- function(dat, extra_years = NULL, filename){
 #'
 #' @export
 #'
-split_index_by_survey <- function(model, grid, species, model_name){
+split_index_by_survey <- function(model, grid, species, group_name){
 
   grid <- filter(grid, year %in% c(sort(unique(model$data$year))))
 # browser()
@@ -156,7 +163,7 @@ split_index_by_survey <- function(model, grid, species, model_name){
   i <- purrr::map_dfr(p, get_index, area = 4, .id = "survey")
   i$surveys <- paste0(unique(model$data$survey_type), collapse=", ")
   i$species <- species
-  i$group <- model_name
+  i$group <- group_name
   i$index <- paste0(i$group, "\n(", i$surveys, ")")
   i$model <- paste0(ifelse(length(model$family)==6, model$family[6],
     paste0(model$family[1],"(link = 'log')")), "\nspatial (",
@@ -164,7 +171,7 @@ split_index_by_survey <- function(model, grid, species, model_name){
 
   saveRDS(i, paste0("data-generated/density-split-ind/temp-index-split-",
                     gsub(" ", "-", gsub("\\/", "-", tolower(species))), "-",
-                    gsub(" ", "-", model_name), ".rds"))
+                    gsub(" ", "-", group_name), ".rds"))
 
   return(i)
 }
