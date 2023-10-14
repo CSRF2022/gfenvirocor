@@ -71,6 +71,12 @@ hist(correlation)
 
 # with process covariate when fitting:
 
+# envdat <- readRDS("~/Downloads/TOB-for-arrowtooth-depths.rds")
+# envdat <- filter(envdat, year %in% yrs)
+# filter(envdat, agg_type == "mean") |> as.data.frame()
+
+# https://cran.r-project.org/web/packages/bayesdfa/vignettes/a3_covariates.html
+
 pro_covar <- data.frame(
   time = seq_along(yrs),
   trend = 1,
