@@ -16,22 +16,22 @@ library(patchwork)
 
 
 species_list <- list(
-  # "Arrowtooth Flounder", #
-  # "Petrale Sole", #
-  # "English Sole",#
-  # "Dover Sole",#
-  # "Rex Sole", #
-  # "Flathead Sole",#
-  # "Southern Rock Sole",#
-  # "Curlfin Sole",#
+  "Arrowtooth Flounder", #
+  "Petrale Sole", #
+  "English Sole",#
+  "Dover Sole",#
+  "Rex Sole", #
+  "Flathead Sole",#
+  "Southern Rock Sole",#
+  "Curlfin Sole",#
   "Sand Sole",#
   "Slender Sole",#
   "Pacific Sanddab",#
   "Pacific Halibut",#
-  "Butter Sole",#
-  "Starry Flounder"#
-  # #"C-O Sole", # way too few!
-  # "Deepsea Sole" # no maturity
+  "Butter Sole"#
+  ## "Starry Flounder"# too few males!
+  ## "C-O Sole", # way too few!
+  ## "Deepsea Sole" # no maturity
 )
 species_list <- list(species = species_list)
 #
@@ -43,14 +43,7 @@ species_list <- list(species = species_list)
 
 
 
-# Function for running species in parallel --------
-#
-# is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
-# is_unix <- .Platform$OS.type == "unix"
-# cores <- round(parallel::detectCores() / 2)
-# (cores <- parallel::detectCores() - 6L)
-# if (!is_rstudio && is_unix) plan(multicore, workers = cores) else plan(multisession, workers = cores)
-
+# Function for running species density models --------
 
 fit_all_distribution_models <- function(species) {
 
@@ -228,9 +221,14 @@ fit_all_distribution_models <- function(species) {
   # unique(dsamp$survey_abbrev)
   # unique(dsamp$maturity_code)
 
+  # browser()
+
   dss <- gfplot::split_catch_by_sex(dset, dsamp,
+    # catch_variable = "est_catch_count", # could use this to avoid biomass ~ condition issue
     survey = surveys_included,
     immatures_pooled = TRUE,
+    split_by_weight = FALSE,
+    # split_by_weight = TRUE, # probably should be this, but doesn't change anything currently
     custom_maturity_at = custom_maturity_code,
     custom_length_thresholds = custom_length_threshold,
     p_threshold = mat_threshold,
@@ -239,6 +237,9 @@ fit_all_distribution_models <- function(species) {
 
   # dss$maturity_plot
   # dss$weight_plot
+  # dss$data %>% filter(group_catch_est >0) %>%
+  #     ggplot() + geom_histogram(aes(log(group_catch_est)))
+  # TODO: double check that split by weight is working properly, because when applied to biomass it doesn't matter if it's on or off
 
   meandoors <- dss$data %>%
     filter(group_name == "Mature females" &
@@ -750,7 +751,7 @@ fit_all_distribution_models <- function(species) {
   # Generate all coastwide indices ----
   # browser()
   if (!file.exists(i0)) {
-    plot_index(p, extra_years = NULL, i0) +
+    plot_index(p, species, "Total", dens_model_name, extra_years = NULL, i0) +
       ggtitle(paste0(species, ": total biomass (", dens_model_name, ")"))
 
     # ggsave(paste0("figs/density-index-", m0, ".png"),
@@ -758,7 +759,7 @@ fit_all_distribution_models <- function(species) {
     # )
   }
   if (!file.exists(i1)) {
-    plot_index(pf, extra_years = NULL, i1) +
+    plot_index(pf, species, "Mature female", dens_model_name, extra_years = NULL, i1) +
       ggtitle(paste0(species, ": mature female biomass (", dens_model_name, ")"))
 
     # ggsave(paste0("figs/density-index-", m1, ".png"),
@@ -766,7 +767,7 @@ fit_all_distribution_models <- function(species) {
     # )
   }
   if (!file.exists(i2)) {
-    plot_index(pm, extra_years = NULL, i2) +
+    plot_index(pm, species, "Mature male", dens_model_name, extra_years = NULL, i2) +
       ggtitle(paste0(species, ": mature male biomass (", dens_model_name, ")"))
 
     # ggsave(paste0("figs/density-index-", m2, ".png"),
@@ -774,7 +775,7 @@ fit_all_distribution_models <- function(species) {
     # )
   }
   if (!file.exists(i3)) {
-    try(plot_index(pi, extra_years = NULL, i3) +
+    try(plot_index(pi, species, "Immature", dens_model_name, extra_years = NULL, i3) +
       ggtitle(paste0(species, ": immature biomass (", dens_model_name, ")")))
 
     # ggsave(paste0("figs/density-index-", m3, ".png"),
@@ -927,6 +928,18 @@ fit_all_distribution_models <- function(species) {
 ## Run with pmap -----
 pmap(species_list, fit_all_distribution_models)
 
+
+
+
+
+# Function for running species in parallel --------
+#
+# is_rstudio <- !is.na(Sys.getenv("RSTUDIO", unset = NA))
+# is_unix <- .Platform$OS.type == "unix"
+# cores <- round(parallel::detectCores() / 2)
+# (cores <- parallel::detectCores() - 6L)
+# if (!is_rstudio && is_unix) plan(multicore, workers = cores) else plan(multisession, workers = cores)
+#
 # furrr::future_pmap(species_list, fit_all_distribution_models)
 
 
