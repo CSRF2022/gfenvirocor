@@ -4,8 +4,11 @@ library(bayesdfa)
 theme_set(theme_light())
 options(mc.cores = parallel::detectCores())
 
-# fix path:
-f <- list.files("~/Downloads/cond-no-dens 2/", pattern = ".rds", full.names = TRUE)
+# model_name <- "all-st2002-doy-d0c"
+model_name <- "all-st2002-doy"
+
+f <- list.files(paste0("data-generated/cond-index/",
+                model_name), pattern = ".rds", full.names = TRUE)
 
 d <- purrr::map_dfr(f, readRDS)
 
@@ -48,7 +51,8 @@ plot_trends(r, years = yrs)
 plot_loadings(r, names = spp)
 plot_fitted(m, names = spp)
 
-# > 1 trend are not fitting well:
+
+# # > 1 trend are not fitting well:
 # m2 <- fit_dfa(
 #   y = dw,
 #   iter = 1000,
