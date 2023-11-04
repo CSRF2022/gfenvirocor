@@ -8,163 +8,6 @@ options(mc.cores = parallel::detectCores())
 fig_height <- 4 * 2
 fig_width <- 5 * 2
 
-## Choose model ----
-## DFA settings
-
-ctrl <- list(adapt_delta = 0.98, max_treedepth = 12)
-set_iter <- 1000
-set_chains <- 4
-
-
-
-#
-# ## choose response variable
-model_name <- "all-st2002-doy-d0c"
-
-# set_group <- "immatures"
-# y_label <- "Immature condition indices (excluding density dependence)"
-# trend_count <- 2
-
-#
-# set_group <- "mature males"
-# y_label <- "Mature male condition indices (excluding density dependence)"
-# trend_count <- 3
-
-# y_label <- "Mature male condition indices (excluding density dependence)"
-#
-set_group <- "mature females"
-y_label <- "mature female condition indices (excluding density dependence)"
-trend_count <- 2
-
-# model_name <- "all-st2002-doy"
-# set_group <- "immatures"
-# y_label <- "Immature condition indices (not controlling for density dependence)"
-
-# set_group <- "mature males"
-# y_label <- "Mature male condition indices (not controlling for density dependence)"
-#
-# set_group <- "mature females"
-# y_label <- "Mature female condition indices (not controlling for density dependence)"
-
-
-if (trend_count == 3) trend_label <- "3 trends"
-if (trend_count == 2) trend_label <- "2 trends"
-if (trend_count == 1) trend_label <- "1 trend"
-
-## Load and structure data ----
-f <- list.files(paste0("data-generated/cond-index/",
-                       model_name), pattern = ".rds", full.names = TRUE)
-
-d <- purrr::map_dfr(f, readRDS)
-dg <- filter(d, group == set_group)
-
-ggplot(d, aes(year, est)) + facet_wrap(~paste(species, group)) +
-  geom_line()
-
-ggplot(d, aes(year, est, colour = species)) + facet_wrap(~group) +
-  geom_line()
-
-ggplot(dg, aes(year, log_est)) +
-  facet_wrap(~paste(species, group)) +
-  geom_line()
-
-## wide dataframe structure
-# dw <- tidyr::pivot_wider(dg, id_cols = c(year), names_from = species, values_from = est) |>
-#   select(-year) |> t()
-# dw
-
-## long dataframe structure
-yrs <- sort(unique(dg$year))
-spp <- unique(dg$species)
-yr_lu <- data.frame(year = sort(unique(dg$year)), time = seq_along(yrs))
-dg <- left_join(dg, yr_lu)
-
-dd <- tibble(
-  obs = dg$log_est,
-  # obs = dg$est,
-  year = dg$year,
-  time = dg$time,
-  ts = dg$species,
-  se = dg$se
-)
-
-## Weights ----
-range(dg$se)
-range(1/dg$se^2)
-
-# SD/weight not SD^2/weight in model code, so try
-# dd$weights <- 1 / (dd$se^2)
-dd$weights <- 1 / (dd$se)
-dd$weights_scaled <- dd$weights / mean(dd$weights)
-hist(dd$weights)
-hist(dd$weights_scaled)
-mean(dd$weights_scaled)
-
-plot((sort(dd$weights_scaled)))
-
-# DFA without a covariate ----
-
-m <- fit_dfa(
-  y = dd,
-  iter = set_iter,
-  chains = set_chains,
-  num_trends = trend_count,
-  weights = "weights_scaled",
-  estimate_process_sigma = FALSE,
-  estimate_nu = FALSE,
-  scale = "zscore",
-  data_shape = "long",
-  seed = 298191,
-  control = ctrl
-)
-# m
-
-range(m$monitor$Bulk_ESS)
-range(m$monitor$Rhat)
-# row.names(m$monitor)
-
-checks <- m$monitor |> filter(Rhat >1)
-checks |> View()
-
-r <- rotate_trends(m)
-
-label_yrs <- function(x) {
-  x + yrs[1] - 1
-}
-
-plot_trends(r) + scale_x_continuous(label = label_yrs )
-
-plot_loadings(r, names = spp) +
-  ggtitle(paste0("DFA for ", set_group, " with no covariates"))
-
-flip_trend <- function(rotated_modelfit, trend = 1L) {
-  rflip <- rotated_modelfit
-  rflip$trends_mean[trend,] <- -1 * rotated_modelfit$trends_mean[trend,]
-  rflip$trends_lower[trend,] <- -1 * rotated_modelfit$trends_lower[trend,]
-  rflip$trends_upper[trend,] <- -1 * rotated_modelfit$trends_upper[trend,]
-  for (i in seq_len(dim(rotated_modelfit$Z_rot)[1])) {
-    rflip$Z_rot[i,,trend] <- -1 * rotated_modelfit$Z_rot[i,,trend]
-    rflip$trends[i,,trend] <- -1 * rotated_modelfit$trends[i,,trend]
-  }
-  rflip
-}
-
-
-which_flip <- 1L
-which_flip <- 2L
-
-rflip <- flip_trend(r, which_flip)
-
-# to flip both
-rflip <- flip_trend(rflip, which_flip)
-
-
-plot_trends(r, years = yrs)
-plot_trends(rflip, years = yrs)
-# plot_loadings(r, names = spp)
-plot_loadings(rflip, names = spp)
-
-
 
 ## Get coastwide covariates ----
 
@@ -308,7 +151,7 @@ pt0 <- pt_monthly |>
   mutate(time = seq_along(year),
          value_raw = value,
          value = (value - mean(value))/ sd(value),
-         type = "Phytoplankton  ")
+         type = "Phytoplankton")
 
 hist(pt0$value)
 
@@ -383,7 +226,7 @@ o20 <- do_monthly |>
          # type = "Bottom O2"
          value = -value,
          type = "Upwelling (O2 depletion)"
-         )
+  )
 hist(o20$value)
 
 ## BO2 - negatively correlated with 2
@@ -457,6 +300,8 @@ hist(so20$value)
 #   scale_color_viridis_d()
 ## formate an annual var
 
+
+
 # One covariate ----
 # # posthoc correlation: (simple, propagates uncertainty via 'trend_samples')
 # set.seed(1)
@@ -474,37 +319,228 @@ hist(so20$value)
 #   as.data.frame(stringsAsFactors = FALSE)
 
 
+
+
+
+
+
+
 # Explore covariates ----
 
-all_covs <- bind_rows(pdo0, pdo1,
-                      # npi0, #soi0,
-                      oni0, oni1)
+# bind_rows(pdo0, oni0, npi0, soi0) |>
+#   mutate(type = factor(type, levels = c("ENSO (ONI)", "PDO", "NPI", "SOI"))) %>%
+#   ggplot() +
+#   geom_line(aes(time, value, colour = type), alpha = 0.7, linewidth = 1) +
+#   # geom_point(aes(time, value, colour = type), size = 2) +
+#   # scale_color_viridis_d()+
+#   # scale_color_brewer(palette = "Paired")+
+#   scale_colour_manual(values = RColorBrewer::brewer.pal(n = 8, name = "Paired")[c(1,2,7,8)]) +
+#   scale_x_continuous(label = label_yrs ) +
+#   # theme(legend.position = "none")+
+#   labs(x = "", y = "Standardized Index", colour = "Climate Index")
+#
+# ggsave("figs/climate-indices.png", width = 4, height = 2)
+#
+#
+# bind_rows(sst0, tob0, pp0,  pt0, so20, o20) |>
+#   #mutate(type = factor(type, levels = c("ENSO (ONI)", "PDO", "NPI", "SOI"))) %>%
+#   ggplot() +
+#   geom_line(aes(time, value, colour = type), alpha = 0.7, linewidth = 1) +
+#   # geom_point(aes(time, value, colour = type), size = 2) +
+#   # scale_color_viridis_d()+
+#   # scale_color_brewer(palette = "Paired")+
+#   scale_colour_manual(values = RColorBrewer::brewer.pal(n = 10, name = "Paired")[c(4,3,6,9,5,10)])  +
+#   scale_x_continuous( limits = c(1, 22), label = label_yrs ) +
+#   theme(legend.position = "none")+
+#   labs(x = "", y = "Standardized Index", colour = "Climate Index")
+#
+# ggsave("figs/ev-indices.png", width = 4, height = 2)
 
 
-all_covs <- bind_rows(#pdo0,  oni0,
-                      npi0, soi0,
-                      sst0,  tob0,
-                      # sst1, tob1,
-                      # pp0,pt0,
-                      so20, o20
+## Choose model ----
+## DFA settings
+
+ctrl <- list(adapt_delta = 0.98, max_treedepth = 12)
+# ctrl <- list(adapt_delta = 0.98, max_treedepth = 12)
+set_iter <- 4000 # min 2000
+set_chains <- 3
+
+
+# ## choose response variable
+# model_name <- "all-st2002-doy-d0c"
+# model_name <- "all-st2002-doy-d0c-unweighted"
+model_name <- "all-st2002-doy-ld0c-unweighted"
+
+
+# trend_count <- 1
+trend_count <- 2
+# trend_count <- 3
+
+
+set_group <- "immatures"
+y_label <- "Immature condition indices (adjusting for density)"
+
+
+# set_group <- "mature males"
+# y_label <- "Mature male condition indices (adjusting for density)"
+# trend_count <- 3
+
+
+# y_label <- "Mature male condition indices (adjusting for density)"
+# #
+# set_group <- "mature females"
+# y_label <- "Mature female condition indices (adjusting for density)"
+# trend_count <- 2
+
+# model_name <- "all-st2002-doy"
+# model_name <- "all-st2002-doy-unweighted"
+# set_group <- "immatures"
+# y_label <- "Immature condition indices (not controlling for density)"
+# #
+# set_group <- "mature males"
+# y_label <- "Mature male condition indices (not controlling for density)"
+#
+# # set_group <- "mature females"
+# y_label <- "Mature female condition indices (not controlling for density)"
+
+
+if (trend_count == 3) trend_label <- "3 trends"
+if (trend_count == 2) trend_label <- "2 trends"
+if (trend_count == 1) trend_label <- "1 trend"
+
+## Load and structure data ----
+f <- list.files(paste0("data-generated/cond-index/",
+                       model_name), pattern = ".rds",
+                full.names = TRUE)
+
+d <- purrr::map_dfr(f, readRDS)
+dg <- filter(d, group == set_group)
+
+ggplot(d, aes(year, est)) + facet_wrap(~paste(species, group)) +
+  geom_line()
+
+ggplot(d, aes(year, est, colour = species)) + facet_wrap(~group) +
+  geom_line()
+
+ggplot(dg, aes(year, log_est)) +
+  facet_wrap(~paste(species, group)) +
+  geom_line()
+
+## wide dataframe structure
+# dw <- tidyr::pivot_wider(dg, id_cols = c(year), names_from = species, values_from = est) |>
+#   select(-year) |> t()
+# dw
+
+## long dataframe structure
+yrs <- sort(unique(dg$year))
+spp <- unique(dg$species)
+yr_lu <- data.frame(year = sort(unique(dg$year)), time = seq_along(yrs))
+dg <- left_join(dg, yr_lu)
+
+dd <- tibble(
+  obs = dg$log_est,
+  # obs = dg$est,
+  year = dg$year,
+  time = dg$time,
+  ts = dg$species,
+  se = dg$se
 )
 
-ggplot(all_covs) + geom_line(aes(time, value, colour = type))
+## Weights ----
+range(dg$se)
+range(1/dg$se^2)
 
+# SD/weight not SD^2/weight in model code, so try
+# dd$weights <- 1 / (dd$se^2)
+dd$weights <- 1 / (dd$se)
+dd$weights_scaled <- dd$weights / mean(dd$weights)
+hist(dd$weights)
+hist(dd$weights_scaled)
+mean(dd$weights_scaled)
+
+plot((sort(dd$weights_scaled)))
+
+# DFA without a covariate ----
+
+m <- fit_dfa(
+  y = dd,
+  iter = set_iter,
+  chains = set_chains,
+  num_trends = trend_count,
+  weights = "weights_scaled",
+  estimate_process_sigma = FALSE,
+  estimate_nu = FALSE,
+  scale = "zscore",
+  data_shape = "long",
+  # seed = 298191,
+  seed = 298,
+  control = ctrl
+)
+# m
+
+range(m$monitor$Bulk_ESS)
+range(m$monitor$Rhat)
+# row.names(m$monitor)
+
+checks <- m$monitor |> filter(Rhat >1)
+checks |> View()
+
+r <- rotate_trends(m)
+
+label_yrs <- function(x) {
+  x + yrs[1] - 1
+}
+
+plot_trends(r) + scale_x_continuous(label = label_yrs )
+
+plot_loadings(r, names = spp) +
+  ggtitle(paste0("DFA for ", set_group, " with no covariates"))
+
+flip_trend <- function(rotated_modelfit, trend = 1L) {
+  rflip <- rotated_modelfit
+  rflip$trends_mean[trend,] <- -1 * rotated_modelfit$trends_mean[trend,]
+  rflip$trends_lower[trend,] <- -1 * rotated_modelfit$trends_lower[trend,]
+  rflip$trends_upper[trend,] <- -1 * rotated_modelfit$trends_upper[trend,]
+  for (i in seq_len(dim(rotated_modelfit$Z_rot)[1])) {
+    rflip$Z_rot[i,,trend] <- -1 * rotated_modelfit$Z_rot[i,,trend]
+    rflip$trends[i,,trend] <- -1 * rotated_modelfit$trends[i,,trend]
+  }
+  rflip
+}
+
+plot_loadings(r, names = spp)
+
+which_flip <- 0L
+which_flip <- 1L
+# which_flip <- 2L
+
+if(which_flip == 0L) {
+  rflip <- r
+} else {
+  rflip <- flip_trend(r, which_flip)
+}
+# # to flip both
+# which_flip <- 1L
+# which_flip <- 2L
+# rflip <- flip_trend(rflip, which_flip)
+
+plot_trends(r, years = yrs)
+plot_trends(rflip, years = yrs)
+plot_loadings(rflip, names = spp)
 
 
 
 # Select 2 covariates ----
 
   # pro_covar1 <- pt0 |>
-  # pro_covar1 <- pp0 |> #*
+  # pro_covar1 <- pp0 |> # mat?
   # pro_covar1 <- pdo1 |>
-  pro_covar1 <- pdo0 |> #*
+  pro_covar1 <- pdo0 |> #* imm & mat
   # pro_covar1 <- npi0 |> #~
   # pro_covar1 <- oni0 |>
   # pro_covar1 <- oni1 |>
   # pro_covar1 <- soi0 |>
-  # pro_covar1 <- sst0 |> #*
+  # pro_covar1 <- sst0 |> #* imm 3
   # pro_covar1 <- tob0 |>
   # pro_covar1 <- o20 |>
   # pro_covar1 <- so20 |> #*
@@ -528,15 +564,15 @@ cor1 <- as.data.frame(correlation)
 # hist(correlation_f)
 
 
-  pro_covar1b <- oni0 |>
-  # pro_covar1b <- oni1 |>
+  pro_covar1b <- oni0 |> # mat
+    # pro_covar1b <- so20 |> #*imm
+  # pro_covar1b <- npi0 |>
   # pro_covar1b <- soi0 |>
   # pro_covar1b <- sst0 |>
   # pro_covar1b <- so20 |>
   # pro_covar1b <- pp0 |>
   # pro_covar1b <- tob0 |>
   # pro_covar1b <- o20 |>
-# pro_covar1b <- so20 |> #*
     mutate(trend_number = "Trend 1",
          # value = (value - mean(value))/ sd(value),
          Variable = type
@@ -556,8 +592,8 @@ covarsb <- pro_covar1b
 if(trend_count>1){
 
   # pro_covar2 <- pt0 |>
-  # pro_covar2 <- pp0 |> #~
-  pro_covar2 <- sst0 |>
+  pro_covar2 <- pp0 |> #~ males and imm
+  # pro_covar2 <- sst0 |> # females
   # pro_covar2 <- tob0 |> #~
   # pro_covar2 <- o20 |>
   # pro_covar2 <- so20 |>
@@ -568,6 +604,21 @@ if(trend_count>1){
   select(-year, -type)|>
   as.data.frame(stringsAsFactors = FALSE)
 
+  if(set_group == "mature females"){
+      # pro_covar2 <- pt0 |>
+      # pro_covar2 <- pp0 |> #~ males and imm
+      pro_covar2 <- sst0 |> # females
+      # pro_covar2 <- tob0 |> #~
+      # pro_covar2 <- o20 |>
+      # pro_covar2 <- so20 |>
+      mutate(trend_number = "Trend 2",
+             # value = (value - mean(value))/ sd(value),
+             Variable = type
+      ) |>
+      select(-year, -type)|>
+      as.data.frame(stringsAsFactors = FALSE)
+  }
+
   correlation <- trend_cor(r, pro_covar2$value,
                            time_window = seq_len(max(pro_covar2$time)),
                            trend = 2, trend_samples = 1000)
@@ -576,11 +627,11 @@ if(trend_count>1){
   cor2 <- as.data.frame(correlation)
 
 
-  # pro_covar2b <- pt0 |>
+  pro_covar2b <- pt0 |> # imm and males
   # pro_covar2b <- pp0 |>
   # pro_covar2b <- sst0 |>
-  # pro_covar2b <- tob0 |>
-  pro_covar2b <- so20 |>
+  # pro_covar2b <- tob0 |> # males
+  # pro_covar2b <- so20 |> # females
     mutate(trend_number = "Trend 2",
            # # value = (value - mean(value))/ sd(value),
            Variable = type
@@ -588,6 +639,19 @@ if(trend_count>1){
     select(-year, -type)|>
     as.data.frame(stringsAsFactors = FALSE)
 
+  if(set_group == "mature females"){
+    # pro_covar2b <- pt0 |> # imm and males
+      # pro_covar2b <- pp0 |>
+      # pro_covar2b <- sst0 |>
+      # pro_covar2b <- tob0 |> # males
+      pro_covar2b <- so20 |> # females
+      mutate(trend_number = "Trend 2",
+             # # value = (value - mean(value))/ sd(value),
+             Variable = type
+      ) |>
+      select(-year, -type)|>
+      as.data.frame(stringsAsFactors = FALSE)
+  }
   correlation <- trend_cor(r, pro_covar2b$value,
                            time_window = seq_len(max(pro_covar2b$time)),
                            trend = 2, trend_samples = 1000)
@@ -608,11 +672,13 @@ if(trend_count>1){
 
 if(trend_count>2){
 
-  # pro_covar3 <- tob0 |>
-  # pro_covar3 <- sst0 |>
-    # pro_covar3 <- pp0 |> #~
+  pro_covar3 <- pdo0 |> # imm
+  # pro_covar3 <- pt0 |>
+  # pro_covar3 <- pp0 |> #~ males and imm
+  # pro_covar3 <- sst0 |> # females
+    # pro_covar3 <- tob0 |> #~
     # pro_covar3 <- o20 |>
-    pro_covar3 <- so20 |>
+    # pro_covar3 <- so20 |>
     mutate(trend_number = "Trend 3",
            # value = (value - mean(value))/ sd(value),
            Variable = type
@@ -620,24 +686,44 @@ if(trend_count>2){
     select(-year, -type)|>
     as.data.frame(stringsAsFactors = FALSE)
 
-  correlation <- trend_cor(r, pro_covar2$value,
-                           time_window = seq_len(max(pro_covar2$time)),
+  correlation <- trend_cor(r, pro_covar3$value,
+                           time_window = seq_len(max(pro_covar3$time)),
                            trend = 3, trend_samples = 1000)
   hist(correlation)
   # (mpp <- mean(correlation))
   cor3 <- as.data.frame(correlation)
 
+  pro_covar3b <- oni0 |> # imm
+  # pro_covar3b <- pt0 |> # imm and males
+  # pro_covar3b <- pp0 |>
+  # pro_covar3b <- sst0 |>
+  # pro_covar3b <- tob0 |> # males
+  # pro_covar3b <- so20 |> # females
+    mutate(trend_number = "Trend 3",
+           # # value = (value - mean(value))/ sd(value),
+           Variable = type
+    ) |>
+    select(-year, -type)|>
+    as.data.frame(stringsAsFactors = FALSE)
+
+  correlation <- trend_cor(r, pro_covar3b$value,
+                           time_window = seq_len(max(pro_covar3b$time)),
+                           trend = 3, trend_samples = 1000)
+  hist(correlation)
+  # (mpp <- mean(correlation))
+  cor3b <- as.data.frame(correlation)
 
   covars <- bind_rows(pro_covar1, pro_covar2, pro_covar1b,
-                      pro_covar2b#, pro_covar3
+                      pro_covar2b, pro_covar3 , pro_covar3b
                       )
 
   covars$Variable <- factor(covars$Variable, levels = c(
-    pro_covar1b$Variable[1],
-    pro_covar1$Variable[1],
+    pro_covar3b$Variable[1],
+    pro_covar3$Variable[1],
     pro_covar2b$Variable[1],
-    pro_covar2$Variable[1]#,
-    # pro_covar3$Variable[1]
+    pro_covar2$Variable[1],
+    pro_covar1b$Variable[1],
+    pro_covar1$Variable[1]
   ))
 
 }
@@ -678,6 +764,28 @@ if(trend_count>1){
   ))
 }
 
+if(trend_count>2){
+  if(which_flip == 3L) {
+    cor3$correlation <- -cor2$correlation
+    cor3b$correlation <- -cor2b$correlation
+  }
+
+  cor3$var <- pro_covar3$Variable[1]
+  cor3b$var <- pro_covar3b$Variable[1]
+  cor3$Label <- cor3b$Label <- paste0("Trend 3 ~ ", pro_covar3$Variable[1], " / ", pro_covar3b$Variable[1])
+  correlations <- bind_rows(cor1, cor2, cor1b, cor2b, cor3, cor3b)
+
+  correlations$var <- factor(correlations$var, levels = c(
+    pro_covar3b$Variable[1],
+    pro_covar3$Variable[1],
+    pro_covar2b$Variable[1],
+    pro_covar2$Variable[1],
+    pro_covar1b$Variable[1],
+    pro_covar1$Variable[1]
+  ))
+}
+
+
 
 # DFA summary plots ----
 
@@ -702,7 +810,7 @@ if(trend_count>1){
 
 if(trend_count>1){
   if(trend_count>2){
-  (p1 <- p1 + scale_colour_manual(values = RColorBrewer::brewer.pal(n = 5, name = "Paired")[c(1,2,3,4)]))
+  (p1 <- p1 + scale_colour_manual(values = RColorBrewer::brewer.pal(n = 6, name = "Paired")[c(1,2,3,4,5,6)]))
   } else{
     if(pro_covar2$Variable[1]=="SST"){
       (p1 <- p1 + scale_colour_manual(values = RColorBrewer::brewer.pal(n = 6, name = "Paired")[c(1,2,5,6)]) )
@@ -726,42 +834,67 @@ if(trend_count>1){
          axis.ticks.y = element_blank(), axis.text.y = element_blank(),
          legend.position = "none"))
 
+if(trend_count>2){
+  (p2 <- p2 + scale_fill_manual(values = RColorBrewer::brewer.pal(n = 6, name = "Paired")[c(1,2,3,4,5,6)]) )
+} else {
 if(trend_count>1){
+
   if(pro_covar2$Variable[1]=="SST"){
-  (p2 <- p2 + scale_fill_manual(values = RColorBrewer::brewer.pal(n = 6, name = "Paired")[c(1,2,5,6)]) )
-}else{
+      (p2 <- p2 + scale_fill_manual(values = RColorBrewer::brewer.pal(n = 6, name = "Paired")[c(1,2,5,6)]) )
+  }else{
   (p2 <- p2 + scale_fill_manual(values = RColorBrewer::brewer.pal(n = 4, name = "Paired")) )
-}
+  }
 } else {
   p2 <- p2 + scale_fill_manual(values = RColorBrewer::brewer.pal(n = 4, name = "Paired")[c(2,4)])
+}
 }
 
 (p3 <- plot_loadings(rflip, names = spp)+
     theme(axis.title.y = element_blank(), legend.position = "none") )
 if(trend_count>2){
-  (p3 <- p3 + scale_fill_manual(values = RColorBrewer::brewer.pal(n = 6, name = "Paired")[c(2,4,5)]))
+  (p3 <- p3 + scale_fill_manual(values = RColorBrewer::brewer.pal(n = 6, name = "Paired")[c(5,4,2)]))
 } else {
+
+  if(pro_covar2$Variable[1]=="SST"){
   (p3 <- p3 + scale_fill_manual(values = RColorBrewer::brewer.pal(n = 6, name = "Paired")[c(2,6)]))
+  }else{
+
+    (p3 <- p3 + scale_fill_manual(values = RColorBrewer::brewer.pal(n = 6, name = "Paired")[c(2,4)]))
+
+  }
 }
 
+if(trend_count>2){
+  wrap_elements(p1 / p2 + plot_layout(nrow = 2, widths= c(1), heights = c(1,0.5))) + wrap_elements(p3) + plot_layout(nrow = 1, widths= c(1.5, 1))
 
+}else{
 wrap_elements(p1 / p2 + plot_layout(nrow = 2, widths= c(1), heights = c(1,0.5))) + wrap_elements(p3) + plot_layout(nrow = 1, widths= c(1.75, 1))
 # & theme(axis.title.y = element_blank())
-
-
-if(trend_count>1){
-ggsave(paste0("figs/DFA-", trend_count, "trends-no-cov-",
-              gsub(" ", "-", set_group), "-", model_name, "-",
-              gsub(" ", "-", pro_covar1$Variable[1]), "-",
-              gsub(" ", "-", pro_covar2$Variable[1]), "-2.png"),
-       height = fig_height/1.65, width = fig_width*1.2)
-} else {
-ggsave(paste0("figs/DFA-", trend_count, "trends-no-cov-",
-              gsub(" ", "-", set_group), "-", model_name, "-",
-              gsub(" ", "-", pro_covar1$Variable[1]), "-2.png"),
-       height = fig_height/1.65, width = fig_width*0.8)
 }
 
+
+if(trend_count>2){
+    ggsave(paste0("figs/DFA-", trend_count, "trends-no-cov-",
+                  gsub(" ", "-", set_group), "-", model_name, "-",
+                  gsub(" ", "-", pro_covar1$Variable[1]), "-",
+                  gsub(" ", "-", pro_covar2$Variable[1]),
+                  gsub(" ", "-", pro_covar3$Variable[1]), ".png"),
+           height = fig_height/1.65, width = fig_width)
+}else{
+  if(trend_count>1){
+    ggsave(paste0("figs/DFA-", trend_count, "trends-no-cov-",
+              gsub(" ", "-", set_group), "-", model_name, "-",
+              gsub(" ", "-", pro_covar1$Variable[1]), "-",
+              gsub(" ", "-", pro_covar2$Variable[1]), "-4k.png"),
+       height = fig_height/1.65, width = fig_width*1)
+
+ } else {
+ggsave(paste0("figs/DFA-", trend_count, "trends-no-cov-",
+              gsub(" ", "-", set_group), "-", model_name, "-",
+              gsub(" ", "-", pro_covar1$Variable[1]), ".png"),
+       height = fig_height/1.65, width = fig_width*0.9)
+}
+}
 # tall version
 # wrap_elements(p1 / p2 + plot_layout(nrow = 2, widths= c(1), heights = c(1,0.5))) / wrap_elements(p3) + plot_layout(nrow = 2, widths= c(1), heights = c(1.2,1))
 # # & theme(axis.title.y = element_blank())
@@ -814,8 +947,9 @@ if(trend_count>1){
 }
 
 
-ggsave(paste0("figs/DFA-fits-",  trend_count, "trends-no-cov-",
-              gsub(" ", "-", set_group), "-", model_name, ".png"),
+ggsave(paste0("figs/DFA-fits-",  trend_count,
+              "trends-no-cov-", gsub(" ", "-", set_group),
+              "-", model_name, "-4k.png"),
        height = fig_height*0.7, width = fig_width)
 # ggsave(paste0("figs/DFA-",  trend_count, "trends-no-cov-lag", set_lag, "-", agg_var, var_type, ".png"),
 #        height = fig_height, width = fig_width)
