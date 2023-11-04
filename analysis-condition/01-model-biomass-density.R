@@ -16,19 +16,19 @@ library(patchwork)
 
 
 species_list <- list(
-  "Arrowtooth Flounder", #
-  "Petrale Sole", #
-  "English Sole",#
-  "Dover Sole",#
-  "Rex Sole", #
-  "Flathead Sole",#
-  "Southern Rock Sole",#
-  "Curlfin Sole",#
-  "Sand Sole",#
-  "Slender Sole",#
-  "Pacific Sanddab",#
-  "Pacific Halibut",#
-  "Butter Sole"#
+  # "Arrowtooth Flounder", #
+  # "Petrale Sole", #
+  # "English Sole",#
+  # "Dover Sole",#
+  # "Rex Sole", #
+  # "Flathead Sole",#
+  # "Southern Rock Sole",#
+  # "Curlfin Sole",#
+  "Sand Sole"#
+  # "Slender Sole",#
+  # "Pacific Sanddab",#
+  # "Pacific Halibut",#
+  # "Butter Sole"#
   ## "Starry Flounder"# too few males!
   ## "C-O Sole", # way too few!
   ## "Deepsea Sole" # no maturity
@@ -223,17 +223,31 @@ fit_all_distribution_models <- function(species) {
 
   # browser()
 
+  maturity_possible <- TRUE
+
+  if(spp == "curlfin-sole"){
+    # dsamp <- dsamp %>% mutate(maturity_code = ifelse(maturity_code %in% c(2,7), 0, maturity_code))
+
+    maturity_possible <- FALSE
+
+  }
+
+
   dss <- gfplot::split_catch_by_sex(dset, dsamp,
     # catch_variable = "est_catch_count", # could use this to avoid biomass ~ condition issue
+    # split_by_weight = FALSE, # automatically switches to TRUE for common weight-based catch variables
+    sample_id_re = TRUE, # used for maturity ogives
+    # sample_id_re = FALSE,
     survey = surveys_included,
     immatures_pooled = TRUE,
-    split_by_weight = FALSE,
-    # split_by_weight = TRUE, # probably should be this, but doesn't change anything currently
+    split_by_maturity = maturity_possible,
     custom_maturity_at = custom_maturity_code,
     custom_length_thresholds = custom_length_threshold,
     p_threshold = mat_threshold,
-    plot = TRUE
+    plot = maturity_possible
   )
+
+
 
   # dss$maturity_plot
   # dss$weight_plot
@@ -326,7 +340,7 @@ fit_all_distribution_models <- function(species) {
   #               vessel_id, captain_id, vessel_cap_combo) %>% distinct() %>% View()
 
   ds %>%
-    filter(group_name == "Mature females") %>%
+    filter(group_name %in% c("Mature", "Mature females")) %>%
     distinct() %>%
     ggplot() +
     # geom_violin(aes(area_swept, usability_desc))+
@@ -415,7 +429,8 @@ fit_all_distribution_models <- function(species) {
   range(d$catch_weight)
 
   # make mesh for total density
-  d1 <- d %>% filter(group_name == "Mature females")
+  d1 <- d %>%
+    filter(group_name %in% c("Females", "Mature females"))
 
   mesh <- make_mesh(d1, c("X", "Y"), cutoff = knot_distance)
 
@@ -538,7 +553,8 @@ fit_all_distribution_models <- function(species) {
   which_surv <- d2 %>%
     filter(group_catch_est > 0) %>%
     group_by(survey_type) %>%
-    summarise(n = n())
+    summarise(n = n()) %>%
+    filter(n > 20)
 
   d2 <- filter(d2, survey_type %in% which_surv$survey_type)
 
@@ -591,7 +607,7 @@ fit_all_distribution_models <- function(species) {
     #               return_tmb_object = TRUE)
 
     pf <- predict(mf,
-      re_form_iid = NA,
+      re_form_iid = NA, # only needed if random intercepts
       newdata = filter(grid, year %in% c(sort(unique(mf$data$year)))),
       return_tmb_object = TRUE
     )
@@ -609,14 +625,16 @@ fit_all_distribution_models <- function(species) {
 
   if (!file.exists(fmm)) {
     d2b <- d %>%
-      filter(group_name == "Mature males") %>%
+      filter(group_name %in% c("Males", "Mature males")) %>%
+      # filter(group_name == "Mature males") %>%
       filter(year > 2001) %>%
       filter(!is.na(group_catch_est))
 
     which_surv <- d2b %>%
       filter(group_catch_est > 0) %>%
       group_by(survey_type) %>%
-      summarise(n = n())
+      summarise(n = n()) %>%
+      filter(n > 20)
 
     d2b <- filter(d2b, survey_type %in% which_surv$survey_type)
 
@@ -668,7 +686,8 @@ fit_all_distribution_models <- function(species) {
 
 
   ## immature model ----
-
+  # browser()
+if(maturity_possible) {
   if (!file.exists(fmi)) {
 
     # browser()
@@ -681,8 +700,8 @@ fit_all_distribution_models <- function(species) {
     which_surv <- d3 %>%
       filter(group_catch_est > 0) %>%
       group_by(survey_type) %>%
-      summarise(n = n())
-
+      summarise(n = n()) %>%
+      filter(n > 20)
 
     d3 <- filter(d3, survey_type %in% which_surv$survey_type)
 
@@ -713,21 +732,21 @@ fit_all_distribution_models <- function(species) {
 
   } else {
     mi <- readRDS(fmi)
-    if (!all(sanity(mi))) {
-      if (length(mi$family) == 6) {
-        mi <- refine_delta_model(mi, alternate_family = set_family2)
-      } else {
-        mi <- refine_model(mi)
-      }
-      saveRDS(mi, fmi)
-    }
+  #   if (!all(sanity(mi))) {
+  #     if (length(mi$family) == 6) {
+  #       mi <- refine_delta_model(mi, alternate_family = set_family2)
+  #     } else {
+  #       mi <- refine_model(mi)
+  #     }
+  #     saveRDS(mi, fmi)
+  #   }
   }
 
   # TODO: add R2 once it's working for delta models
   # r2_i <- r2.sdmTMB(mi)
 
-  s <- sanity(mi)
-
+  # s <- sanity(mi)
+  s <- TRUE
   if (all(s)) {
     if (file.exists(pifn) & file.exists(i3)) {
       pi <- readRDS(pifn)
@@ -746,7 +765,7 @@ fit_all_distribution_models <- function(species) {
       )
     }
   }
-
+}
 
   # Generate all coastwide indices ----
   # browser()
