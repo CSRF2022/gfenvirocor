@@ -14,21 +14,21 @@ library(gfplot)
 # )
 species_list <- list(
   # "Arrowtooth Flounder", #
-  # "Petrale Sole", #
+  # "Petrale Sole",#
   # "English Sole",#
   # "Dover Sole",#
-  # "Rex Sole", #
+  # "Rex Sole",#
   # "Flathead Sole",#
-  # "Southern Rock Sole" #,
-  "Curlfin Sole"#
+  # "Southern Rock Sole",
+  "Curlfin Sole"
   # "Sand Sole",#
   # "Slender Sole",#
-  # "Pacific Sanddab",#
-  # "Pacific Halibut",#
-  # "Butter Sole",#
-  # "Starry Flounder"#
-  # # #"C-O Sole", # way too few!
-  # # "Deepsea Sole" # no maturity
+  # "Pacific Sanddab",
+  # "Pacific Halibut",
+  # "Butter Sole"#
+  ## "Starry Flounder"# too few males!
+  ## "C-O Sole", # way too few!
+  ## "Deepsea Sole" # no maturity
 )
 
 species_list <- list(species = species_list)
@@ -37,7 +37,7 @@ get_condition_data <- function(species){
 
 ## code checking within function
 # species <- "Arrowtooth Flounder"
-
+# species <- "Petrale Sole"
 # mat_threshold  <-  0.05
 mat_threshold <- 0.5
 # mat_threshold <- 0.95
@@ -47,6 +47,8 @@ mat_threshold <- 0.5
 #   "HBLL INS N", "HBLL INS S", "SYN SOG", "EUL N", "EUL S", "DOG", "DOG-C", "DOG-J",  # not using inside waters for now
 #   "OTHER"
 # )
+
+spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species)))
 
 surveys_included <- c("HBLL OUT N", "HBLL OUT S",
                       "IPHC FISS",
@@ -189,7 +191,10 @@ unique(dat$survey_abbrev)
 mf <- gfplot::fit_length_weight(dat, sex = "female")
 mm <- gfplot::fit_length_weight(dat, sex = "male")
 
+
+# Length-weight plot ----
 plot_length_weight(object_female = mf, object_male = mm)
+
 
 # mf$data$predicted_weight <- exp(mf$pars$log_a + mf$pars$b * log(mf$data$length))
 # mf$data$residuals <- (mf$data$weight - mf$data$predicted_weight)/mf$data$weight
@@ -226,6 +231,10 @@ plot(cond_fac ~ length, data = dd)
 dd2 <- filter(dd, cond_fac < 10)
 plot(cond_fac ~ length, data = dd2)
 
+
+ggplot(dd2) + geom_point( aes(length, cond_fac)) +
+  facet_wrap(~survey_abbrev)
+
 # remove the most extreme outliers that are likely errors
 dd2 <- filter(dd2, cond_fac < quantile(dd$cond_fac, probs = 0.9975))
 plot(cond_fac ~ length, data = dd2)
@@ -256,6 +265,7 @@ ggplot(
 # Starting with code lifted from split by maturity function in case we also want to functionalize this
 # arguements required:
 custom_maturity_at <- NULL
+
 sample_id_re <- TRUE
 
 ## could use separate estimates for each year
@@ -333,6 +343,7 @@ if (split_by_maturity) {
       m <- fit_mat_ogive(fish,
         type = "length",
         sample_id_re = sample_id_re,
+        usability_codes = NULL,
         custom_maturity_at = custom_maturity
       )
 
@@ -360,6 +371,7 @@ if (split_by_maturity) {
       m <- fit_mat_ogive(fish,
         type = "length",
         sample_id_re = sample_id_re,
+        usability_codes = NULL,
         custom_maturity_at = custom_maturity,
         year_re = TRUE
       )
@@ -379,6 +391,7 @@ if (split_by_maturity) {
       m <- fit_mat_ogive(fish,
         type = "length",
         sample_id_re = sample_id_re,
+        usability_codes = NULL,
         custom_maturity_at = custom_maturity
       )
 
@@ -411,10 +424,14 @@ if (split_by_maturity) {
     }
   }
 
-  # browser()
+  if(spp %in% c(" ")){
+    f_fish <- mutate(f_fish, mature = 1)
+    m_fish <- mutate(m_fish, mature = 1)
+  } else {
   # classify each fish as immature or mature based on above thresholds
   f_fish <- mutate(f_fish, mature = if_else(length >= threshold, 1, 0, missing = NULL))
   m_fish <- mutate(m_fish, mature = if_else(length >= threshold, 1, 0, missing = NULL))
+  }
 
   # get unsexed immature fish
   imm_fish <- fish %>%
@@ -454,8 +471,12 @@ if (split_by_maturity) {
     mutate(group_name = ifelse(sex == 1, "Males", "Females"))
 }
 
+
+# browser()
 # gfplot::plot_mat_annual_ogives(m)
 gfplot::plot_mat_ogive(m)
+saveRDS(m, paste0("data-generated/maturity-ogives/", spp, ".rds"))
+
 
 # 4. Calculate ‘weights' (sample multiplier for each fish sampled)
 ds <- fish_groups %>%
@@ -489,6 +510,7 @@ ds <- fish_groups %>%
     prop_n_in_group = (group_num_sampled / num_sampled), # this is proportion by count
     prop_w_in_group = (group_sampled_weight / sampled_weight), # this is proportion by weight
     group_catch_weight = total_weight * prop_w_in_group, # this is est group catch weight
+    # est_num_unsampled_group_members2 = (group_catch_weight - group_sampled_weight)/(group_sampled_weight/group_num_sampled)),
     est_num_unsampled_group_members = (est_count - num_sampled) * prop_n_in_group,
     sample_multiplier = 1 + (est_num_unsampled_group_members / group_num_sampled)
   ) %>%
@@ -526,11 +548,32 @@ abline(v = m$mat_perc$mean$m.mean.p0.5, col = "blue")
 hist(ds$sample_multiplier)
 plot(log(ds$sample_multiplier_by_weight) ~ log(ds$sample_multiplier))
 
+
+plot(cond_fac~length, data = ds)
+
+# Plot for talk -----
+
+plot_length_weight(object_female = mf, object_male = mm) +
+  geom_point(data = dd, aes(length, weight))
+
+
+
+plot(weight ~ length, data = dd, col = "red")
+points(weight ~ length, data = ds)
+# add female maturity in green
+abline(v = m$mat_perc$f.p0.5, col = "green")
+abline(v = m$mat_perc$mean$f.mean.p0.5, col = "green")
+# add male maturity in blue
+abline(v = m$mat_perc$m.p0.5, col = "blue")
+abline(v = m$mat_perc$mean$m.mean.p0.5, col = "blue")
+
+
+
 # save data
 spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species)))
 
-dir.create(paste0("data-generated/condition-data/"), showWarnings = FALSE)
-saveRDS(ds, paste0("data-generated/condition-data/", spp, "-mat-", mat_threshold, "-condition.rds"))
+dir.create(paste0("data-generated/condition-data-inclusive/"), showWarnings = FALSE)
+saveRDS(ds, paste0("data-generated/condition-data-inclusive/", spp, "-mat-", mat_threshold, "-condition.rds"))
 }
 
 pmap(species_list, get_condition_data)
