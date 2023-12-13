@@ -5,19 +5,19 @@
 library(tidyverse)
 library(gfplot)
 
-# species <- c(
+species_list <- list(
 #   "Petrale Sole",
 #   "Canary Rockfish",
 #   "Arrowtooth Flounder",
 #   "North Pacific Spiny Dogfish",
-#   "Pacific Cod"
-# )
+  "Pacific Cod"
+)
 species_list <- list(
   # "Arrowtooth Flounder", #
-  # "Petrale Sole",#
+  "Petrale Sole",#
   # "English Sole",#
-  # "Dover Sole",#
-  # "Rex Sole",#
+  "Dover Sole",#
+  "Rex Sole",#
   # "Flathead Sole",#
   # "Southern Rock Sole",
   "Curlfin Sole"
@@ -31,6 +31,23 @@ species_list <- list(
   ## "Deepsea Sole" # no maturity
 )
 
+species_list <- list(
+  #   #"Arrowtooth Flounder" ,  "Southern Rock Sole"    ,
+  # "Canary Rockfish",
+  # "Pacific Ocean Perch",
+  # "Bocaccio",
+  # "Redstripe Rockfish",
+  # # "Rougheye/Blackspotted",
+  # # "Shortspine Thornyhead",
+  # "Silvergray Rockfish",
+  # "Widow Rockfish",
+  # "Yellowmouth Rockfish",
+  "Yellowtail Rockfish",
+  # "Pacific Cod",
+  # "Walleye Pollock",
+  "Sablefish"
+)
+
 species_list <- list(species = species_list)
 
 get_condition_data <- function(species){
@@ -38,6 +55,8 @@ get_condition_data <- function(species){
 ## code checking within function
 # species <- "Arrowtooth Flounder"
 # species <- "Petrale Sole"
+
+# species <- "Pacific Cod"
 # mat_threshold  <-  0.05
 mat_threshold <- 0.5
 # mat_threshold <- 0.95
@@ -54,17 +73,25 @@ surveys_included <- c("HBLL OUT N", "HBLL OUT S",
                       "IPHC FISS",
                       "SABLE", # only have weights for certain species?
                       "MSSM QCS", "MSSM WCVI",
-                      "OTHER", # filtered to two older bottom trawl surveys
+                      "OTHER", # filtered to two older bottom trawl surveys + hake
                       "HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI")
 
 # browser()
 
 # dat <- readRDS("data-raw/survey-samples-all.rds") %>%
 # dat <- readRDS("data-raw/pcod-survey-samples-all.rds") %>%
+
+
 dat <- readRDS("data-raw/survey-samples-flatfish.rds") %>%
+  bind_rows(., readRDS("data-raw/survey-samples-part2.rds")) %>%
+  ## remove sample_ids which were entirely recorded in cm rather than mm
+  ## fortunately doesn't change anything,
+  ## so will leave them in so that they will be included once corrected
+  # filter(!(sample_id %in% c(536500, 536506, 537170, 532297))) %>%
+# dat <- readRDS("data-raw/survey-samples-part2.rds") %>%
   # filter(survey_abbrev == "OTHER" & !is.na(weight))
   filter(species_common_name == tolower(species)) %>%
-  filter((survey_abbrev %in% surveys_included)) %>%
+  # filter((survey_abbrev %in% surveys_included)) %>%
   # filter(!is.na(weight), !is.na(length)) %>%
   mutate(
     survey_abbrev = ifelse(
@@ -107,33 +134,43 @@ dat <- readRDS("data-raw/survey-samples-flatfish.rds") %>%
 
 # dset <- readRDS("data-raw/survey-sets-all.rds") %>%
 # dset <- readRDS("data-raw/pcod-survey-sets-all.rds") %>%
+# dset <- readRDS("data-raw/survey-sets-flatfish.rds") %>%
+# dset <- readRDS("data-raw/survey-sets-part2.rds") %>%
 dset <- readRDS("data-raw/survey-sets-flatfish.rds") %>%
+  bind_rows(., readRDS("data-raw/survey-sets-part2.rds")) %>%
   filter(
     !(survey_abbrev %in% c("SABLE INLET", "SABLE OFF", "SABLE RAND")),
     # some MSSM sets are in both as QCS and WCVI
     !(survey_series_id == 6 & latitude < 50),
     !(survey_series_id == 7 & latitude > 50),
-    # 11 useful for deeper species, 9 from 1996 probably too limited
-    !(survey_abbrev == "OTHER" & !(survey_series_id %in% c(9, 11)))
+    # 11 useful for deeper species, 9 from 1996 probably too limited, 68 is hake
+    !(survey_abbrev == "OTHER" & !(survey_series_id %in% c(9, 11, 68)))
   ) %>%
   mutate(survey_abbrev = ifelse(
     survey_abbrev == "MSSM" & latitude < 50, "MSSM WCVI", ifelse(
       survey_abbrev == "MSSM" & latitude > 50, "MSSM QCS", survey_abbrev
       )
     ),
-    survey_group = ifelse(
-      survey_abbrev %in% c("HBLL OUT N", "HBLL OUT S"), "HBLL", ifelse(
-        survey_abbrev %in% c("OTHER", "HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI"),
-        "TRAWL", ifelse(
-          survey_abbrev %in% c("MSSM QCS", "MSSM WCVI"), "MSSM", survey_abbrev
-          )
-        )
-      )
+    # survey_group = ifelse(
+    #   survey_abbrev %in% c("HBLL OUT N", "HBLL OUT S"), "HBLL", ifelse(
+    #     survey_abbrev %in% c("OTHER", "HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI"),
+    #     "TRAWL", ifelse(
+    #       survey_abbrev %in% c("MSSM QCS", "MSSM WCVI"), "MSSM", survey_abbrev
+    #       )
+    #     )
+    #   ),
+    survey_group = as.factor(
+      case_when(
+        survey_abbrev %in% c("HBLL OUT N", "HBLL OUT S")~"HBLL",
+        survey_abbrev %in% c("MSSM QCS", "MSSM WCVI")~"MSSM",
+        survey_abbrev %in% c("OTHER", "HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI")~"TRAWL",
+        survey_series_id == 68~"HAKE",
+        TRUE~survey_abbrev
+      ))
   ) %>%
   filter((survey_abbrev %in% surveys_included), !is.na(longitude), !is.na(latitude))
 
-saveRDS(dset, "data-generated/set-data-used.rds")
-
+# saveRDS(dset, paste0("data-generated/set-data-used.rds"))
 
 dset <- dset %>% filter(species_common_name == tolower(species))
 
@@ -158,7 +195,7 @@ dat$catch_weight <- ifelse(dat$catch_count > 0 & dat$catch_weight == 0, NA, dat$
 # select(dat, trip_start_date, trip_month, set_month, day, latitude, longitude) %>% distinct() %>% View()
 
 datf <- filter(dat, !is.na(length))
-datf <- filter(datf, !is.na(weight))
+# datf <- filter(datf, !is.na(weight))
 # datf <- filter(datf, year > 2002)
 
 datf <- filter(datf, !is.na(survey_abbrev))
@@ -186,82 +223,105 @@ unique(dat$survey_abbrev)
 # dat <- filter(dat, !is.na(depth_m))
 
 
-# 1. Le Cren’s relative condition factor
-
-mf <- gfplot::fit_length_weight(dat, sex = "female")
-mm <- gfplot::fit_length_weight(dat, sex = "male")
-
-
-# Length-weight plot ----
-plot_length_weight(object_female = mf, object_male = mm)
-
-
-# mf$data$predicted_weight <- exp(mf$pars$log_a + mf$pars$b * log(mf$data$length))
-# mf$data$residuals <- (mf$data$weight - mf$data$predicted_weight)/mf$data$weight
-# plot(residuals~length, data = mf$data)
-
-
-df <- dplyr::filter(dat, sex == 2, !is.na(weight), !is.na(length))
-dm <- dplyr::filter(dat, sex == 1, !is.na(weight), !is.na(length))
-
-df$wbar <- exp(mf$pars$log_a) * df$length^mf$pars$b * 1000
-dm$wbar <- exp(mm$pars$log_a) * dm$length^mm$pars$b * 1000
-
-# include unknown sex individuals for now, because immature individuals can be difficult to sex and differences in growth rate may be slim
-du <- dplyr::filter(dat, sex %in% c(0, 3), !is.na(weight), !is.na(length))
-
-# Apply an intermediate slope and intercept to these individuals
-du$wbar <- exp((mm$pars$log_a + mf$pars$log_a) / 2) * du$length^((mm$pars$b + mf$pars$b) / 2) * 1000
-
-dd <- bind_rows(df, dm, du)
-dd$cond_fac <- dd$weight / dd$wbar
-
-# plot(cond_fac~length, data = dd)
-
-
+# # 1. Le Cren’s relative condition factor
+#
+# mf <- gfplot::fit_length_weight(dat, sex = "female")
+# mm <- gfplot::fit_length_weight(dat, sex = "male")
+#
+#
+# ## Length-weight plot ----
+# plot_length_weight(object_female = mf, object_male = mm)
+#
+#
+# # mf$data$predicted_weight <- exp(mf$pars$log_a + mf$pars$b * log(mf$data$length))
+# # mf$data$residuals <- (mf$data$weight - mf$data$predicted_weight)/mf$data$weight
+# # plot(residuals~length, data = mf$data)
+#
+#
+# df <- dplyr::filter(dat, sex == 2, !is.na(weight), !is.na(length))
+# dm <- dplyr::filter(dat, sex == 1, !is.na(weight), !is.na(length))
+#
+# df$wbar <- exp(mf$pars$log_a) * df$length^mf$pars$b * 1000
+# dm$wbar <- exp(mm$pars$log_a) * dm$length^mm$pars$b * 1000
+#
+# # include unknown sex individuals for now, because immature individuals can be difficult to sex and differences in growth rate may be slim
+# du <- dplyr::filter(dat, sex %in% c(0, 3), !is.na(weight), !is.na(length))
+#
+# # Apply an intermediate slope and intercept to these individuals
+# du$wbar <- exp((mm$pars$log_a + mf$pars$log_a) / 2) * du$length^((mm$pars$b + mf$pars$b) / 2) * 1000
+#
+# dd <- bind_rows(df, dm, du)
+# dd$cond_fac <- dd$weight / dd$wbar
+#
+# # plot(cond_fac~length, data = dd)
+#
 # 2. Remove outliers
 # dd <- filter(dd, cond_fac < quantile(dd$cond_fac, probs = 0.995))
 # dd <- filter(dd, cond_fac > quantile(dd$cond_fac, probs = 0.005))
 
 # ds <- select(dd, fishing_event_id, sex, age, length, weight, maturity_code, wbar, cond_fac, specimen_id, year, survey_abbrev)
 
-plot(cond_fac ~ length, data = dd)
+# plot(cond_fac ~ length, data = dd)
 
-# remove extreme outliers from a sample where the scale or board were clearly calibrated wrong.
-dd2 <- filter(dd, cond_fac < 10)
-plot(cond_fac ~ length, data = dd2)
+# # remove extreme outliers from a sample where the scale or board were clearly calibrated wrong.
+# dd1 <- filter(dd, cond_fac < 10)
+# plot(cond_fac ~ length, data = dd1)
+#
+# hist(log(dd1$cond_fac), breaks = 50)
+# mean(dd1$cond_fac)
+# sd(log(dd1$cond_fac))*4
+#
+# ggplot(dd1) + geom_point( aes(length, cond_fac)) +
+#   facet_wrap(~survey_abbrev)
+#
+#
+## remove the most extreme outliers that are likely errors
+# upper_quantile <- 0.9975
+# lower_quantile <- 0.0025
+# quantile(dd1$cond_fac, upper_quantile)
+#
+#
+# dd2 <- filter(dd1, cond_fac < quantile(dd$cond_fac, probs = upper_quantile))
+# plot(cond_fac ~ length, data = dd2)
+#
+# # TODO: could trim lower, but looking more balance without trimming for petrale
+# dd2 <- filter(dd2, cond_fac > quantile(dd$cond_fac, probs = lower_quantile))
+# plot(cond_fac ~ length, data = dd2)
+#
 
+# # black swan version
+# exp(qnorm(0.9999, 0, sd = exp(mf$pars$log_sigma)))
+# exp(mean(log(dd$cond_fac)) + (sd(log(dd$cond_fac))*4))
+# quantile(dd$cond_fac, upper_quantile)
+#
+# qnorm(0.0001, 0, sd = exp(mf$pars$log_sigma))
+# exp(mean(log(dd$cond_fac)) - (sd(log(dd$cond_fac))*4))
+# exp(quantile(dd$cond_fac, lower_quantile))
+#
+#
+# dd2 <- filter(dd, cond_fac < exp(mean(log(dd$cond_fac)) + (sd(log(dd$cond_fac))*4)))
+# dd2 <- filter(dd2, cond_fac > exp(mean(log(dd$cond_fac)) - (sd(log(dd$cond_fac))*4)))
+#
+# plot(cond_fac ~ length, data = dd2)
+#
+# group_by(dd2, year) %>%
+#   summarise(mcond = mean(cond_fac)) %>%
+#   ggplot(aes(year, mcond)) +
+#   geom_line()
+# for pcod area 1 fish (only sampled pre 2000 anyway) are very low!
 
-ggplot(dd2) + geom_point( aes(length, cond_fac)) +
-  facet_wrap(~survey_abbrev)
-
-# remove the most extreme outliers that are likely errors
-dd2 <- filter(dd2, cond_fac < quantile(dd$cond_fac, probs = 0.9975))
-plot(cond_fac ~ length, data = dd2)
-
-# TODO: could trim lower, but looking more balance without trimming for petrale
-dd2 <- filter(dd2, cond_fac > quantile(dd$cond_fac, probs = 0.0025))
-plot(cond_fac ~ length, data = dd2)
-
-group_by(dd2, year) %>%
-  summarise(mcond = mean(cond_fac)) %>%
-  ggplot(aes(year, mcond)) +
-  geom_line()
-
-fish <- dd2
+fish <- dat
 
 if(length(unique(fish$length_type))>1){stop("Stop. Two different length types.")}
 
 ggplot(
   filter(fish, !is.na(latitude) & !is.na(longitude)),
-  aes(longitude, latitude, shape = survey_group, colour = log(cond_fac))
+  aes(longitude, latitude, colour = survey_group)
 ) +
   geom_point() +
-  facet_wrap(~year) +
-  scale_colour_gradient2()
+  facet_wrap(~year)
 
-
-# 3. Split samples into immature and mature and into length bins
+# 2. Split samples into immature and mature and into length bins ----
 # Starting with code lifted from split by maturity function in case we also want to functionalize this
 # arguements required:
 custom_maturity_at <- NULL
@@ -475,23 +535,86 @@ if (split_by_maturity) {
 # browser()
 # gfplot::plot_mat_annual_ogives(m)
 gfplot::plot_mat_ogive(m)
-saveRDS(m, paste0("data-generated/maturity-ogives/", spp, ".rds"))
+saveRDS(m, paste0("data-generated/maturity-ogives/", spp, "-all.rds"))
 
 
-# 4. Calculate ‘weights' (sample multiplier for each fish sampled)
-ds <- fish_groups %>%
+
+# 2. Le Cren’s relative condition factor ----
+
+mf <- gfplot::fit_length_weight(fish_groups, sex = "female", usability_codes = NULL)
+mm <- gfplot::fit_length_weight(fish_groups, sex = "male", usability_codes = NULL)
+
+## Length-weight plot ----
+plot_length_weight(object_female = mf, object_male = mm)
+
+## Remove black swan outliers ----
+
+# browser()
+
+sd_threshold <- 2
+is_heavy_tail <- TRUE
+
+# sd_threshold <- 3
+# is_heavy_tail <- FALSE
+
+
+filter_lw_outliers <- function(model,
+                                  numsd = sd_threshold,
+                                  heavy_tailed = is_heavy_tail
+                                  ){
+  if(heavy_tailed){
+  l <- qt(0.025, 3) * exp(model$pars$log_sigma)*numsd
+  u <- qt(0.975, 3) * exp(model$pars$log_sigma)*numsd
+  }else{
+  l <- qnorm(0.025, 0, sd = exp(model$pars$log_sigma)*numsd)
+  u <- qnorm(0.975, 0, sd = exp(model$pars$log_sigma)*numsd)
+  }
+  model$data$resids <- log(model$data$weight) - (model$pars$log_a + model$pars$b * log(model$data$length))
+  out <- model$data |> filter(!(resids > u) & !(resids < l))
+  out
+}
+
+df <- filter_lw_outliers(mf)
+dm <- filter_lw_outliers(mm)
+
+df$wbar <- exp(mf$pars$log_a) * df$length^mf$pars$b
+dm$wbar <- exp(mm$pars$log_a) * dm$length^mm$pars$b
+
+# include unknown sex individuals for now, because immature individuals can be difficult to sex and differences in growth rate may be slim
+du <- dplyr::filter(fish_groups, sex %in% c(0, 3), !is.na(weight), !is.na(length))
+# Apply an intermediate slope and intercept to these individuals
+# weight is in grams, so convert to kg
+du$weight <- du$weight/1000
+
+du$wbar <- exp((mm$pars$log_a + mf$pars$log_a) / 2) * du$length^((mm$pars$b + mf$pars$b) / 2)
+
+dd <- bind_rows(df, dm)
+dd$cond_fac <- dd$weight / dd$wbar
+
+# hist(dd$weight)
+# hist(du$weight)
+
+du$cond_fac <- du$weight / du$wbar
+
+dd2 <- filter(du, cond_fac >= min(dd$cond_fac) & cond_fac <= max(dd$cond_fac)) |> bind_rows(dd)
+
+# plot(cond_fac~length, data = dd2)
+
+
+# 4. Calculate ‘weights' (sample multiplier for each fish sampled) ----
+ds <- dd2 %>%
   group_by(fishing_event_id, group_name) %>%
   mutate(
     log_depth = log(depth_m),
-    group_sampled_weight = sum(weight, na.rm = T) / 1000,
+    group_sampled_weight = sum(weight, na.rm = T),
     group_num_sampled = n()
   ) %>%
   ungroup() %>%
   group_by(fishing_event_id) %>%
   mutate(
-    sampled_weight = sum(weight, na.rm = T) / 1000,
+    sampled_weight = sum(weight, na.rm = T),
     num_sampled = n(),
-    mean_weight = mean(weight, na.rm = T) / 1000,
+    mean_weight = mean(weight, na.rm = T),
     # area_swept = ifelse(
     #   is.na(tow_length_m),
     #   doorspread_m * duration_min * speed_mpm,
@@ -535,45 +658,104 @@ ds <- fish_groups %>%
 #
 # ds %>% select(fishing_event_id, year, length, sex, age, weight, specimen_id,
 #               survey_abbrev, wbar, cond_fac) %>% View()
-
-plot(weight ~ length, data = dd, col = "red")
-points(weight ~ length, data = ds)
-# add female maturity in green
-abline(v = m$mat_perc$f.p0.5, col = "green")
-abline(v = m$mat_perc$mean$f.mean.p0.5, col = "green")
-# add male maturity in blue
-abline(v = m$mat_perc$m.p0.5, col = "blue")
-abline(v = m$mat_perc$mean$m.mean.p0.5, col = "blue")
-
-hist(ds$sample_multiplier)
-plot(log(ds$sample_multiplier_by_weight) ~ log(ds$sample_multiplier))
+#
+# plot(weight ~ length, data = dd, col = "red")
+# points(weight ~ length, data = ds)
+# # add female maturity in green
+# abline(v = m$mat_perc$f.p0.5, col = "green")
+# abline(v = m$mat_perc$mean$f.mean.p0.5, col = "green")
+# # add male maturity in blue
+# abline(v = m$mat_perc$m.p0.5, col = "blue")
+# abline(v = m$mat_perc$mean$m.mean.p0.5, col = "blue")
 
 
-plot(cond_fac~length, data = ds)
+# 5. Outliers plotted ----
+
+# browser()
+
+ggplot(dat |> mutate(weight = weight/1000) |> filter(
+  sex %in% c(1,2)
+  ), aes(length, weight)) +
+  geom_point(aes(colour = year),) +
+  geom_point(colour = "white", data = ds) +
+  geom_point(data = ds, colour = "black", alpha = 0.4) +
+  geom_vline(xintercept = m$mat_perc$f.p0.5, col = "purple") +
+  geom_vline(xintercept = m$mat_perc$mean$f.mean.p0.5, col = "purple") +
+  geom_vline(xintercept = m$mat_perc$m.p0.5, col = "darkblue") +
+  geom_vline(xintercept = m$mat_perc$mean$m.mean.p0.5, col = "darkblue") +
+  labs(
+    colour = "Year",
+    x = "Length (cm)", y = "Weight (kg)") +
+  scale_y_log10() +
+  scale_x_log10() +
+  scale_colour_viridis_c(option = "C") +
+  ggtitle(paste0(species
+                 , " with filter at ", sd_threshold, " SD",
+                 ifelse(is_heavy_tail, " heavy tailed", " normal")
+                 #, " (trimmed at ", lower_quantile, " and ", upper_quantile, " quantiles)"
+                 )) +
+  ggsidekick::theme_sleek() + theme(legend.position = c(0.2,0.8))
+# browser()
+ggsave(paste0("figs/cond-black-swan-",
+              ifelse(is_heavy_tail, "t", "norm"),
+              "-", sd_threshold, "sd-",
+              "year-",
+              spp, ".png"), width = 10, height = 10)
+
+
+# plot with le crens
+ggplot(dat |> mutate(weight = weight/1000) |> filter(
+  sex %in% c(1,2)
+  # fishing_event_id %in% fishing_event_id
+), aes(length, weight)) +
+  geom_point(colour = "red") +
+  geom_point(colour = "white", data = ds) +
+  geom_point(aes(colour = cond_fac), data = ds, alpha = 0.4) +
+  geom_vline(xintercept = m$mat_perc$f.p0.5, col = "purple") +
+  geom_vline(xintercept = m$mat_perc$mean$f.mean.p0.5, col = "purple") +
+  geom_vline(xintercept = m$mat_perc$m.p0.5, col = "darkblue") +
+  geom_vline(xintercept = m$mat_perc$mean$m.mean.p0.5, col = "darkblue") +
+  labs(
+    colour = "Le Cren's",
+    x = "Length (cm)", y = "Weight (kg)") +
+  scale_colour_viridis_c() +
+  ggtitle(paste0(species
+                 , " with filter at ", sd_threshold, " SD",
+                 ifelse(is_heavy_tail, " heavy tailed", " normal")
+                 #, " (trimmed at ", lower_quantile, " and ", upper_quantile, " quantiles)"
+  )) +
+  ggsidekick::theme_sleek() + theme(legend.position = c(0.2,0.8))
+# browser()
+ggsave(paste0("figs/cond-black-swan-",
+              ifelse(is_heavy_tail, "t", "norm"),
+              "-", sd_threshold, "sd-",
+              spp, ".png"), width = 10, height = 10)
+
+
+# hist(ds$sample_multiplier)
+# plot(log(ds$sample_multiplier_by_weight) ~ log(ds$sample_multiplier))
+# plot(cond_fac~length, data = ds)
+
+# plot_length_weight(object_female = mf, object_male = mm) +
+#   geom_point(data = dd, aes(length, weight))
 
 # Plot for talk -----
-
-plot_length_weight(object_female = mf, object_male = mm) +
-  geom_point(data = dd, aes(length, weight))
-
-
-
-plot(weight ~ length, data = dd, col = "red")
-points(weight ~ length, data = ds)
-# add female maturity in green
-abline(v = m$mat_perc$f.p0.5, col = "green")
-abline(v = m$mat_perc$mean$f.mean.p0.5, col = "green")
-# add male maturity in blue
-abline(v = m$mat_perc$m.p0.5, col = "blue")
-abline(v = m$mat_perc$mean$m.mean.p0.5, col = "blue")
+# plot(weight ~ length, data = dd, col = "red")
+# points(weight ~ length, data = ds)
+# # add female maturity in green
+# abline(v = m$mat_perc$f.p0.5, col = "green")
+# abline(v = m$mat_perc$mean$f.mean.p0.5, col = "green")
+# # add male maturity in blue
+# abline(v = m$mat_perc$m.p0.5, col = "blue")
+# abline(v = m$mat_perc$mean$m.mean.p0.5, col = "blue")
 
 
 
 # save data
 spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species)))
 
-dir.create(paste0("data-generated/condition-data-inclusive/"), showWarnings = FALSE)
-saveRDS(ds, paste0("data-generated/condition-data-inclusive/", spp, "-mat-", mat_threshold, "-condition.rds"))
+dir.create(paste0("data-generated/condition-data-black-swan/"), showWarnings = FALSE)
+saveRDS(ds, paste0("data-generated/condition-data-black-swan/", spp, "-mat-", mat_threshold, "-condition.rds"))
 }
 
 pmap(species_list, get_condition_data)
