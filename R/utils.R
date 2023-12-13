@@ -123,10 +123,13 @@ refine_model <- function(m){
 #'
 #' @export
 #'
-plot_index <- function(dat, species, group_name, model_string, extra_years = NULL, filename){
+plot_index <- function(dat, species, group_name, model_string, filename, remove_extra_years = NULL){
   if (!file.exists(filename)) {
     i <- get_index(dat, bias_correct = TRUE)
-    saveRDS(i, filename)
+    i$species <- species
+    i$group <- group_name
+    i$model_string <- model_string
+
   } else {
     i <- readRDS(filename)
     i$species <- species
@@ -134,13 +137,11 @@ plot_index <- function(dat, species, group_name, model_string, extra_years = NUL
     i$model_string <- model_string
   }
 
-  if(!is.null(extra_years)) {
-    i <- filter(i, !(year %in% extra_years))
+  if(!is.null(remove_extra_years)) {
+    i <- filter(i, !(year %in% remove_extra_years))
   }
 
-  i$species <- species
-  i$group <- group_name
-  i$model_string <- model_string
+  saveRDS(i, filename)
 
   ggplot(i, aes(year, est)) +
     geom_line() +
