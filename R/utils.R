@@ -1,7 +1,7 @@
 #' helper functions
 #' refine delta model
 #' @export
-refine_delta_model <- function(m, alternate_family = set_family2){
+refine_delta_model <- function(m, alternate_family = set_family2, use_priors = sdmTMBpriors()){
   s <- sanity(m)
   # browser()
   if (!s$range_ok) {
@@ -9,6 +9,7 @@ refine_delta_model <- function(m, alternate_family = set_family2){
                 spatial = as.list(m[["spatial"]]),
                 spatiotemporal = as.list(m[["spatiotemporal"]]),
                 extra_time = m$extra_time,
+                priors = use_priors,
                 data = m$data, family = m$family, mesh = m$spde)
     s <- sanity(m)
   }
@@ -67,6 +68,7 @@ refine_delta_model <- function(m, alternate_family = set_family2){
                 spatial = as.list(m[["spatial"]]),
                 spatiotemporal = as.list(m[["spatiotemporal"]]),
                 extra_time = m$extra_time,
+                priors = use_priors,
                 data = m$data, family = m$family, mesh = m$spde)
     s <- sanity(m)
   }
