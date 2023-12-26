@@ -13,19 +13,19 @@ species_list <- list(
   "Pacific Cod"
 )
 species_list <- list(
-  # "Arrowtooth Flounder", #
-  "Petrale Sole",#
+  "Arrowtooth Flounder", #
+  # "Petrale Sole",#
   # "English Sole",#
-  "Dover Sole",#
-  "Rex Sole",#
+  # "Dover Sole",#
+  # "Rex Sole",#
   # "Flathead Sole",#
   # "Southern Rock Sole",
-  "Curlfin Sole"
+  # "Curlfin Sole",
   # "Sand Sole",#
   # "Slender Sole",#
   # "Pacific Sanddab",
   # "Pacific Halibut",
-  # "Butter Sole"#
+  "Butter Sole"#
   ## "Starry Flounder"# too few males!
   ## "C-O Sole", # way too few!
   ## "Deepsea Sole" # no maturity
@@ -33,18 +33,18 @@ species_list <- list(
 
 species_list <- list(
   #   #"Arrowtooth Flounder" ,  "Southern Rock Sole"    ,
-  # "Canary Rockfish",
-  # "Pacific Ocean Perch",
-  # "Bocaccio",
-  # "Redstripe Rockfish",
-  # # "Rougheye/Blackspotted",
-  # # "Shortspine Thornyhead",
-  # "Silvergray Rockfish",
-  # "Widow Rockfish",
-  # "Yellowmouth Rockfish",
+  "Canary Rockfish",
+  "Pacific Ocean Perch",
+  "Bocaccio",
+  "Redstripe Rockfish",
+  # "Rougheye/Blackspotted",
+  # "Shortspine Thornyhead",
+  "Silvergray Rockfish",
+  "Widow Rockfish",
+  "Yellowmouth Rockfish",
   "Yellowtail Rockfish",
-  # "Pacific Cod",
-  # "Walleye Pollock",
+  "Pacific Cod",
+  "Walleye Pollock",
   "Sablefish"
 )
 
@@ -531,12 +531,10 @@ if (split_by_maturity) {
     mutate(group_name = ifelse(sex == 1, "Males", "Females"))
 }
 
-
 # browser()
 # gfplot::plot_mat_annual_ogives(m)
 gfplot::plot_mat_ogive(m)
 saveRDS(m, paste0("data-generated/maturity-ogives/", spp, "-all.rds"))
-
 
 
 # 2. Le Cren’s relative condition factor ----
@@ -672,13 +670,25 @@ ds <- dd2 %>%
 # 5. Outliers plotted ----
 
 # browser()
-
+#
 ggplot(dat |> mutate(weight = weight/1000) |> filter(
   sex %in% c(1,2)
   ), aes(length, weight)) +
   geom_point(aes(colour = year),) +
   geom_point(colour = "white", data = ds) +
   geom_point(data = ds, colour = "black", alpha = 0.4) +
+  geom_point(data = filter(dat,
+      sample_id %in% c(554878, 406981, 537306, 443178,
+
+                       # 150218, # rest of arrowtooth sample
+                       514880, 536500, 536506, 537170, 532297)|
+      specimen_id %in% c(
+        # 5113159, #arrowtooth error
+        # 12684889,
+        # 7629026,
+        16224012, 11018029, 11018030)),
+      aes(length, weight/1000),
+      colour = "green") +
   geom_vline(xintercept = m$mat_perc$f.p0.5, col = "purple") +
   geom_vline(xintercept = m$mat_perc$mean$f.mean.p0.5, col = "purple") +
   geom_vline(xintercept = m$mat_perc$m.p0.5, col = "darkblue") +
@@ -700,6 +710,7 @@ ggsave(paste0("figs/cond-black-swan-",
               ifelse(is_heavy_tail, "t", "norm"),
               "-", sd_threshold, "sd-",
               "year-",
+              # "fixed-",
               spp, ".png"), width = 10, height = 10)
 
 
@@ -749,14 +760,13 @@ ggsave(paste0("figs/cond-black-swan-",
 # abline(v = m$mat_perc$m.p0.5, col = "blue")
 # abline(v = m$mat_perc$mean$m.mean.p0.5, col = "blue")
 
-
-
 # save data
 spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species)))
 
 dir.create(paste0("data-generated/condition-data-black-swan/"), showWarnings = FALSE)
 saveRDS(ds, paste0("data-generated/condition-data-black-swan/", spp, "-mat-", mat_threshold, "-condition.rds"))
 }
+
 
 pmap(species_list, get_condition_data)
 
