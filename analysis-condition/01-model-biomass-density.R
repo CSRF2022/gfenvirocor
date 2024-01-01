@@ -16,45 +16,47 @@ library(patchwork)
 
 
 species_list <- list(
-  # # "Arrowtooth Flounder", #
-  "Petrale Sole", #
-  # # "English Sole",#
-  # # "Dover Sole",#
-  # # "Rex Sole", #
-  # "Flathead Sole",#
+  # "Arrowtooth Flounder", #
+  # "Petrale Sole", #
+  # "English Sole",#
+  # "Dover Sole",#
+  # "Rex Sole", #
+  "Flathead Sole",#
   # "Southern Rock Sole",#
-  "Curlfin Sole",#
+  # "Curlfin Sole",#
   # "Sand Sole",#
-  # # "Slender Sole",#
+  # "Slender Sole",#
   # "Pacific Sanddab",#
-  # # "Pacific Halibut",#
-  # "Butter Sole",
-  # # # ## "Starry Flounder"# too few males!
-  # # # ## "C-O Sole", # way too few!
-  # # # ## "Deepsea Sole" # no maturity
-  # # # # )
-  # # # #
-  # # # # species_list <- list(
-  # # "Pacific Cod",
-  # # "Walleye Pollock",
-  # # "Sablefish",
-  # # "North Pacific Spiny Dogfish",
-  # # # # #"Arrowtooth Flounder" ,
-  # # # # #"Southern Rock Sole"    ,
-  # # "Canary Rockfish",
-  # # "Pacific Ocean Perch",
-  # # "Bocaccio",
-  # # "Redstripe Rockfish", # MSA added with mean > 4
-  "Shortspine Thornyhead",
-  # # "Silvergray Rockfish", # MSA added with mean > 5
+  # "Pacific Halibut",#
+  # "Butter Sole"
+  # # # # ## "Starry Flounder"# too few males!
+  # # # # ## "C-O Sole", # way too few!
+  # # # # ## "Deepsea Sole" # no maturity
+  # # # # # )
+  # # # # #
+  # # # # # species_list <- list(
+  # "Pacific Cod",
+  # "Walleye Pollock",
+  # "Sablefish",
+  # "North Pacific Spiny Dogfish",
+  # # # # # # #"Arrowtooth Flounder" ,
+  # # # # # # #"Southern Rock Sole"    ,
+  # "Canary Rockfish",
+  # "Pacific Ocean Perch",
+  # "Bocaccio",
+  # "Redstripe Rockfish", # MSA added with mean > 4
+  # # "Shortspine Thornyhead",
+  # "Silvergray Rockfish", # MSA added with mean > 5
+  "Lingcod",
+  "Yelloweye Rockfish",
   "Widow Rockfish", # hake would need mean > 1, mssm1 > 4
-  "Yellowmouth Rockfish", # WILL NEED UPDATE FOR ALL MAT CLASSES
-  # "Yellowtail Rockfish",
-  "Rougheye/Blackspotted Rockfish Complex"
+  "Yellowmouth Rockfish" #
+  # "Yellowtail Rockfish"
+  # "Rougheye/Blackspotted Rockfish Complex" # WILL NEED UPDATE FOR ALL MAT CLASSES
 )
 
 species_list <- list(species = species_list)
-#
+
 # species <- "Curlfin Sole"
 # species <- "Pacific Halibut"
 # species <- "Petrale Sole"
@@ -70,6 +72,7 @@ fit_all_distribution_models <- function(species) {
 
   # stop_early <- TRUE
   stop_early <- FALSE
+  only_sampled <- FALSE
 
   options(scipen = 100, digits = 4)
   theme_set(theme_sleek())
@@ -92,31 +95,22 @@ fit_all_distribution_models <- function(species) {
 
 
   # set_family <- delta_gamma()
-  # # dens_model_name <- "-dg-st2000-all-10min-xt-offset"
-  # # dens_model_name <- "-dg-st2000-all-500m-xt-offset" # includes all mssm stages post 2000
-  # dens_model_name0 <- "dg-st2000-mssm-03-500m-xt-offset"
-  # dens_model_name <- "dg-st2000-hake-xt-offset"
-
-
   set_family <- delta_lognormal()
-  # dens_model_name0 <- "dln-st2000-mssm-03-500m-xt-offset"
-  # dens_model_name <- "dln-st2000-hake-xt-offset"
 
 
-  dens_model_name0 <- "dln-all-syn-intercept"
-  dens_model_name <- "dln-all-syn-intercept"
 
-  # # dens_model_name <- "-dg-doy-1-22-10min-xt-offset"
-  # # dens_model_name <- "-dg-all-yrs-mssm-1-22-10min-xt-offset"
-  # # dens_model_name <- "-dg-all-yrs-other-1-22-10min-xt-offset"
-  # dens_model_name <- "-dg-mssm-1-22-10min-xt-offset"
-  #
-  # set_family <- delta_poisson_link_gamma()
-  # dens_model_name <- "-dplg-st2000-all-10min-xt-offset"
-  # dens_model_name <- "-dplg-mssm-1-22-10min-xt-offset"
-  #
-  # set_family <- tweedie()
-  # dens_model_name <- "-tw-doy-1-22-10min-xt-offset"
+  if(only_sampled) {
+    dens_model_name0 <- "dln-all-only-w-ann-prop"
+    dens_model_name <- "dln-all-only-w-ann-prop"
+  } else {
+    ## pre rule refinement (survey means, not year means?)
+    # dens_model_name0 <- "dln-all-syn-intercept"
+    # dens_model_name <- "dln-all-syn-intercept"
+  # use 10 sample cutoff for aggregating by year, then survey, then all
+  dens_model_name0 <- "dln-all-split-on-min-10"
+  dens_model_name <- "dln-all-split-on-min-10"
+  }
+
 
   set_family2 <- tweedie()
   # set_family2 <- delta_gamma()
@@ -177,6 +171,7 @@ fit_all_distribution_models <- function(species) {
   # dset1 <- readRDS("data-raw/survey-sets-part3.rds")
   dset1 <- readRDS("data-raw/survey-sets-flatfish.rds") %>%
     bind_rows(., readRDS("data-raw/survey-sets-part2.rds")) %>%
+    bind_rows(., readRDS("data-raw/survey-sets-part3.rds")) %>%
     bind_rows(., readRDS("data-raw/survey-sets-shortspine.rds")) %>%
     bind_rows(., readRDS("data-raw/survey-sets-rougheye.rds")) %>%
     # this removes duplications and non-canadian data
@@ -212,6 +207,7 @@ fit_all_distribution_models <- function(species) {
 
   # dsamp <- readRDS("data-raw/survey-samples-rougheye.rds")
   dsamp <- readRDS("data-raw/survey-samples-part2.rds") %>%
+    bind_rows(., readRDS("data-raw/survey-samples-part3.rds")) %>%
     bind_rows(., readRDS("data-raw/survey-samples-flatfish.rds")) %>%
     bind_rows(., readRDS("data-raw/survey-samples-rougheye.rds")) %>%
     bind_rows(., readRDS("data-raw/survey-samples-shortspine.rds")) %>%
@@ -297,6 +293,12 @@ fit_all_distribution_models <- function(species) {
 
     maturity_possible <- FALSE
 
+  }
+
+  # temporary filter until lengths in wrong units fixed
+  if(spp == "lingcod"){
+  dsamp <- filter(dsamp, length > 8)
+  # dset2 <- filter(dset, catch_weight > 900)
   }
 
 
@@ -476,7 +478,6 @@ fit_all_distribution_models <- function(species) {
     # early MSSM not reliable for small fish
     filter(survey_type != "MSSM <03" & year >= 2000)
 
-
   ds <- ds %>% filter(!is.na(catch_weight))
   ds <- ds %>% filter(!is.na(depth_m))
   ds <- ds %>% filter(!is.na(area_swept))
@@ -485,11 +486,14 @@ fit_all_distribution_models <- function(species) {
   ds$offset <- log(ds$area_swept / 100000)
   ds$survey_type <- relevel(ds$survey_type, "SYN")
 
+
 # browser()
   # Which surveys to include? ----
   # keep only surveys that caught this species within years of interest
   # currently at least 20 times total or an average of 4 times per year
-  which_surv_all <- ds %>%
+
+  which_surveys <- function(data){
+    which_surv_all <- data %>%
     group_by(survey_type, group_name) %>%
     mutate(year_range = length(unique(year)),
            total_n = n()) %>%
@@ -498,11 +502,16 @@ fit_all_distribution_models <- function(species) {
     mutate(group_name = ifelse(is.na(group_catch_est), "Unsampled", group_name),
            group_catch_est = ifelse(group_name == "Unsampled", catch_weight, group_catch_est)
            ) %>%
-    group_by(survey_type, group_name, year) %>%
-    mutate(any_pos_by_year = n()) %>%
+    group_by(survey_abbrev, group_name, year) %>%
+    mutate(any_pos_by_year = n(),
+           n_samples = length(!is.na(median_prop_ann))
+           ) %>% ungroup() %>%
+    # group_by(survey_abbrev, group_name) %>% summarise(any_samples = paste(range(any_samples)[1],"-",range(any_samples)[2]))
     filter(group_catch_est > 0) %>%
     group_by(survey_type, group_name, year) %>%
-    mutate(pos_n_by_year = n()) %>% ungroup() %>%
+    mutate(pos_n_by_year = n(),
+           mean_prop = mean(proportion, na.rm = TRUE)
+           ) %>% ungroup() %>%
     group_by(survey_type, group_name) %>%
     summarise(
       any_2003_MSA = any(year == 2003),
@@ -514,7 +523,12 @@ fit_all_distribution_models <- function(species) {
       pos_n = n(),
       total_n = mean(total_n, na.rm = TRUE),
       mean_pos_n = mean(pos_n/years, na.rm = TRUE),
-      prop_pos = mean(pos_n/total_n, na.rm = TRUE)
+      prop_pos = mean(pos_n/total_n, na.rm = TRUE),
+      total_samples = sum(n_samples, na.rm = TRUE),
+      min_samples = min(n_samples),
+      max_samples = max(n_samples),
+      min_prop = min(mean_prop, na.rm = TRUE),
+      max_prop = max(mean_prop, na.rm = TRUE)
       ) %>% ungroup() %>%
     group_by(group_name) %>%
     mutate(
@@ -524,11 +538,16 @@ fit_all_distribution_models <- function(species) {
       )
 
   which_surv_all$species <- species
+  which_surv_all
+}
+
+
+  which_surv_all <- which_surveys(ds)
 
   dir.create(paste0("data-generated/surv-summary/"), showWarnings = FALSE)
   saveRDS(which_surv_all, paste0("data-generated/surv-summary/", spp, ".rds"))
 
-  which_surv <- which_surv_all %>% ungroup() %>%
+  which_surv <- which_surveys(ds) %>% ungroup() %>%
     select(-group_name) %>%
     # filter(group_name %in% c("Mature", "Mature females")) %>%
     group_by(survey_type) %>%
@@ -728,38 +747,53 @@ fit_all_distribution_models <- function(species) {
 
   # browser()
   ## plot mesh ----
+
+  plot_mesh <- function(
+    mesh_obj = mesh,
+    data_obj = d1,
+    catch_var = "catch_weight",
+    group = "total"
+    ){
   ggplot() +
-    inlabru::gg(mesh$mesh) +
+    inlabru::gg(mesh_obj$mesh) +
     coord_fixed() +
     geom_point(aes(X, Y),
                shape = "x",
                size = 0.75,
-               data = filter(d1)
-               # data = filter(d1, survey_type == "HAKE") # for inspection
-               # data = filter(d1, survey_type %in% c("MSSM<=05", "MSSM>05")) # for inspection
+               data = data_obj
     ) +
     geom_point(aes(X, Y,
-                   size = catch_weight,
+                   size = .data[[catch_var]],
                    shape = survey_type,
-                   fill = catch_weight,
-                   colour = catch_weight),
-      data = filter(d1, catch_weight > 0)
-      # data = filter(d1, catch_weight > 0, survey_type == "HAKE") # for inspection
-      # data = filter(d1, catch_weight > 0, survey_type %in% c("MSSM<=05", "MSSM>05")) # for inspection
+                   fill = .data[[catch_var]],
+                   colour = .data[[catch_var]]),
+      data = filter(data_obj, .data[[catch_var]] > 0)
     ) +
     facet_wrap(~year) +
     # scale_shape_discrete() +
     scale_fill_viridis_c(trans = "fourth_root_power") +
     scale_color_viridis_c(trans = "fourth_root_power") +
-    ggtitle(species) +
+    ggtitle(paste0(species, " (", group, ")")) +
     theme(axis.text = element_blank(),
           axis.title = element_blank(),
           axis.ticks = element_blank())
+  }
+
+# browser()
+
+  d1$density_kgha <- d1$catch_weight/(d1$area_swept_km2*100)
+
+  plot_mesh(
+    mesh_obj = mesh,
+    data_obj = d1,
+    # data_obj = filter(d1, survey_type == "HAKE"), # for inspection
+    # data_obj = filter(d1, survey_type %in% c("MSSM<=05", "MSSM>05")), # for inspection
+    catch_var = "density_kgha")
 
   ggsave(paste0("figs/density-mesh-",
                 spp,
-                # "-hake",
-                # "-all-survey-types",
+                "-total-",
+                dens_model_name,
                 ".png"), width = 14, height = 14)
 
   d1 %>% #filter(usability_code != 0) %>%
@@ -880,11 +914,17 @@ fit_all_distribution_models <- function(species) {
   # plot(g)
 
   ## mature female model ----
+
   d2 <- d1 %>%
     filter(year > 2001) %>%
     filter(!is.na(group_catch_est))
 
-  which_surv <- which_surv_all %>%
+  if(only_sampled){
+    # # test pattern without extrapolating to years without annual survey-specific proportions
+    d2 <- d2 %>% filter(!is.na(median_prop_ann))
+  }
+
+  which_surv <- which_surveys(d2) %>%
     filter(group_name %in% c("Females", "Mature females")) %>%
     filter(round(prop_pos, 2) >= 0.01 &
              max_pos_by_year >= 3 &
@@ -905,6 +945,22 @@ fit_all_distribution_models <- function(species) {
   d2 <- filter(d2, survey_type %in% which_surv$survey_type)
 
   mesh2 <- make_mesh(d2, c("X", "Y"), cutoff = knot_distance)
+
+  d2$density_kgha <- d2$group_catch_est/(d2$area_swept_km2*100)
+
+  plot_mesh(
+    mesh_obj = mesh2,
+    data_obj = d2,
+    catch_var = "density_kgha",
+    group = "mature females")
+
+  ggsave(paste0("figs/density-mesh-",
+                spp,
+                "-mat-fem-",
+                dens_model_name,
+                ".png"), width = 14, height = 14)
+
+
 
   # extra_years2 <- sdmTMB:::find_missing_time(d2$year)
   # browser()
@@ -1000,14 +1056,18 @@ fit_all_distribution_models <- function(species) {
 
   # browser()
 
-  if (!file.exists(fmm)) {
     d2b <- d %>%
       filter(group_name %in% c("Males", "Mature males")) %>%
       # filter(group_name == "Mature males") %>%
       filter(year > 2001) %>%
       filter(!is.na(group_catch_est))
 
-    which_surv <- which_surv_all %>%
+  if(only_sampled){
+    # # test pattern without extrapolating to years without annual survey-specific proportions
+    d2b <- d2b %>% filter(!is.na(median_prop_ann))
+  }
+
+    which_surv <- which_surveys(d2b) %>%
       filter(group_name %in% c("Males", "Mature males")) %>%
       filter(round(prop_pos, 2) >= 0.01 &
              max_pos_by_year >= 3 &
@@ -1027,6 +1087,24 @@ fit_all_distribution_models <- function(species) {
     d2b <- filter(d2b, survey_type %in% which_surv$survey_type)
 
     mesh2b <- make_mesh(d2b, c("X", "Y"), cutoff = knot_distance)
+
+    d2b$density_kgha <- d2b$group_catch_est/(d2b$area_swept_km2*100)
+
+    plot_mesh(
+      mesh_obj = mesh2b,
+      data_obj = d2b,
+      catch_var = "density_kgha",
+      group = "mature males")
+
+    ggsave(paste0("figs/density-mesh-",
+                  spp,
+                  "-mat-m-",
+                  dens_model_name,
+                  ".png"), width = 14, height = 14)
+
+
+    if (!file.exists(fmm)) {
+
 
     mm <- update(mf,
       priors = set_priors,
@@ -1076,16 +1154,21 @@ fit_all_distribution_models <- function(species) {
 
 
   ## immature model ----
-  # browser()
+
 if(maturity_possible) {
-  if (!file.exists(fmi)) {
+  # browser()
 
     d3 <- d %>%
       filter(group_name %in% c("Immature")) %>%
       filter(year > 2001) %>%
       filter(!is.na(group_catch_est))
 
-    which_surv <- which_surv_all %>%
+    if(only_sampled){
+      # # test pattern without extrapolating to years without annual survey-specific proportions
+      d3 <- d3 %>% filter(!is.na(median_prop_ann))
+    }
+
+    which_surv <- which_surveys(d3) %>%
       filter(group_name %in% c("Immature")) %>%
       filter(round(prop_pos, 2) >= 0.01 &
                max_pos_by_year >= 3 &
@@ -1106,17 +1189,33 @@ if(maturity_possible) {
 
     mesh3 <- make_mesh(d3, c("X", "Y"), cutoff = knot_distance)
 
+    d3$density_kgha <- d3$group_catch_est/(d3$area_swept_km2*100)
+
+    plot_mesh(
+      mesh_obj = mesh3,
+      data_obj = d3,
+      catch_var = "density_kgha",
+      group = "immature")
+    ggsave(paste0("figs/density-mesh-",
+                  spp,
+                  "-imm-",
+                  dens_model_name,
+                  ".png"), width = 14, height = 14)
+
+
+
+    if (!file.exists(fmi)) {
     if(nrow(which_surv)<2){
       mi <- sdmTMB(group_catch_est ~ 1 +
                      poly(log_depth_c, 2) +
                      poly(days_to_solstice, 2),
                    offset = "offset",
-                   spatial = as.list(mf[["spatial"]]),
+                   spatial = as.list(mm[["spatial"]]),
                    spatiotemporal = as.list(mf[["spatiotemporal"]]),
                    time = "year",
-                   family = mf$family,
+                   family = mm$family,
                    extra_time = sdmTMB:::find_missing_time(d3$year),
-                   priors = as.list(mf[["priors"]]),
+                   priors = set_priors,
                    # priors = set_priors,
                    silent = FALSE,
                    mesh = mesh3, data = d3
@@ -1143,14 +1242,14 @@ if(maturity_possible) {
 
   } else {
     mi <- readRDS(fmi)
-  #   if (!all(sanity(mi))) {
-  #     if (length(mi$family) == 6) {
-  #       mi <- refine_delta_model(mi, alternate_family = set_family2)
-  #     } else {
-  #       mi <- refine_model(mi)
-  #     }
-  #     saveRDS(mi, fmi)
-  #   }
+    if (!all(sanity(mi))) {
+      if (length(mi$family) == 6) {
+        mi <- refine_delta_model(mi, alternate_family = set_family2, use_priors = set_priors)
+      } else {
+        mi <- refine_model(mi)
+      }
+      saveRDS(mi, fmi)
+    }
   }
 
   # TODO: add R2 once it's working for delta models
@@ -1346,7 +1445,7 @@ if(maturity_possible) {
   p1a + p2a + p3a + plot_layout(ncol = 1)
 
   ggsave(paste0(
-    "figs/density-index-", spp, "-all2",
+    "figs/density-all-indices-", spp, "-",
     dens_model_name, "-", knot_distance, "-km.png"
   ),
   height = fig_height, width = fig_width
