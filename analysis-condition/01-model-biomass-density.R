@@ -16,43 +16,43 @@ library(patchwork)
 
 
 species_list <- list(
-  # "Arrowtooth Flounder", #
-  # "Petrale Sole", #
-  # "English Sole",#
-  # "Dover Sole",#
-  # "Rex Sole", #
+  # # # # # # #"Arrowtooth Flounder" ,
+  # # # # # # #"Southern Rock Sole"    ,
+  "North Pacific Spiny Dogfish",
+  "Pacific Ocean Perch",
+  "Pacific Cod",
+  "Walleye Pollock",
+  "Sablefish",
+  "Lingcod",
+  "Bocaccio",
+  "Canary Rockfish",
+  "Redstripe Rockfish", # MSA added with mean > 4
+  "Rougheye/Blackspotted Rockfish Complex", # WILL NEED UPDATE FOR ALL MAT CLASSES
+  "Silvergray Rockfish", # MSA added with mean > 5
+  "Shortspine Thornyhead",
+  "Widow Rockfish", # hake would need mean > 1, mssm1 > 4
+  "Yelloweye Rockfish",
+  "Yellowmouth Rockfish", #
+  "Yellowtail Rockfish",
+  # # # # # )
+  # # # # # # # #
+  # # # # # # # # species_list <- list(
+  "Curlfin Sole",#
+  "Sand Sole",#
+  "Butter Sole",
+  "Petrale Sole", #
+  "Arrowtooth Flounder", #
+  "English Sole",#
+  "Dover Sole",#
+  "Rex Sole", #
   "Flathead Sole",#
-  # "Southern Rock Sole",#
-  # "Curlfin Sole",#
-  # "Sand Sole",#
-  # "Slender Sole",#
-  # "Pacific Sanddab",#
-  # "Pacific Halibut",#
-  # "Butter Sole"
+  "Southern Rock Sole",#
+  "Slender Sole",#
+  "Pacific Sanddab",#
+  "Pacific Halibut"#
   # # # # ## "Starry Flounder"# too few males!
   # # # # ## "C-O Sole", # way too few!
   # # # # ## "Deepsea Sole" # no maturity
-  # # # # # )
-  # # # # #
-  # # # # # species_list <- list(
-  # "Pacific Cod",
-  # "Walleye Pollock",
-  # "Sablefish",
-  # "North Pacific Spiny Dogfish",
-  # # # # # # #"Arrowtooth Flounder" ,
-  # # # # # # #"Southern Rock Sole"    ,
-  # "Canary Rockfish",
-  # "Pacific Ocean Perch",
-  # "Bocaccio",
-  # "Redstripe Rockfish", # MSA added with mean > 4
-  # # "Shortspine Thornyhead",
-  # "Silvergray Rockfish", # MSA added with mean > 5
-  "Lingcod",
-  "Yelloweye Rockfish",
-  "Widow Rockfish", # hake would need mean > 1, mssm1 > 4
-  "Yellowmouth Rockfish" #
-  # "Yellowtail Rockfish"
-  # "Rougheye/Blackspotted Rockfish Complex" # WILL NEED UPDATE FOR ALL MAT CLASSES
 )
 
 species_list <- list(species = species_list)
@@ -70,15 +70,20 @@ species_list <- list(species = species_list)
 
 fit_all_distribution_models <- function(species) {
 
-  # stop_early <- TRUE
-  stop_early <- FALSE
+  ## for generating split data and some exploratory plots
+  stop_early <- TRUE
+  # stop_early <- FALSE
+
+  ## this only affects maturity specific models
   only_sampled <- FALSE
+  # only_sampled <- TRUE
 
   options(scipen = 100, digits = 4)
   theme_set(theme_sleek())
 
   dens_model_name_long <- "depth, DOY, and survey type"
 
+  set_min_sample_number <- 6
   mat_threshold <- 0.5
   # knot_distance <<- 15
   knot_distance <<- 20
@@ -97,18 +102,22 @@ fit_all_distribution_models <- function(species) {
   # set_family <- delta_gamma()
   set_family <- delta_lognormal()
 
-
-
+  # naming scheme updated Jan. 3 2024
+  # ...0 is the total, updated models are just for splits
   if(only_sampled) {
     dens_model_name0 <- "dln-all-only-w-ann-prop"
-    dens_model_name <- "dln-all-only-w-ann-prop"
+    dens_model_name <- "dln-all-only-w-ann-prop-check"
   } else {
+    dens_model_name0 <- "dln-all-only-w-ann-prop"
     ## pre rule refinement (survey means, not year means?)
-    # dens_model_name0 <- "dln-all-syn-intercept"
     # dens_model_name <- "dln-all-syn-intercept"
-  # use 10 sample cutoff for aggregating by year, then survey, then all
-  dens_model_name0 <- "dln-all-split-on-min-10"
-  dens_model_name <- "dln-all-split-on-min-10"
+    # probable that change after this introduced error..
+    # use 10 sample cutoff for aggregating by year, then survey, then all
+    # dens_model_name <- "dln-all-split-on-min-10"
+  # now thoroughly checked...
+  # use 6 sample cutoff
+  # use SD to choose between aggregating by year or survey first, then survey, then all
+  dens_model_name <- "dln-all-split-6"
   }
 
 
@@ -123,6 +132,7 @@ fit_all_distribution_models <- function(species) {
     "SYN HS", "SYN QCS",
     "SYN WCHG", "SYN WCVI",
     "MSSM QCS", "MSSM WCVI", #filtered to avoid duplication
+    "HAKE",
     "OTHER" # filtered to two older bottom trawl surveys + hake
   )
 
@@ -131,11 +141,10 @@ fit_all_distribution_models <- function(species) {
     "IPHC FISS",
     "SABLE", # only have weights for certain species?
     "MSSM QCS", "MSSM WCVI", #filtered to avoid duplication
+    "HAKE",
     "OTHER", # filtered to two older bottom trawl surveys + hake
     "HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI"
   )
-
-
 
 
   if (length(set_family$family) > 1) {
@@ -190,6 +199,11 @@ fit_all_distribution_models <- function(species) {
       survey_abbrev = ifelse(survey_abbrev == "MSSM" & latitude < 50, "MSSM WCVI",
         ifelse(survey_abbrev == "MSSM" & latitude > 50, "MSSM QCS", survey_abbrev)
       ),
+      survey_abbrev = ifelse(survey_series_id == 68, "HAKE", survey_abbrev),
+      # survey_area = ifelse(survey_abbrev == "HS MSA", "SYN HS",
+      #                 ifelse(survey_abbrev == "MSSM QCS", "SYN QCS",
+      #                 ifelse(survey_abbrev == "MSSM WCVI", "SYN WCVI",
+      #                 survey_abbrev))),
       survey_type = as.factor(
         case_when(
           survey_abbrev == "HS MSA"~"MSA",
@@ -215,7 +229,9 @@ fit_all_distribution_models <- function(species) {
       !(survey_abbrev == "OTHER" & !(survey_series_id %in% c(9, 11, 68))),
       !(survey_series_id == 68 & latitude > 55.4),
       !(survey_series_id == 68 & latitude < 48)) %>%
-    mutate(survey_type = as.factor(
+    mutate(
+      survey_abbrev = ifelse(survey_series_id == 68, "HAKE", survey_abbrev),
+      survey_type = as.factor(
       case_when(
         survey_abbrev == "HS MSA"~"MSA",
         survey_abbrev %in% c("MSSM WCVI", "MSSM QCS") & year>2002 & year<=2005~"MSSM<=05",
@@ -230,20 +246,20 @@ fit_all_distribution_models <- function(species) {
     distinct()
 
 
-  # # Data exploration and processing ----
-  dsum <- dset1 %>%
-    # filter(catch_weight > 0) %>%
-    # filter(survey_abbrev == "OTHER") %>%
-    # group_by(survey_abbrev, survey_series_desc, survey_series_id) %>%
-    group_by(survey_type, survey_series_id) %>%
-    summarise(
-      sum = sum(catch_weight, na.rm = T),
-      count = sum(catch_count, na.rm = T),
-      n = n(),
-      min_year = min(year), max_year = max(year)
-    )
-  # write.csv(dsum, "all-surveys.csv")
-  #
+  ## initial filtering ----
+  # dsum <- dset1 %>%
+  #   # filter(catch_weight > 0) %>%
+  #   # filter(survey_abbrev == "OTHER") %>%
+  #   # group_by(survey_abbrev, survey_series_desc, survey_series_id) %>%
+  #   group_by(survey_type, survey_series_id) %>%
+  #   summarise(
+  #     sum = sum(catch_weight, na.rm = T),
+  #     count = sum(catch_count, na.rm = T),
+  #     n = n(),
+  #     min_year = min(year), max_year = max(year)
+  #   )
+  # # write.csv(dsum, "all-surveys.csv")
+  # #
   # dset1 %>% filter(year == 1999) %>% View() # one unusable set has wrong year
 
   # dset1 %>%
@@ -301,7 +317,7 @@ fit_all_distribution_models <- function(species) {
   # dset2 <- filter(dset, catch_weight > 900)
   }
 
-
+# Split by maturity ----
   dss <- gfplot::split_catch_by_sex(dset, dsamp,
     # catch_variable = "est_catch_count", # could use this to avoid biomass ~ condition issue
     # split_by_weight = FALSE, # automatically switches to TRUE for common weight-based catch variables
@@ -309,6 +325,8 @@ fit_all_distribution_models <- function(species) {
     # sample_id_re = FALSE,
     survey = surveys_included,
     immatures_pooled = TRUE,
+    # use_median_ratio = TRUE,
+    min_sample_number = set_min_sample_number,
     split_by_maturity = maturity_possible,
     custom_maturity_at = custom_maturity_code,
     custom_length_thresholds = custom_length_threshold,
@@ -500,17 +518,21 @@ fit_all_distribution_models <- function(species) {
     ungroup() %>%
     filter(catch_weight > 0) %>%
     mutate(group_name = ifelse(is.na(group_catch_est), "Unsampled", group_name),
-           group_catch_est = ifelse(group_name == "Unsampled", catch_weight, group_catch_est)
+           group_catch_est = ifelse(group_name == "Unsampled", catch_weight, group_catch_est),
+           true_ratio = ifelse(n_fish_sampled > 0, proportion, NA_real_)
            ) %>%
     group_by(survey_abbrev, group_name, year) %>%
     mutate(any_pos_by_year = n(),
-           n_samples = length(!is.na(median_prop_ann))
+           n_samples = length(!is.na(median_prop_ann)),
+           mean_ratio_w_0 = ifelse(all(is.na(true_ratio)), NA_real_,
+                                   mean(true_ratio, na.rm = TRUE)),
+           mean_ratio_filled = ifelse(all(is.na(true_ratio)), NA_real_,
+                                      mean(proportion, na.rm = TRUE))
            ) %>% ungroup() %>%
     # group_by(survey_abbrev, group_name) %>% summarise(any_samples = paste(range(any_samples)[1],"-",range(any_samples)[2]))
     filter(group_catch_est > 0) %>%
     group_by(survey_type, group_name, year) %>%
     mutate(pos_n_by_year = n(),
-           mean_prop = mean(proportion, na.rm = TRUE)
            ) %>% ungroup() %>%
     group_by(survey_type, group_name) %>%
     summarise(
@@ -527,8 +549,12 @@ fit_all_distribution_models <- function(species) {
       total_samples = sum(n_samples, na.rm = TRUE),
       min_samples = min(n_samples),
       max_samples = max(n_samples),
-      min_prop = min(mean_prop, na.rm = TRUE),
-      max_prop = max(mean_prop, na.rm = TRUE)
+      mean_ratio_w_0 = mean(mean_ratio_w_0, na.rm = TRUE),
+      min_ratio_w_0 = min(mean_ratio_w_0, na.rm = TRUE),
+      max_ratio_w_0 = max(mean_ratio_w_0, na.rm = TRUE),
+      mean_ratio_filled = mean(mean_ratio_filled, na.rm = TRUE),
+      min_ratio_filled = min(mean_ratio_filled, na.rm = TRUE),
+      max_ratio_filled = max(mean_ratio_filled, na.rm = TRUE)
       ) %>% ungroup() %>%
     group_by(group_name) %>%
     mutate(
@@ -553,63 +579,14 @@ fit_all_distribution_models <- function(species) {
     group_by(survey_type) %>%
     summarize_all(max) %>%
     filter(round(prop_pos, 2) >= 0.01 &
-           round(max_prop_pos, 2) >= 0.05 & # all species-maturity classes meet this, so not currently doing anything
+           ## all species-maturity classes met this before I added YE
+           # round(max_prop_pos, 2) >= 0.05 &
            max_pos_by_year >= 3 &
            !(prop_years_w_0 > 0.5 & max_pos_by_year < 5)
           )
 
   ds <- filter(ds, survey_type %in% which_surv$survey_type)
 
-  if(nrow(which_surv[which_surv$survey_type == "HAKE",])==0){
-    dens_model_name <- dens_model_name0
-  }
-
-  # Set naming conventions ----
-    dir <-paste0("data-generated/density-models/", dens_model_name, "/")
-    dir0 <-paste0("data-generated/density-models/", dens_model_name, "/total/")
-    dir1 <-paste0("data-generated/density-models/", dens_model_name, "/mat-fem/")
-    dir2 <-paste0("data-generated/density-models/", dens_model_name, "/mat-m/")
-    dir3 <-paste0("data-generated/density-models/", dens_model_name, "/imm/")
-
-    ### folder names for all density models
-    dir.create(dir, showWarnings = FALSE)
-    dir.create(dir0, showWarnings = FALSE)
-    dir.create(dir1, showWarnings = FALSE)
-    dir.create(dir2, showWarnings = FALSE)
-    dir.create(dir3, showWarnings = FALSE)
-
-    ### directories for all generated indices
-    dir.create(paste0("data-generated/density-index/"), showWarnings = FALSE)
-    dir.create(paste0("data-generated/density-index/", dens_model_name), showWarnings = FALSE)
-    dir.create(paste0("data-generated/density-index/", dens_model_name,
-                      "/total/"), showWarnings = FALSE)
-    dir.create(paste0("data-generated/density-index/", dens_model_name,
-                      "/mat-fem/"), showWarnings = FALSE)
-    dir.create(paste0("data-generated/density-index/", dens_model_name,
-                      "/mat-m/"), showWarnings = FALSE)
-    dir.create(paste0("data-generated/density-index/", dens_model_name,
-                      "/imm/"), showWarnings = FALSE)
-    dir.create(paste0("data-generated/density-split-ind/"), showWarnings = FALSE)
-
-    m0 <- paste0(spp, "-total-", dens_model_name, "-", knot_distance, "-km")
-    m1 <- paste0(spp, "-mat-fem-", dens_model_name, "-", knot_distance, "-km")
-    m2 <- paste0(spp, "-mat-m-", dens_model_name, "-", knot_distance, "-km")
-    m3 <- paste0(spp, "-imm-", dens_model_name, "-", knot_distance, "-km")
-
-    fm <- paste0(dir0, m0, ".rds")
-    fmf <- paste0(dir1, m1, ".rds")
-    fmm <- paste0(dir2, m2, ".rds")
-    fmi <- paste0(dir3, m3, ".rds")
-
-    pfn <- paste0("data-generated/density-predictions/p-", m0, ".rds")
-    pmfn <- paste0("data-generated/density-predictions/p-", m1, ".rds")
-    pmfn2 <- paste0("data-generated/density-predictions/p-", m2, ".rds")
-    pifn <- paste0("data-generated/density-predictions/p-", m3, ".rds")
-
-    i0 <- paste0("data-generated/density-index/", dens_model_name, "/total/i-", m0, ".rds")
-    i1 <- paste0("data-generated/density-index/", dens_model_name, "/mat-fem/i-", m1, ".rds")
-    i2 <- paste0("data-generated/density-index/", dens_model_name, "/mat-m/i-", m2, ".rds")
-    i3 <- paste0("data-generated/density-index/", dens_model_name, "/imm/i-", m3, ".rds")
 
 
   # Plot usabilities ----
@@ -618,8 +595,6 @@ fit_all_distribution_models <- function(species) {
   #   sum_catch = sum(catch_weight, na.rm = TRUE),
   #   n = n()
   # )
-  # ds %>% select(survey_abbrev, year,
-  #               vessel_id, captain_id, vessel_cap_combo) %>% distinct() %>% View()
 
   ds %>%
       mutate(group_name = ifelse(is.na(group_catch_est), "Unsampled", group_name),
@@ -636,11 +611,9 @@ fit_all_distribution_models <- function(species) {
     scale_y_discrete(limits = rev) +
     facet_grid(~survey_type, scales = "free") +
     theme(axis.title.y = element_blank())
-  ggsave(paste0("figs/all-usabilities-", spp, ".png"), width = 17, height = 3.5)
+  ggsave(paste0("figs/0-usabilities/all-usabilities-", spp, ".png"),
+         width = 17, height = 3.5)
 
-  if(stop_early) {
-    return(which_surv_all)
-  }
 
   unique(ds$survey_abbrev)
   unique(ds$survey_type)
@@ -663,7 +636,61 @@ fit_all_distribution_models <- function(species) {
          ll_names = c("longitude", "latitude"),
          utm_crs = 32609)
 
-#
+  dir.create(paste0("data-generated/density-data/"), showWarnings = FALSE)
+  saveRDS(d, paste0("data-generated/density-data/", spp, ".rds"))
+
+  if(stop_early) {
+    return(which_surv_all)
+  }
+
+  # Set naming conventions ----
+  dir <-paste0("data-generated/density-models/", dens_model_name, "/")
+  dir0 <-paste0("data-generated/density-models/", dens_model_name0, "/total/")
+  dir1 <-paste0("data-generated/density-models/", dens_model_name, "/mat-fem/")
+  dir2 <-paste0("data-generated/density-models/", dens_model_name, "/mat-m/")
+  dir3 <-paste0("data-generated/density-models/", dens_model_name, "/imm/")
+
+  ### folder names for all density models
+  dir.create(dir, showWarnings = FALSE)
+  dir.create(dir0, showWarnings = FALSE)
+  dir.create(dir1, showWarnings = FALSE)
+  dir.create(dir2, showWarnings = FALSE)
+  dir.create(dir3, showWarnings = FALSE)
+
+  ### directories for all generated indices
+  dir.create(paste0("data-generated/density-index/"), showWarnings = FALSE)
+  dir.create(paste0("data-generated/density-index/", dens_model_name), showWarnings = FALSE)
+  dir.create(paste0("data-generated/density-index/", dens_model_name0,
+                    "/total/"), showWarnings = FALSE)
+  dir.create(paste0("data-generated/density-index/", dens_model_name,
+                    "/mat-fem/"), showWarnings = FALSE)
+  dir.create(paste0("data-generated/density-index/", dens_model_name,
+                    "/mat-m/"), showWarnings = FALSE)
+  dir.create(paste0("data-generated/density-index/", dens_model_name,
+                    "/imm/"), showWarnings = FALSE)
+  dir.create(paste0("data-generated/density-split-ind/"), showWarnings = FALSE)
+
+  m0 <- paste0(spp, "-total-", dens_model_name0, "-", knot_distance, "-km")
+  m1 <- paste0(spp, "-mat-fem-", dens_model_name, "-", knot_distance, "-km")
+  m2 <- paste0(spp, "-mat-m-", dens_model_name, "-", knot_distance, "-km")
+  m3 <- paste0(spp, "-imm-", dens_model_name, "-", knot_distance, "-km")
+
+  fm <- paste0(dir0, m0, ".rds")
+  fmf <- paste0(dir1, m1, ".rds")
+  fmm <- paste0(dir2, m2, ".rds")
+  fmi <- paste0(dir3, m3, ".rds")
+
+  pfn <- paste0("data-generated/density-predictions/p-", m0, ".rds")
+  pmfn <- paste0("data-generated/density-predictions/p-", m1, ".rds")
+  pmfn2 <- paste0("data-generated/density-predictions/p-", m2, ".rds")
+  pifn <- paste0("data-generated/density-predictions/p-", m3, ".rds")
+
+  i0 <- paste0("data-generated/density-index/", dens_model_name0, "/total/i-", m0, ".rds")
+  i1 <- paste0("data-generated/density-index/", dens_model_name, "/mat-fem/i-", m1, ".rds")
+  i2 <- paste0("data-generated/density-index/", dens_model_name, "/mat-m/i-", m2, ".rds")
+  i3 <- paste0("data-generated/density-index/", dens_model_name, "/imm/i-", m3, ".rds")
+
+
 #   if (is.null(extra_years)) {
 #     grid <- replicate_df(gfplot::synoptic_grid,
 #       time_name = "year",
@@ -696,6 +723,7 @@ fit_all_distribution_models <- function(species) {
         vessel_cap_combo = as.factor("584-408") # has greatest spatial coverage
       )
   # }
+
 
   # Total density dataframe ----
   # d1a <- d %>% select(year, month, day, fishing_event_id,
@@ -846,7 +874,7 @@ fit_all_distribution_models <- function(species) {
     saveRDS(m, fm)
 
     if (length(m$family) == 6) {
-      m <- refine_delta_model(m, alternate_family = set_family2)
+      m <- refine_delta_model(m, alternate_family = set_family2, use_priors = set_priors)
     } else {
       m <- refine_model(m)
     }
@@ -858,9 +886,9 @@ fit_all_distribution_models <- function(species) {
     # browser()
     if (!all(sanity(m))) {
       if (length(m$family) == 6) {
-        m <- refine_delta_model(m, alternate_family = set_family2)
+        m <- refine_delta_model(m, alternate_family = set_family2, use_priors = set_priors)
       } else {
-        m <- refine_model(m)
+        m <- refine_model(m, use_priors = set_priors)
       }
       saveRDS(m, fm)
     }
@@ -903,9 +931,9 @@ fit_all_distribution_models <- function(species) {
     plot_index(p, species, "Total", dens_model_name, i0) +
       ggtitle(paste0(species, ": total biomass (", dens_model_name, ")"))
 
-    ggsave(paste0("figs/density-index-", m0, ".png"),
-      height = fig_height / 2, width = fig_width / 1.5
-    )
+    # ggsave(paste0("figs/density-index-", m0, ".png"),
+    #   height = fig_height / 2, width = fig_width / 1.5
+    # )
   }
 
   # # not working with offset
@@ -921,25 +949,18 @@ fit_all_distribution_models <- function(species) {
 
   if(only_sampled){
     # # test pattern without extrapolating to years without annual survey-specific proportions
-    d2 <- d2 %>% filter(!is.na(median_prop_ann))
+    d2 <- d2 %>%
+      # filter(n_fish_sampled > set_min_sample_number) %>%
+      filter(!is.na(median_prop_ann))
   }
 
   which_surv <- which_surveys(d2) %>%
     filter(group_name %in% c("Females", "Mature females")) %>%
     filter(round(prop_pos, 2) >= 0.01 &
              max_pos_by_year >= 3 &
-             !(prop_years_w_0 > 0.5 & max_pos_by_year < 5) &
-             round(max_prop_pos, 2) >= 0.05
+             # round(max_prop_pos, 2) >= 0.05 &
+             !(prop_years_w_0 > 0.5 & max_pos_by_year < 5)
     )
-
-  if(nrow(which_surv[which_surv$survey_type == "HAKE",])==0){
-    ### revert naming conventions to previous model ----
-    dir1 <-paste0("data-generated/density-models/", dens_model_name0, "/mat-fem/")
-    m1 <- paste0(spp, "-mat-fem-", dens_model_name0, "-", knot_distance, "-km")
-    fmf <- paste0(dir1, m1, ".rds")
-    pmfn <- paste0("data-generated/density-predictions/p-", m1, ".rds")
-    i1 <- paste0("data-generated/density-index/", dens_model_name0, "/mat-fem/i-", m1, ".rds")
-  }
 
 
   d2 <- filter(d2, survey_type %in% which_surv$survey_type)
@@ -1007,7 +1028,7 @@ fit_all_distribution_models <- function(species) {
     if (length(mf$family) == 6) {
       mf <- refine_delta_model(mf, alternate_family = set_family2, use_priors = set_priors)
     } else {
-      mf <- refine_model(mf)
+      mf <- refine_model(mf, use_priors = set_priors)
     }
     saveRDS(mf, fmf)
   } else {
@@ -1016,7 +1037,7 @@ fit_all_distribution_models <- function(species) {
       if (length(mf$family) == 6) {
         mf <- refine_delta_model(mf, alternate_family = set_family2, use_priors = set_priors)
       } else {
-        mf <- refine_model(mf)
+        mf <- refine_model(mf, use_priors = set_priors)
       }
       saveRDS(mf, fmf)
     }
@@ -1064,25 +1085,18 @@ fit_all_distribution_models <- function(species) {
 
   if(only_sampled){
     # # test pattern without extrapolating to years without annual survey-specific proportions
-    d2b <- d2b %>% filter(!is.na(median_prop_ann))
+    d2b <- d2b %>%
+      # filter(n_fish_sampled > set_min_sample_number) %>%
+      filter(!is.na(median_prop_ann))
   }
 
     which_surv <- which_surveys(d2b) %>%
       filter(group_name %in% c("Males", "Mature males")) %>%
       filter(round(prop_pos, 2) >= 0.01 &
              max_pos_by_year >= 3 &
-             !(prop_years_w_0 > 0.5 & max_pos_by_year < 5) &
-             round(max_prop_pos, 2) >= 0.05
+               # round(max_prop_pos, 2) >= 0.05 &
+             !(prop_years_w_0 > 0.5 & max_pos_by_year < 5)
       )
-
-    if(nrow(which_surv[which_surv$survey_type == "HAKE",])==0){
-      ### revert naming conventions to previous model ----
-      dir2 <-paste0("data-generated/density-models/", dens_model_name0, "/mat-m/")
-      m2 <- paste0(spp, "-mat-m-", dens_model_name0, "-", knot_distance, "-km")
-      fmm <- paste0(dir2, m2, ".rds")
-      pmfn2 <- paste0("data-generated/density-predictions/p-", m2, ".rds")
-      i2 <- paste0("data-generated/density-index/", dens_model_name0, "/mat-m/i-", m2, ".rds")
-    }
 
     d2b <- filter(d2b, survey_type %in% which_surv$survey_type)
 
@@ -1105,18 +1119,35 @@ fit_all_distribution_models <- function(species) {
 
     if (!file.exists(fmm)) {
 
-
+      if(nrow(which_surv)<2){
+        mm <- sdmTMB(group_catch_est ~ 1 +
+                               poly(log_depth_c, 2) +
+                               poly(days_to_solstice, 2),
+                             offset = "offset",
+                             spatial = as.list(mf[["spatial"]]),
+                             spatiotemporal = as.list(mf[["spatiotemporal"]]),
+                             share_range = FALSE,
+                             time = "year",
+                             family = mf$family,
+                     priors = set_priors,
+                     extra_time = sdmTMB:::find_missing_time(d2b$year),
+                     mesh = mesh2b,
+                     data = d2b
+        )
+      } else{
     mm <- update(mf,
       priors = set_priors,
+      extra_time = sdmTMB:::find_missing_time(d2b$year),
       mesh = mesh2b,
       data = d2b
     )
+      }
     saveRDS(mm, fmm)
 
     if (length(mm$family) == 6) {
       mm <- refine_delta_model(mm, alternate_family = set_family2, use_priors = set_priors)
     } else {
-      mm <- refine_model(mm)
+      mm <- refine_model(mm, use_priors = set_priors)
     }
     saveRDS(mm, fmm)
   } else {
@@ -1125,7 +1156,7 @@ fit_all_distribution_models <- function(species) {
       if (length(mm$family) == 6) {
         mm <- refine_delta_model(mm, alternate_family = set_family2, use_priors = set_priors)
       } else {
-        mm <- refine_model(mm)
+        mm <- refine_model(mm, use_priors = set_priors)
       }
       saveRDS(mm, fmm)
     }
@@ -1165,25 +1196,18 @@ if(maturity_possible) {
 
     if(only_sampled){
       # # test pattern without extrapolating to years without annual survey-specific proportions
-      d3 <- d3 %>% filter(!is.na(median_prop_ann))
+      d3 <- d3 %>%
+        # filter(n_fish_sampled > set_min_sample_number) %>%
+        filter(!is.na(median_prop_ann))
     }
 
     which_surv <- which_surveys(d3) %>%
       filter(group_name %in% c("Immature")) %>%
       filter(round(prop_pos, 2) >= 0.01 &
                max_pos_by_year >= 3 &
-               !(prop_years_w_0 > 0.5 & max_pos_by_year < 5) &
-               round(max_prop_pos, 2) >= 0.05
+               # round(max_prop_pos, 2) >= 0.05 &
+               !(prop_years_w_0 > 0.5 & max_pos_by_year < 5)
       )
-
-    if(nrow(which_surv[which_surv$survey_type == "HAKE",])==0){
-      ### revert naming conventions to previous model ----
-      dir3 <-paste0("data-generated/density-models/", dens_model_name0, "/imm/")
-      m3 <- paste0(spp, "-imm-", dens_model_name0, "-", knot_distance, "-km")
-      fmi <- paste0(dir3, m3, ".rds")
-      pifn <- paste0("data-generated/density-predictions/p-", m3, ".rds")
-      i3 <- paste0("data-generated/density-index/", dens_model_name0, "/imm/i-", m3, ".rds")
-    }
 
     d3 <- filter(d3, survey_type %in% which_surv$survey_type)
 
@@ -1210,10 +1234,10 @@ if(maturity_possible) {
                      poly(log_depth_c, 2) +
                      poly(days_to_solstice, 2),
                    offset = "offset",
-                   spatial = as.list(mm[["spatial"]]),
+                   spatial = as.list(mf[["spatial"]]),
                    spatiotemporal = as.list(mf[["spatiotemporal"]]),
                    time = "year",
-                   family = mm$family,
+                   family = mf$family,
                    extra_time = sdmTMB:::find_missing_time(d3$year),
                    priors = set_priors,
                    # priors = set_priors,
@@ -1221,9 +1245,10 @@ if(maturity_possible) {
                    mesh = mesh3, data = d3
       )
     } else{
-    try(mi <- update(mm,
+    try(mi <- update(mf,
       # spatial = simpspatial,
       priors = set_priors,
+      extra_time = sdmTMB:::find_missing_time(d3$year),
       mesh = mesh3,
       data = d3
     ))
@@ -1235,7 +1260,7 @@ if(maturity_possible) {
     if (length(mi$family) == 6) {
       mi <- refine_delta_model(mi, alternate_family = set_family2, use_priors = set_priors)
     } else {
-      mi <- refine_model(mi)
+      mi <- refine_model(mi, use_priors = set_priors)
     }
     saveRDS(mi, fmi)
     }
@@ -1246,7 +1271,7 @@ if(maturity_possible) {
       if (length(mi$family) == 6) {
         mi <- refine_delta_model(mi, alternate_family = set_family2, use_priors = set_priors)
       } else {
-        mi <- refine_model(mi)
+        mi <- refine_model(mi, use_priors = set_priors)
       }
       saveRDS(mi, fmi)
     }
