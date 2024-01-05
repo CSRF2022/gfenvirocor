@@ -18,6 +18,7 @@ refine_delta_model <- function(m, alternate_family = set_family2, use_priors = s
                 spatial = as.list(m[["spatial"]]),
                 spatiotemporal = as.list(m[["spatiotemporal"]]),
                 extra_time = m$extra_time,
+                priors = use_priors,
                 data = m$data, mesh = m$spde)
     s <- sanity(m)
   }
@@ -25,6 +26,7 @@ refine_delta_model <- function(m, alternate_family = set_family2, use_priors = s
     m <- update(m, spatial = list("on", "off"),
                 spatiotemporal = as.list(m[["spatiotemporal"]]),
                 extra_time = m$extra_time,
+                priors = use_priors,
                 data = m$data, family = m$family, mesh = m$spde)
     s <- sanity(m)
   }
@@ -33,6 +35,7 @@ refine_delta_model <- function(m, alternate_family = set_family2, use_priors = s
                 spatial = as.list(m[["spatial"]]),
                 spatiotemporal = as.list(m[["spatiotemporal"]]),
                 extra_time = m$extra_time,
+                priors = use_priors,
                 data = m$data, mesh = m$spde)
     s <- sanity(m)
   } else {
@@ -40,6 +43,7 @@ refine_delta_model <- function(m, alternate_family = set_family2, use_priors = s
       m <- update(m, spatial = list("off", "off"),
                   spatiotemporal = as.list(m[["spatiotemporal"]]),
                   extra_time = m$extra_time,
+                  priors = use_priors,
                   data = m$data, family = m$family, mesh = m$spde)
       s <- sanity(m)
     }
@@ -48,6 +52,7 @@ refine_delta_model <- function(m, alternate_family = set_family2, use_priors = s
       m <- update(m, spatial = list("on", "off"),
                   spatiotemporal = list("off", "rw"),
                   extra_time = m$extra_time,
+                  priors = use_priors,
                   data = m$data, family = m$family, mesh = m$spde)
       s <- sanity(m)
     }
@@ -59,6 +64,7 @@ refine_delta_model <- function(m, alternate_family = set_family2, use_priors = s
                   family = alternate_family,
                   share_range = FALSE,
                   extra_time = m$extra_time,
+                  priors = use_priors,
                   data = m$data, mesh = m$spde)
       s <- sanity(m)
     }
@@ -76,6 +82,7 @@ refine_delta_model <- function(m, alternate_family = set_family2, use_priors = s
     m <- update(m, spatial = "off",
                 spatiotemporal = as.list(m[["spatiotemporal"]]),
                 extra_time = m$extra_time,
+                priors = use_priors,
                 data = m$data, family = m$family, mesh = m$spde)
     s <- sanity(m)
   }
@@ -90,7 +97,9 @@ refine_delta_model <- function(m, alternate_family = set_family2, use_priors = s
 #' refine regular model
 #' @export
 #'
-refine_model <- function(m){
+refine_model <- function(m,
+                         use_priors = sdmTMBpriors()
+                         ){
   s <- sanity(m)
   # browser()
   # if(!s$gradients_ok){
@@ -102,6 +111,7 @@ refine_model <- function(m){
                 spatial = as.list(m[["spatial"]]),
                 spatiotemporal = as.list(m[["spatiotemporal"]]),
                 extra_time = m$extra_time,
+                priors = use_priors,
                 data = m$data, family = m$family, mesh = m$spde)
     s <- sanity(m)
   }
@@ -109,6 +119,7 @@ refine_model <- function(m){
     m <- update(m, spatial = "off",
                 spatiotemporal = as.list(m[["spatiotemporal"]]),
                 extra_time = m$extra_time,
+                priors = use_priors,
                 data = m$data, family = m$family, mesh = m$spde)
     s <- sanity(m)
   }
