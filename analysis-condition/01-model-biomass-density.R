@@ -16,40 +16,40 @@ library(patchwork)
 
 
 species_list <- list(
-  # # # # # # #"Arrowtooth Flounder" ,
+  # # # # # #"Arrowtooth Flounder" ,
   # # # # # # #"Southern Rock Sole"    ,
-  "North Pacific Spiny Dogfish",
-  "Pacific Ocean Perch",
-  "Pacific Cod",
-  "Walleye Pollock",
-  "Sablefish",
-  "Lingcod",
-  "Bocaccio",
-  "Canary Rockfish",
-  "Redstripe Rockfish", # MSA added with mean > 4
-  "Rougheye/Blackspotted Rockfish Complex", # WILL NEED UPDATE FOR ALL MAT CLASSES
-  "Silvergray Rockfish", # MSA added with mean > 5
-  "Shortspine Thornyhead",
-  "Widow Rockfish", # hake would need mean > 1, mssm1 > 4
-  "Yelloweye Rockfish",
-  "Yellowmouth Rockfish", #
-  "Yellowtail Rockfish",
-  # # # # # )
-  # # # # # # # #
-  # # # # # # # # species_list <- list(
+  # # "North Pacific Spiny Dogfish",
+  # # "Pacific Ocean Perch",
+  # # "Pacific Cod",
+  # # "Walleye Pollock",
+  # # "Sablefish",
+  # # "Lingcod",
+  # # "Bocaccio",
+  # "Canary Rockfish",
+  # "Redstripe Rockfish", # MSA added with mean > 4
+  # "Rougheye/Blackspotted Rockfish Complex", # WILL NEED UPDATE FOR ALL MAT CLASSES
+  # "Silvergray Rockfish", # MSA added with mean > 5
+  # "Shortspine Thornyhead",
+  # "Widow Rockfish", # hake would need mean > 1, mssm1 > 4
+  # "Yelloweye Rockfish",
+  # "Yellowmouth Rockfish", #
+  # # "Yellowtail Rockfish",
+  # # # # # # )
+  # # # # # # # # #
+  # # # # # # # # # species_list <- list(
   "Curlfin Sole",#
   "Sand Sole",#
-  "Butter Sole",
-  "Petrale Sole", #
-  "Arrowtooth Flounder", #
-  "English Sole",#
-  "Dover Sole",#
-  "Rex Sole", #
-  "Flathead Sole",#
-  "Southern Rock Sole",#
-  "Slender Sole",#
-  "Pacific Sanddab",#
-  "Pacific Halibut"#
+  "Butter Sole"
+  # "Petrale Sole", #
+  # "Arrowtooth Flounder", #
+  # "English Sole",#
+  # "Dover Sole",#
+  # "Rex Sole", #
+  # "Flathead Sole",#
+  # "Southern Rock Sole",#
+  # "Slender Sole",#
+  # "Pacific Sanddab"#
+  # "Pacific Halibut"#
   # # # # ## "Starry Flounder"# too few males!
   # # # # ## "C-O Sole", # way too few!
   # # # # ## "Deepsea Sole" # no maturity
@@ -65,14 +65,13 @@ species_list <- list(species = species_list)
 # species <- "Pacific Cod"
 
 
-
 # Function for running species density models --------
 
 fit_all_distribution_models <- function(species) {
 
   ## for generating split data and some exploratory plots
-  stop_early <- TRUE
-  # stop_early <- FALSE
+  # stop_early <- TRUE
+  stop_early <- FALSE
 
   ## this only affects maturity specific models
   only_sampled <- FALSE
@@ -106,7 +105,7 @@ fit_all_distribution_models <- function(species) {
   # ...0 is the total, updated models are just for splits
   if(only_sampled) {
     dens_model_name0 <- "dln-all-only-w-ann-prop"
-    dens_model_name <- "dln-all-only-w-ann-prop-check"
+    dens_model_name <- "dln-all-only-true-ratio-6"
   } else {
     dens_model_name0 <- "dln-all-only-w-ann-prop"
     ## pre rule refinement (survey means, not year means?)
@@ -117,7 +116,8 @@ fit_all_distribution_models <- function(species) {
   # now thoroughly checked...
   # use 6 sample cutoff
   # use SD to choose between aggregating by year or survey first, then survey, then all
-  dens_model_name <- "dln-all-split-6"
+  # dens_model_name <- "dln-all-split-6"
+  dens_model_name <- "dln-all-split-all-weights"
   }
 
 
@@ -334,6 +334,8 @@ fit_all_distribution_models <- function(species) {
     plot = maturity_possible
   )
 
+  # browser()
+
   dir.create(paste0("data-generated/split-catch-data/"), showWarnings = FALSE)
 
   saveRDS(dss, paste0("data-generated/split-catch-data/", spp, ".rds"))
@@ -514,6 +516,7 @@ fit_all_distribution_models <- function(species) {
     which_surv_all <- data %>%
     group_by(survey_type, group_name) %>%
     mutate(year_range = length(unique(year)),
+           total_fish = sum(n_fish_sampled, na.rm = TRUE),
            total_n = n()) %>%
     ungroup() %>%
     filter(catch_weight > 0) %>%
@@ -523,10 +526,11 @@ fit_all_distribution_models <- function(species) {
            ) %>%
     group_by(survey_abbrev, group_name, year) %>%
     mutate(any_pos_by_year = n(),
+           n_fish_by_yr = sum(n_fish_sampled, na.rm = TRUE),
            n_samples = length(!is.na(median_prop_ann)),
-           mean_ratio_w_0 = ifelse(all(is.na(true_ratio)), NA_real_,
+           mean_ratio_true = ifelse(all(is.na(true_ratio)), NA_real_,
                                    mean(true_ratio, na.rm = TRUE)),
-           mean_ratio_filled = ifelse(all(is.na(true_ratio)), NA_real_,
+           mean_ratio_filled = ifelse(all(is.na(proportion)), NA_real_,
                                       mean(proportion, na.rm = TRUE))
            ) %>% ungroup() %>%
     # group_by(survey_abbrev, group_name) %>% summarise(any_samples = paste(range(any_samples)[1],"-",range(any_samples)[2]))
@@ -546,12 +550,13 @@ fit_all_distribution_models <- function(species) {
       total_n = mean(total_n, na.rm = TRUE),
       mean_pos_n = mean(pos_n/years, na.rm = TRUE),
       prop_pos = mean(pos_n/total_n, na.rm = TRUE),
-      total_samples = sum(n_samples, na.rm = TRUE),
+      total_samples = length(!is.na(median_prop_ann)),
       min_samples = min(n_samples),
       max_samples = max(n_samples),
-      mean_ratio_w_0 = mean(mean_ratio_w_0, na.rm = TRUE),
-      min_ratio_w_0 = min(mean_ratio_w_0, na.rm = TRUE),
-      max_ratio_w_0 = max(mean_ratio_w_0, na.rm = TRUE),
+      n_fish_by_yr = mean(n_fish_by_yr, na.rm = TRUE),
+      mean_ratio_true = mean(mean_ratio_true, na.rm = TRUE),
+      min_ratio_true = min(mean_ratio_true, na.rm = TRUE),
+      max_ratio_true = max(mean_ratio_true, na.rm = TRUE),
       mean_ratio_filled = mean(mean_ratio_filled, na.rm = TRUE),
       min_ratio_filled = min(mean_ratio_filled, na.rm = TRUE),
       max_ratio_filled = max(mean_ratio_filled, na.rm = TRUE)
@@ -578,7 +583,9 @@ fit_all_distribution_models <- function(species) {
     # filter(group_name %in% c("Mature", "Mature females")) %>%
     group_by(survey_type) %>%
     summarize_all(max) %>%
-    filter(round(prop_pos, 2) >= 0.01 &
+    filter(
+      # round(prop_pos, 2) >= 0.01 &
+           prop_pos >= 0.01 &
            ## all species-maturity classes met this before I added YE
            # round(max_prop_pos, 2) >= 0.05 &
            max_pos_by_year >= 3 &
@@ -950,13 +957,14 @@ fit_all_distribution_models <- function(species) {
   if(only_sampled){
     # # test pattern without extrapolating to years without annual survey-specific proportions
     d2 <- d2 %>%
-      # filter(n_fish_sampled > set_min_sample_number) %>%
+      filter(n_events_sampled > set_min_sample_number) %>%
       filter(!is.na(median_prop_ann))
   }
 
   which_surv <- which_surveys(d2) %>%
     filter(group_name %in% c("Females", "Mature females")) %>%
-    filter(round(prop_pos, 2) >= 0.01 &
+    filter(  #round(prop_pos, 2) >= 0.01 &
+             prop_pos >= 0.01 &
              max_pos_by_year >= 3 &
              # round(max_prop_pos, 2) >= 0.05 &
              !(prop_years_w_0 > 0.5 & max_pos_by_year < 5)
@@ -1086,13 +1094,14 @@ fit_all_distribution_models <- function(species) {
   if(only_sampled){
     # # test pattern without extrapolating to years without annual survey-specific proportions
     d2b <- d2b %>%
-      # filter(n_fish_sampled > set_min_sample_number) %>%
+      filter(n_events_sampled > set_min_sample_number) %>%
       filter(!is.na(median_prop_ann))
   }
 
     which_surv <- which_surveys(d2b) %>%
       filter(group_name %in% c("Males", "Mature males")) %>%
-      filter(round(prop_pos, 2) >= 0.01 &
+      filter(#round(prop_pos, 2) >= 0.01 &
+        prop_pos >= 0.01 &
              max_pos_by_year >= 3 &
                # round(max_prop_pos, 2) >= 0.05 &
              !(prop_years_w_0 > 0.5 & max_pos_by_year < 5)
@@ -1128,7 +1137,7 @@ fit_all_distribution_models <- function(species) {
                              spatiotemporal = as.list(mf[["spatiotemporal"]]),
                              share_range = FALSE,
                              time = "year",
-                             family = mf$family,
+                             family = m$family,
                      priors = set_priors,
                      extra_time = sdmTMB:::find_missing_time(d2b$year),
                      mesh = mesh2b,
@@ -1139,6 +1148,7 @@ fit_all_distribution_models <- function(species) {
       priors = set_priors,
       extra_time = sdmTMB:::find_missing_time(d2b$year),
       mesh = mesh2b,
+      family = m$family,
       data = d2b
     )
       }
@@ -1197,16 +1207,17 @@ if(maturity_possible) {
     if(only_sampled){
       # # test pattern without extrapolating to years without annual survey-specific proportions
       d3 <- d3 %>%
-        # filter(n_fish_sampled > set_min_sample_number) %>%
+        filter(n_events_sampled > set_min_sample_number) %>%
         filter(!is.na(median_prop_ann))
     }
 
     which_surv <- which_surveys(d3) %>%
       filter(group_name %in% c("Immature")) %>%
-      filter(round(prop_pos, 2) >= 0.01 &
-               max_pos_by_year >= 3 &
-               # round(max_prop_pos, 2) >= 0.05 &
-               !(prop_years_w_0 > 0.5 & max_pos_by_year < 5)
+      filter(#round(prop_pos, 2) >= 0.01 &
+        prop_pos >= 0.01 &
+        max_pos_by_year >= 3 &
+        # round(max_prop_pos, 2) >= 0.05 &
+        !(prop_years_w_0 > 0.5 & max_pos_by_year < 5)
       )
 
     d3 <- filter(d3, survey_type %in% which_surv$survey_type)
@@ -1237,7 +1248,7 @@ if(maturity_possible) {
                    spatial = as.list(mf[["spatial"]]),
                    spatiotemporal = as.list(mf[["spatiotemporal"]]),
                    time = "year",
-                   family = mf$family,
+                   family = m$family,
                    extra_time = sdmTMB:::find_missing_time(d3$year),
                    priors = set_priors,
                    # priors = set_priors,
@@ -1250,6 +1261,7 @@ if(maturity_possible) {
       priors = set_priors,
       extra_time = sdmTMB:::find_missing_time(d3$year),
       mesh = mesh3,
+      family = m$family,
       data = d3
     ))
     }
@@ -1478,8 +1490,6 @@ if(maturity_possible) {
 
 }
 
-
-# fit_all_distribution_models(species_list)
 
 ## Run with pmap -----
 pmap(species_list, fit_all_distribution_models)
