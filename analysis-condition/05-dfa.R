@@ -1,12 +1,203 @@
-library(ggplot2)
+library(tidyverse)
 library(dplyr)
 library(bayesdfa)
 library(patchwork)
+
+devtools::load_all()
 
 theme_set(ggsidekick::theme_sleek())
 options(mc.cores = parallel::detectCores())
 fig_height <- 4 * 2
 fig_width <- 5 * 2
+
+
+## Choose model ----
+## DFA settings
+
+ctrl <- list(adapt_delta = 0.98, max_treedepth = 12)
+# ctrl <- list(adapt_delta = 0.98, max_treedepth = 12)
+set_iter <- 4000 # min 2000
+set_chains <- 3
+
+
+# ## choose response variable
+# model_name <- "all-st2002-doy-d0c"
+# model_name <- "all-st2002-doy-d0c-unweighted"
+# model_name <- "doy-ld0c-unweighted"
+
+
+# trend_count <- 1
+trend_count <- 2
+# trend_count <- 3
+
+
+set_group <- "immatures"
+# y_label <- "Immature condition indices (adjusting for density)"
+
+
+# set_group <- "mature males"
+# y_label <- "Mature male condition indices (adjusting for density)"
+# trend_count <- 3
+
+
+# y_label <- "Mature male condition indices (adjusting for density)"
+# #
+# set_group <- "mature females"
+# y_label <- "Mature female condition indices (adjusting for density)"
+# trend_count <- 2
+
+# model_name <- "all-st2002-doy"
+# model_name <- "all-st2002-doy-unweighted"
+model_name <- "doy-unweighted"
+# set_group <- "immatures"
+y_label <- "Immature condition indices (not controlling for density)"
+# #
+# set_group <- "mature males"
+# y_label <- "Mature male condition indices (not controlling for density)"
+#
+# # set_group <- "mature females"
+# y_label <- "Mature female condition indices (not controlling for density)"
+
+
+if (trend_count == 3) trend_label <- "3 trends"
+if (trend_count == 2) trend_label <- "2 trends"
+if (trend_count == 1) trend_label <- "1 trend"
+
+## Load and structure data ----
+f <- list.files(paste0("data-generated/cond-index/",
+                       model_name), pattern = ".rds",
+                full.names = TRUE)
+
+d <- purrr::map_dfr(f, readRDS)
+
+dg <- filter(d, group == set_group) %>% mutate(
+  taxa_group = case_when(species %in% Flatfish~"Flatfish",
+                         species %in% Rockfish~"Rockfish",
+                         TRUE~"Other"
+                         ),
+  species = ifelse(species == "Rougheye/Blackspotted Rockfish Complex",
+                   "Rougheye/Blackspotted Complex", species
+                   )
+)
+
+ggplot(d, aes(year, est)) + facet_wrap(~paste(species, group)) +
+  geom_line()
+
+ggplot(d, aes(year, est, colour = species)) + facet_wrap(~group) +
+  geom_line()
+
+ggplot(dg, aes(year, log_est)) +
+  facet_wrap(~paste(species, group)) +
+  geom_line()
+
+## wide dataframe structure
+# dw <- tidyr::pivot_wider(dg, id_cols = c(year), names_from = species, values_from = est) |>
+#   select(-year) |> t()
+# dw
+
+## long dataframe structure
+yrs <- sort(unique(dg$year))
+spp <- unique(dg$species)
+spp_grouped <- select(dg, species, taxa_group) %>% distinct()
+taxa_gr <- spp_grouped$taxa_group
+yr_lu <- data.frame(year = sort(unique(dg$year)), time = seq_along(yrs))
+dg <- left_join(dg, yr_lu)
+
+dd <- tibble(
+  obs = dg$log_est,
+  # obs = dg$est,
+  year = dg$year,
+  time = dg$time,
+  ts = dg$species,
+  se = dg$se
+)
+
+## Weights ----
+range(dg$se)
+range(1/dg$se^2)
+
+# SD/weight not SD^2/weight in model code, so try
+# dd$weights <- 1 / (dd$se^2)
+dd$weights <- 1 / (dd$se)
+dd$weights_scaled <- dd$weights / mean(dd$weights)
+hist(dd$weights)
+hist(dd$weights_scaled)
+mean(dd$weights_scaled)
+
+plot((sort(dd$weights_scaled)))
+
+# DFA without a covariate ----
+
+m <- fit_dfa(
+  y = dd,
+  iter = set_iter,
+  chains = set_chains,
+  num_trends = trend_count,
+  weights = "weights_scaled",
+  estimate_process_sigma = FALSE,
+  estimate_nu = FALSE,
+  scale = "zscore",
+  data_shape = "long",
+  # seed = 298191,
+  seed = 298,
+  control = ctrl
+)
+# m
+
+range(m$monitor$Bulk_ESS)
+range(m$monitor$Rhat)
+# row.names(m$monitor)
+
+# # this isn't working anymore
+# checks <- m$monitor |> filter(Rhat >1)
+# checks |> View()
+# # Error in `[.simsummary`(x, sliceStart:sliceEnd) :
+# # argument "j" is missing, with no default
+
+r <- rotate_trends(m)
+
+label_yrs <- function(x) {
+  x + yrs[1] - 1
+}
+
+plot_trends(r) + scale_x_continuous(label = label_yrs )
+
+plot_loadings(r, names = spp) +
+  ggtitle(paste0("DFA for ", set_group, " with no covariates"))
+
+flip_trend <- function(rotated_modelfit, trend = 1L) {
+  rflip <- rotated_modelfit
+  rflip$trends_mean[trend,] <- -1 * rotated_modelfit$trends_mean[trend,]
+  rflip$trends_lower[trend,] <- -1 * rotated_modelfit$trends_lower[trend,]
+  rflip$trends_upper[trend,] <- -1 * rotated_modelfit$trends_upper[trend,]
+  for (i in seq_len(dim(rotated_modelfit$Z_rot)[1])) {
+    rflip$Z_rot[i,,trend] <- -1 * rotated_modelfit$Z_rot[i,,trend]
+    rflip$trends[i,,trend] <- -1 * rotated_modelfit$trends[i,,trend]
+  }
+  rflip
+}
+
+plot_loadings(r, names = spp)
+
+which_flip <- 0L
+which_flip <- 1L
+# which_flip <- 2L
+
+if(which_flip == 0L) {
+  rflip <- r
+} else {
+  rflip <- flip_trend(r, which_flip)
+}
+
+# # to flip both
+# which_flip <- 1L
+# which_flip <- 2L
+# rflip <- flip_trend(rflip, which_flip)
+
+plot_trends(r, years = yrs)
+plot_trends(rflip, years = yrs)
+plot_loadings(rflip, names = spp)
+
 
 
 ## Get coastwide covariates ----
@@ -22,7 +213,7 @@ fig_width <- 5 * 2
 # if (set_lag == 0) lag_label <- ""
 # if (set_lag == 1) lag_label <- "previous year's "
 
-
+if(!exists("so20")){
 load("data-raw/npi_monthly.rda")
 npi0 <- npi_monthly |>
   filter(month %in% c(1,2,3,4,5,6,7)) |>
@@ -241,6 +432,7 @@ so20 <- so2_monthly |>
          type = "Surface O2")
 hist(so20$value)
 
+}
 
 # if(var_type == "TOB" & set_lag == 0){
 #   agg_var <- "mean"
@@ -319,12 +511,6 @@ hist(so20$value)
 #   as.data.frame(stringsAsFactors = FALSE)
 
 
-
-
-
-
-
-
 # Explore covariates ----
 
 # bind_rows(pdo0, oni0, npi0, soi0) |>
@@ -355,179 +541,6 @@ hist(so20$value)
 #   labs(x = "", y = "Standardized Index", colour = "Climate Index")
 #
 # ggsave("figs/ev-indices.png", width = 4, height = 2)
-
-
-## Choose model ----
-## DFA settings
-
-ctrl <- list(adapt_delta = 0.98, max_treedepth = 12)
-# ctrl <- list(adapt_delta = 0.98, max_treedepth = 12)
-set_iter <- 4000 # min 2000
-set_chains <- 3
-
-
-# ## choose response variable
-# model_name <- "all-st2002-doy-d0c"
-# model_name <- "all-st2002-doy-d0c-unweighted"
-model_name <- "all-st2002-doy-ld0c-unweighted"
-
-
-# trend_count <- 1
-trend_count <- 2
-# trend_count <- 3
-
-
-set_group <- "immatures"
-y_label <- "Immature condition indices (adjusting for density)"
-
-
-# set_group <- "mature males"
-# y_label <- "Mature male condition indices (adjusting for density)"
-# trend_count <- 3
-
-
-# y_label <- "Mature male condition indices (adjusting for density)"
-# #
-# set_group <- "mature females"
-# y_label <- "Mature female condition indices (adjusting for density)"
-# trend_count <- 2
-
-# model_name <- "all-st2002-doy"
-# model_name <- "all-st2002-doy-unweighted"
-# set_group <- "immatures"
-# y_label <- "Immature condition indices (not controlling for density)"
-# #
-# set_group <- "mature males"
-# y_label <- "Mature male condition indices (not controlling for density)"
-#
-# # set_group <- "mature females"
-# y_label <- "Mature female condition indices (not controlling for density)"
-
-
-if (trend_count == 3) trend_label <- "3 trends"
-if (trend_count == 2) trend_label <- "2 trends"
-if (trend_count == 1) trend_label <- "1 trend"
-
-## Load and structure data ----
-f <- list.files(paste0("data-generated/cond-index/",
-                       model_name), pattern = ".rds",
-                full.names = TRUE)
-
-d <- purrr::map_dfr(f, readRDS)
-dg <- filter(d, group == set_group)
-
-ggplot(d, aes(year, est)) + facet_wrap(~paste(species, group)) +
-  geom_line()
-
-ggplot(d, aes(year, est, colour = species)) + facet_wrap(~group) +
-  geom_line()
-
-ggplot(dg, aes(year, log_est)) +
-  facet_wrap(~paste(species, group)) +
-  geom_line()
-
-## wide dataframe structure
-# dw <- tidyr::pivot_wider(dg, id_cols = c(year), names_from = species, values_from = est) |>
-#   select(-year) |> t()
-# dw
-
-## long dataframe structure
-yrs <- sort(unique(dg$year))
-spp <- unique(dg$species)
-yr_lu <- data.frame(year = sort(unique(dg$year)), time = seq_along(yrs))
-dg <- left_join(dg, yr_lu)
-
-dd <- tibble(
-  obs = dg$log_est,
-  # obs = dg$est,
-  year = dg$year,
-  time = dg$time,
-  ts = dg$species,
-  se = dg$se
-)
-
-## Weights ----
-range(dg$se)
-range(1/dg$se^2)
-
-# SD/weight not SD^2/weight in model code, so try
-# dd$weights <- 1 / (dd$se^2)
-dd$weights <- 1 / (dd$se)
-dd$weights_scaled <- dd$weights / mean(dd$weights)
-hist(dd$weights)
-hist(dd$weights_scaled)
-mean(dd$weights_scaled)
-
-plot((sort(dd$weights_scaled)))
-
-# DFA without a covariate ----
-
-m <- fit_dfa(
-  y = dd,
-  iter = set_iter,
-  chains = set_chains,
-  num_trends = trend_count,
-  weights = "weights_scaled",
-  estimate_process_sigma = FALSE,
-  estimate_nu = FALSE,
-  scale = "zscore",
-  data_shape = "long",
-  # seed = 298191,
-  seed = 298,
-  control = ctrl
-)
-# m
-
-range(m$monitor$Bulk_ESS)
-range(m$monitor$Rhat)
-# row.names(m$monitor)
-
-checks <- m$monitor |> filter(Rhat >1)
-checks |> View()
-
-r <- rotate_trends(m)
-
-label_yrs <- function(x) {
-  x + yrs[1] - 1
-}
-
-plot_trends(r) + scale_x_continuous(label = label_yrs )
-
-plot_loadings(r, names = spp) +
-  ggtitle(paste0("DFA for ", set_group, " with no covariates"))
-
-flip_trend <- function(rotated_modelfit, trend = 1L) {
-  rflip <- rotated_modelfit
-  rflip$trends_mean[trend,] <- -1 * rotated_modelfit$trends_mean[trend,]
-  rflip$trends_lower[trend,] <- -1 * rotated_modelfit$trends_lower[trend,]
-  rflip$trends_upper[trend,] <- -1 * rotated_modelfit$trends_upper[trend,]
-  for (i in seq_len(dim(rotated_modelfit$Z_rot)[1])) {
-    rflip$Z_rot[i,,trend] <- -1 * rotated_modelfit$Z_rot[i,,trend]
-    rflip$trends[i,,trend] <- -1 * rotated_modelfit$trends[i,,trend]
-  }
-  rflip
-}
-
-plot_loadings(r, names = spp)
-
-which_flip <- 0L
-which_flip <- 1L
-# which_flip <- 2L
-
-if(which_flip == 0L) {
-  rflip <- r
-} else {
-  rflip <- flip_trend(r, which_flip)
-}
-# # to flip both
-# which_flip <- 1L
-# which_flip <- 2L
-# rflip <- flip_trend(rflip, which_flip)
-
-plot_trends(r, years = yrs)
-plot_trends(rflip, years = yrs)
-plot_loadings(rflip, names = spp)
-
 
 
 # Select 2 covariates ----
