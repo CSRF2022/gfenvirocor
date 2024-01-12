@@ -6,46 +6,35 @@ library(tidyverse)
 library(gfplot)
 
 species_list <- list(
-#   "Petrale Sole",
-#   "Canary Rockfish",
-#   "Arrowtooth Flounder",
-#   "North Pacific Spiny Dogfish",
-  "Pacific Cod"
-)
-species_list <- list(
-  "Arrowtooth Flounder", #
-  # "Petrale Sole",#
+  "North Pacific Spiny Dogfish",
+  # "Pacific Ocean Perch",
+  # "Pacific Cod",
+  # "Walleye Pollock",
+  # "Sablefish",
+  # "Lingcod",
+  # "Bocaccio",
+  # "Canary Rockfish",
+  # "Redstripe Rockfish", # MSA added with mean > 4
+  "Rougheye/Blackspotted Rockfish Complex", # WILL NEED UPDATE FOR ALL MAT CLASSES
+  # "Silvergray Rockfish", # MSA added with mean > 5
+  "Shortspine Thornyhead",
+  # "Widow Rockfish", # hake would need mean > 1, mssm1 > 4
+  # "Yelloweye Rockfish",
+  # "Yellowmouth Rockfish", #
+  # "Yellowtail Rockfish",
+  # "Petrale Sole", #
+  # "Arrowtooth Flounder", #
   # "English Sole",#
   # "Dover Sole",#
-  # "Rex Sole",#
+  # "Rex Sole", #
   # "Flathead Sole",#
-  # "Southern Rock Sole",
-  # "Curlfin Sole",
-  # "Sand Sole",#
+  # "Southern Rock Sole",#
   # "Slender Sole",#
-  # "Pacific Sanddab",
-  # "Pacific Halibut",
-  "Butter Sole"#
-  ## "Starry Flounder"# too few males!
-  ## "C-O Sole", # way too few!
-  ## "Deepsea Sole" # no maturity
-)
-
-species_list <- list(
-  #   #"Arrowtooth Flounder" ,  "Southern Rock Sole"    ,
-  "Canary Rockfish",
-  "Pacific Ocean Perch",
-  "Bocaccio",
-  "Redstripe Rockfish",
-  # "Rougheye/Blackspotted",
-  # "Shortspine Thornyhead",
-  "Silvergray Rockfish",
-  "Widow Rockfish",
-  "Yellowmouth Rockfish",
-  "Yellowtail Rockfish",
-  "Pacific Cod",
-  "Walleye Pollock",
-  "Sablefish"
+  # "Pacific Sanddab",#
+  # "Pacific Halibut"#
+  "Curlfin Sole",#
+  "Sand Sole",#
+  "Butter Sole"
 )
 
 species_list <- list(species = species_list)
@@ -78,12 +67,11 @@ surveys_included <- c("HBLL OUT N", "HBLL OUT S",
 
 # browser()
 
-# dat <- readRDS("data-raw/survey-samples-all.rds") %>%
-# dat <- readRDS("data-raw/pcod-survey-samples-all.rds") %>%
-
-
 dat <- readRDS("data-raw/survey-samples-flatfish.rds") %>%
   bind_rows(., readRDS("data-raw/survey-samples-part2.rds")) %>%
+  bind_rows(., readRDS("data-raw/survey-samples-part3.rds")) %>%
+  bind_rows(., readRDS("data-raw/survey-samples-shortspine.rds")) %>%
+  bind_rows(., readRDS("data-raw/survey-samples-rougheye.rds")) %>%
   ## remove sample_ids which were entirely recorded in cm rather than mm
   ## fortunately doesn't change anything,
   ## so will leave them in so that they will be included once corrected
@@ -138,6 +126,9 @@ dat <- readRDS("data-raw/survey-samples-flatfish.rds") %>%
 # dset <- readRDS("data-raw/survey-sets-part2.rds") %>%
 dset <- readRDS("data-raw/survey-sets-flatfish.rds") %>%
   bind_rows(., readRDS("data-raw/survey-sets-part2.rds")) %>%
+  bind_rows(., readRDS("data-raw/survey-sets-part3.rds")) %>%
+  bind_rows(., readRDS("data-raw/survey-sets-shortspine.rds")) %>%
+  bind_rows(., readRDS("data-raw/survey-sets-rougheye.rds")) %>%
   filter(
     !(survey_abbrev %in% c("SABLE INLET", "SABLE OFF", "SABLE RAND")),
     # some MSSM sets are in both as QCS and WCVI
