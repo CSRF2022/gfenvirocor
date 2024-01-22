@@ -18,12 +18,13 @@ variable <- "log_density_c"
 # model_name <- "all-st2002-doy-d0c-unweighted"
 # model_name <- "all-st2002-doy-d0c-within-yr-weights"
 # model_name <- "all-st2002-doy-d0c-small-weights"
+# model_name <- "all-st2002-doy-ld0c-unweighted"
+
+model_name <- "all-blackswan-doy-ld0c-unweighted"
 
 
-model_name <- "all-st2002-doy-ld0c-unweighted"
-
-group_tag <- "mat-m"
-# group_tag <- "mat-fem"
+# group_tag <- "mat-m"
+group_tag <- "mat-fem"
 # group_tag <- "imm"
 
 f <- list.files(paste0("data-generated/condition-models-", group_tag, "/", model_name, "/"),
@@ -160,16 +161,16 @@ AAAAAA
 "
 
 (g <- ((y_lab_big |
-          wrap_plots(gglist = p, ncol = 3) &
+          wrap_plots(gglist = p, ncol = 4) &
           theme(text = element_text(size = 9))) +
           plot_layout(widths = c(0.05, 1)))
-  /x_lab_big + plot_layout(heights = c(1,0.1), design = design)
+  /x_lab_big + plot_layout(heights = c(1,0.05), design = design)
   )
 
 
 ggsave(paste0("figs/cond-effects-", variable, "-trans-",
               model_name, "-", group_tag, ".png"),
-       height = 10, width = 10)
+       height = 13, width = 18)
 
 
 ## would work if layout stayed the same
