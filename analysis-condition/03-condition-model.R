@@ -192,8 +192,7 @@ calc_condition_indices <- function(species, maturity, males, females) {
   if(nrow(itest) == 1){
     dens_model_name <- itest$model_string
   } else {
-    if(nrow(itest) == 0) { return(paste(species, "doesn't have split indices",
-                                        "that cumulatively fall within the confidence intervals of the total index of abundance."))
+    if(nrow(itest) == 0) { return(paste(species, "doesn't have split indices",                        "that cumulatively fall within 5% of total biomass CIs."))
     } else {
       dens_model_name <- itest[itest$total_diff==min(itest$total_diff),]$model_string
     }
@@ -581,7 +580,7 @@ calc_condition_indices <- function(species, maturity, males, females) {
     if (!all(s) & !m$call$share_range) {
       # browser()
       t <- tidy(m, "ran_pars", conf.int = TRUE)
-      if (abs(diff(t$estimate[t$term == "range"])) < dist) {
+      if (abs(diff(t$estimate[t$term == "range"])) < dist|!s$range_ok) {
         m <- update(m,
           formula = set_formula,
           # formula = as.list(m[["formula"]]),
