@@ -15,19 +15,45 @@ p <- list()
 
 for (i in seq_along(m)){
 p[[i]] <- gfplot::plot_mat_ogive(m[[i]]) +
-  ggtitle(paste0(m[[i]]$data$species_common_name, " (",
+  ggtitle(paste0(toupper(m[[i]]$data$species_common_name), " (",
                 length(unique(m[[i]]$data$specimen_id)),
                 " fish, ", length(unique(m[[i]]$data$sample_id)),
                 " tows)"
-                )) #+
-  # theme(axis.title = element_blank())
+                )) +
+  theme(axis.title = element_blank())
 }
 # p
 # p[[1]]
 
-(g <- plot_list(gglist = p, ncol = 3)+ patchwork::plot_layout(guides = "collect"))
+# (g <- plot_list(gglist = p, ncol = 5)+ patchwork::plot_layout(guides = "collect"))
 
-ggsave("figs/all-maturities.png", height = 12, width = 14)
+y_lab_big <- ggplot() +
+  annotate(geom = "text", x = 1, y = 1, size = 5,
+           label = "Probability Mature", angle = 90) +
+  coord_cartesian(clip = "off")+
+  theme_void()
+
+x_lab_big <- ggplot() +
+  annotate(geom = "text", x = 1, y = 1, size = 5,
+           label = "Length (cm)") +
+  coord_cartesian(clip = "off")+
+  theme_void()
+
+design = "
+AAAAAA
+#BBBBB
+"
+
+(g <- ((y_lab_big |
+          wrap_plots(gglist = p, ncol = 5) &
+          theme(text = element_text(size = 9),
+                # plot.title = element_blank(),
+                axis.title = element_blank())) +
+         plot_layout(widths = c(0.05, 1)))
+  /x_lab_big + plot_layout(heights = c(1,0.05), design = design,guides = "collect")
+)
+
+ggsave("figs/all-maturities.png", height = 11, width = 16)
 
 # gridExtra::grid.arrange(g, left = "Probablity Mature", bottom = "Length (cm)")
 
