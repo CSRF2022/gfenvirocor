@@ -14,6 +14,9 @@ m <- purrr::map(f, readRDS)
 p <- list()
 
 for (i in seq_along(m)){
+
+  m[[i]]$data$species_common_name <- ifelse(m[[i]]$data$species_common_name == "rougheye/blackspotted rockfish complex", "Rougheye/Blackspotted", m[[i]]$data$species_common_name)
+
 p[[i]] <- gfplot::plot_mat_ogive(m[[i]]) +
   ggtitle(paste0(toupper(m[[i]]$data$species_common_name), " (",
                 length(unique(m[[i]]$data$specimen_id)),
@@ -53,7 +56,7 @@ AAAAAA
   /x_lab_big + plot_layout(heights = c(1,0.05), design = design,guides = "collect")
 )
 
-ggsave("figs/all-maturities.png", height = 11, width = 16)
+ggsave("figs/all-maturities.png", height = 11, width = 18)
 
 # gridExtra::grid.arrange(g, left = "Probablity Mature", bottom = "Length (cm)")
 
