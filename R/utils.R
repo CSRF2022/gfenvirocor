@@ -15,6 +15,9 @@ refine_delta_model <- function(m, alternate_family = set_family2, use_priors = s
   }
   if (!s$hessian_ok & !s$nlminb_ok) {
     m <- update(m, family = alternate_family,
+                ## should probably be updated to this
+                # spatial = "on",
+                # spatiotemporal = "rw",
                 spatial = as.list(m[["spatial"]]),
                 spatiotemporal = as.list(m[["spatiotemporal"]]),
                 extra_time = m$extra_time,
@@ -32,6 +35,9 @@ refine_delta_model <- function(m, alternate_family = set_family2, use_priors = s
   }
   if (!s$hessian_ok) {
     m <- update(m, family = alternate_family,
+                ## should probably be updated to this
+                # spatial = "on",
+                # spatiotemporal = "rw",
                 spatial = as.list(m[["spatial"]]),
                 spatiotemporal = as.list(m[["spatiotemporal"]]),
                 extra_time = m$extra_time,
@@ -138,7 +144,7 @@ refine_model <- function(m,
 #'
 plot_index <- function(dat, species, group_name, model_string, filename, remove_extra_years = NULL){
   if (!file.exists(filename)) {
-    i <- get_index(dat, bias_correct = TRUE)
+    i <- get_index(dat, area = 1, bias_correct = TRUE) #could update to 4 when rerun?
     i$species <- species
     i$group <- group_name
     i$model_string <- model_string
@@ -229,6 +235,42 @@ map_density <- function(dat, filename, variable = "density_trimmed",
 get_wraper <- function(x) {
   lapply(strwrap(x, width = 30, simplify = FALSE), paste, collapse="\n")
 }
+
+
+
+
+Flatfish <- c(
+  "Curlfin Sole",#
+  "Butter Sole",
+  "Sand Sole",#
+  "Petrale Sole", #
+  "Arrowtooth Flounder", #
+  "English Sole",#
+  "Dover Sole",#
+  "Rex Sole", #
+  "Flathead Sole",#
+  "Southern Rock Sole",#
+  "Slender Sole",#
+  "Pacific Sanddab",#
+  "Pacific Halibut"#
+)
+
+Rockfish <- c(
+  "Pacific Ocean Perch",
+  "Bocaccio",
+  "Canary Rockfish",
+  "Redstripe Rockfish", # MSA added with mean > 4
+  "Rougheye/Blackspotted Rockfish Complex", # WILL NEED UPDATE FOR ALL MAT CLASSES
+  "Silvergray Rockfish", # MSA added with mean > 5
+  "Shortspine Thornyhead",
+  "Widow Rockfish", # hake would need mean > 1, mssm1 > 4
+  "Yelloweye Rockfish",
+  "Yellowmouth Rockfish", #
+  "Yellowtail Rockfish"
+)
+
+flatfish <- tolower(Flatfish)
+rockfish <- tolower(Rockfish)
 
 
 
