@@ -21,7 +21,7 @@ p[[i]] <- gfplot::plot_mat_ogive(m[[i]]) +
   ggtitle(paste0(toupper(m[[i]]$data$species_common_name), " (",
                 length(unique(m[[i]]$data$specimen_id)),
                 " fish, ", length(unique(m[[i]]$data$sample_id)),
-                " tows)"
+                " sets)"
                 )) +
   theme(axis.title = element_blank())
 }
@@ -56,7 +56,7 @@ AAAAAA
   /x_lab_big + plot_layout(heights = c(1,0.05), design = design,guides = "collect")
 )
 
-ggsave("figs/all-maturities.png", height = 11, width = 18)
+ggsave("figs/all-maturities.png", height = 12, width = 18)
 
 # gridExtra::grid.arrange(g, left = "Probablity Mature", bottom = "Length (cm)")
 
