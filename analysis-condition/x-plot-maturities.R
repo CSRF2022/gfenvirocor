@@ -46,17 +46,28 @@ design = "
 AAAAAA
 #BBBBB
 "
-
 (g <- ((y_lab_big |
-          wrap_plots(gglist = p, ncol = 5) &
+          wrap_plots(gglist = p, ncol = 4) &
           theme(text = element_text(size = 9),
                 # plot.title = element_blank(),
                 axis.title = element_blank())) +
          plot_layout(widths = c(0.05, 1)))
   /x_lab_big + plot_layout(heights = c(1,0.05), design = design,guides = "collect")
 )
+ggsave("figs/all-maturities.png", height = 18, width = 15)
 
-ggsave("figs/all-maturities.png", height = 12, width = 18)
+
+## landscape version
+# (g <- ((y_lab_big |
+#           wrap_plots(gglist = p, ncol = 5) &
+#           theme(text = element_text(size = 9),
+#                 # plot.title = element_blank(),
+#                 axis.title = element_blank())) +
+#          plot_layout(widths = c(0.05, 1)))
+#   /x_lab_big + plot_layout(heights = c(1,0.05), design = design,guides = "collect")
+# )
+#
+# ggsave("figs/all-maturities.png", height = 12, width = 18)
 
 # gridExtra::grid.arrange(g, left = "Probablity Mature", bottom = "Length (cm)")
 
