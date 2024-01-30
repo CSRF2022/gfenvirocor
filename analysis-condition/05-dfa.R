@@ -1,3 +1,7 @@
+# update bayesDFA
+
+# devtools::install_github("fate-ewi/bayesdfa")
+
 library(tidyverse)
 library(dplyr)
 library(bayesdfa)
@@ -10,6 +14,8 @@ options(mc.cores = parallel::detectCores())
 fig_height <- 4 * 2
 fig_width <- 5 * 2
 
+# density <- TRUE
+density <- FALSE
 
 ## Choose model ----
 ## DFA settings
@@ -64,21 +70,49 @@ if (trend_count == 2) trend_label <- "2 trends"
 if (trend_count == 1) trend_label <- "1 trend"
 
 ## Load and structure data ----
-f <- list.files(paste0("data-generated/cond-index/",
-                       model_name), pattern = ".rds",
+
+
+# or if density?
+if(density){
+f <- list.files(paste0("data-generated/density-index/dln-all-only-w-ann-prop/total"), pattern = ".rds",
                 full.names = TRUE)
+set_group <- "total"
+model_name <- "dln-all-only-w-ann-prop"
+y_label <- "Total density indices"
 
 d <- purrr::map_dfr(f, readRDS)
 
-dg <- filter(d, group == set_group) %>% mutate(
+dg <- d %>% mutate(
   taxa_group = case_when(species %in% Flatfish~"Flatfish",
                          species %in% Rockfish~"Rockfish",
                          TRUE~"Other"
-                         ),
+  ),
   species = ifelse(species == "Rougheye/Blackspotted Rockfish Complex",
                    "Rougheye/Blackspotted Complex", species
-                   )
+  )
 )
+
+
+} else{
+  f <- list.files(paste0("data-generated/cond-index/",
+                         model_name), pattern = ".rds",
+                  full.names = TRUE)
+
+  d <- purrr::map_dfr(f, readRDS)
+
+  dg <- filter(d, group == set_group) %>% mutate(
+    taxa_group = case_when(species %in% Flatfish~"Flatfish",
+                           species %in% Rockfish~"Rockfish",
+                           TRUE~"Other"
+    ),
+    species = ifelse(species == "Rougheye/Blackspotted Rockfish Complex",
+                     "Rougheye/Blackspotted Complex", species
+    )
+  )
+
+
+}
+
 
 ggplot(d, aes(year, est)) + facet_wrap(~paste(species, group)) +
   geom_line()
@@ -117,14 +151,18 @@ range(dg$se)
 range(1/dg$se^2)
 
 # SD/weight not SD^2/weight in model code, so try
-# dd$weights <- 1 / (dd$se^2)
-dd$weights <- 1 / (dd$se)
+# dd$weights <- 1 / (dd$se) # this is the SD
+# dd$weights_scaled <- dd$weights / mean(dd$weights)
+dd$weights <- (1 / dd$se)^2 # this would be the variance
 dd$weights_scaled <- dd$weights / mean(dd$weights)
+# dd$weights_scaled <- dd$weights / median(dd$weights)
 hist(dd$weights)
 hist(dd$weights_scaled)
 mean(dd$weights_scaled)
 
 plot((sort(dd$weights_scaled)))
+
+ggplot(dd) + geom_point(aes(se, weights_scaled))
 
 # DFA without a covariate ----
 
@@ -133,7 +171,7 @@ m <- fit_dfa(
   iter = set_iter,
   chains = set_chains,
   num_trends = trend_count,
-  weights = "weights_scaled",
+  inv_var_weights = "weights_scaled",
   estimate_process_sigma = FALSE,
   estimate_nu = FALSE,
   scale = "zscore",
@@ -179,9 +217,15 @@ flip_trend <- function(rotated_modelfit, trend = 1L) {
 
 plot_loadings(r, names = spp)
 
+
+if(set_group == "immatures") {
+  which_flip <- 2L
+} else {
 which_flip <- 0L
-which_flip <- 1L
+# which_flip <- 1L
 # which_flip <- 2L
+}
+
 
 if(which_flip == 0L) {
   rflip <- r
@@ -216,9 +260,9 @@ plot_loadings(rflip, names = spp)
 if(!exists("so20")){
 load("data-raw/npi_monthly.rda")
 npi0 <- npi_monthly |>
-  filter(month %in% c(1,2,3,4,5,6,7)) |>
-  group_by(year) |> summarise(value = mean(value)) |>
-  filter(year %in% yrs) |>
+  filter(month %in% c(1,2,3,4,5,6)) |> # not sure why 7 was included before?
+  group_by(year) |> summarise(value = mean(value, na.rm = TRUE)) |>
+  filter(year %in% yrs, !is.na(value)) |>
   mutate(time = seq_along(year),
          value_raw = value,
          value = (value - mean(value))/ sd(value),
@@ -228,17 +272,18 @@ hist(npi0$value)
 load("data-raw/soi.rda")
 soi0 <- soi |>
   filter(month %in% c(1,2,3,4,5,6)) |>
-  group_by(year) |> summarise(value = mean(anomaly)) |>
-  filter(year %in% yrs) |>
+  group_by(year) |> summarise(value = mean(anomaly, na.rm = TRUE)) |>
+  filter(year %in% yrs, !is.na(value)) |>
   mutate(time = seq_along(year),
          value_raw = value,
          value = (value - mean(value))/ sd(value),
          type = "SOI")
 hist(soi0$value)
 
-soi1 <- soi  |> group_by(year) |> summarise(value = mean(anomaly)) |>
+soi1 <- soi  |> group_by(year) |>
+  summarise(value = mean(anomaly, na.rm = TRUE)) |>
   mutate(year = year + 1) |>
-  filter(year %in% yrs) |>
+  filter(year %in% yrs, !is.na(value)) |>
   mutate(time = seq_along(year),
          value_raw = value,
          value = (value - mean(value))/ sd(value),
@@ -250,8 +295,8 @@ hist(soi1$value)
 load("data-raw/oni.rda")
 oni0 <- oni |>
   filter(month %in% c(1,2,3,4,5,6)) |>
-  group_by(year) |> summarise(value = mean(anomaly)) |>
-  filter(year %in% yrs) |>
+  group_by(year) |> summarise(value = mean(anomaly, na.rm = TRUE)) |>
+  filter(year %in% yrs, !is.na(value)) |>
   mutate(time = seq_along(year),
          value_raw = value,
          value = (value - mean(value))/ sd(value),
@@ -264,9 +309,10 @@ hist(oni0$value)
 #   var_label <- " Jan-Jun ONI (red line)"
 # }
 
-oni1 <- oni |> group_by(year) |> summarise(value = mean(anomaly)) |>
+oni1 <- oni |> group_by(year) |>
+  summarise(value = mean(anomaly, na.rm = TRUE)) |>
   mutate(year = year + 1) |>
-  filter(year %in% yrs) |>
+  filter(year %in% yrs, !is.na(value)) |>
   mutate(time = seq_along(year),
          value_raw = value,
          value = (value - mean(value))/ sd(value),
@@ -284,17 +330,18 @@ hist(oni1$value)
 load("data-raw/pdo.rda")
 pdo0 <- pdo |>
   filter(month %in% c(1,2,3,4,5,6)) |>
-  group_by(year) |> summarise(value = mean(anomaly)) |>
-  filter(year %in% yrs) |>
+  group_by(year) |> summarise(value = mean(anomaly, na.rm = TRUE)) |>
+  filter(year %in% yrs, !is.na(value)) |>
   mutate(time = seq_along(year),
          value_raw = value,
          value = (value - mean(value))/ sd(value),
          type = "PDO")
 hist(pdo0$value)
 
-pdo1 <- pdo |> group_by(year) |> summarise(value = mean(anomaly)) |>
+pdo1 <- pdo |> group_by(year) |>
+  summarise(value = mean(anomaly, na.rm = TRUE)) |>
   mutate(year = year + 1) |>
-  filter(year %in% yrs) |>
+  filter(year %in% yrs, !is.na(value)) |>
   mutate(time = seq_along(year),
          value_raw = value,
          value = (value - mean(value))/ sd(value),
@@ -318,9 +365,9 @@ hist(pdo1$value)
 ## primary -- positively correlated (more so w trend 2)
 pp_monthly <- readRDS("data-raw/cw_primary_production.rds")
 pp0 <- pp_monthly |>
-  filter(month %in% c(1,2,3,4,5,6)) |>
-  group_by(year) |> summarise(value = mean(value)) |>
-  filter(year %in% yrs) |>
+  filter(month %in% c(1,2,3,4,5,6), !is.na(value)) |>
+  group_by(year) |> summarise(value = mean(value, na.rm = TRUE)) |>
+  filter(year %in% yrs, !is.na(value)) |>
   mutate(time = seq_along(year),
          value_raw = value,
          value = (value - mean(value))/ sd(value),
@@ -336,9 +383,9 @@ hist(pp0$value)
 ## phytoplankton -- positively correlated (more so w trend 2)
 pt_monthly <- readRDS("data-raw/cw_phytoplankton.rds")
 pt0 <- pt_monthly |>
-  filter(month %in% c(1,2,3,4,5,6)) |>
-  group_by(year) |> summarise(value = mean(value)) |>
-  filter(year %in% yrs) |>
+  filter(month %in% c(1,2,3,4,5,6), !is.na(value)) |>
+  group_by(year) |> summarise(value = mean(value, na.rm = TRUE)) |>
+  filter(year %in% yrs, !is.na(value)) |>
   mutate(time = seq_along(year),
          value_raw = value,
          value = (value - mean(value))/ sd(value),
@@ -356,9 +403,9 @@ hist(pt0$value)
 ## SST - not correlated
 sst_monthly <- readRDS("data-raw/cw_surface_temperature.rds")
 sst0 <- sst_monthly |>
-  filter(month %in% c(1,2,3,4,5,6)) |>
-  group_by(year) |> summarise(value = mean(value)) |>
-  filter(year %in% yrs) |>
+  filter(month %in% c(1,2,3,4,5,6), !is.na(value)) |>
+  group_by(year) |> summarise(value = mean(value, na.rm = TRUE)) |>
+  filter(year %in% yrs, !is.na(value)) |>
   mutate(time = seq_along(year),
          value_raw = value,
          value = (value - mean(value))/ sd(value),
@@ -373,9 +420,9 @@ hist(sst0$value)
 # }
 
 sst1 <- sst_monthly |>
-  group_by(year) |> summarise(value = mean(value)) |>
+  group_by(year) |> summarise(value = mean(value, na.rm = TRUE)) |>
   mutate(year = year + 1) |>
-  filter(year %in% yrs) |>
+  filter(year %in% yrs, !is.na(value)) |>
   mutate(
     time = seq_along(year),
     value_raw = value,
@@ -387,17 +434,17 @@ hist(sst1$value)
 tob_monthly <- readRDS("data-raw/cw_bottom_temperature.rds")
 tob0 <- tob_monthly |>
   filter(month %in% c(1,2,3,4,5,6)) |>
-  group_by(year) |> summarise(value = mean(value)) |>
-  filter(year %in% yrs) |>
+  group_by(year) |> summarise(value = mean(value, na.rm = TRUE)) |>
+  filter(year %in% yrs, !is.na(value)) |>
   mutate(time = seq_along(year),
          value_raw = value,
          value = (value - mean(value))/ sd(value),
          type = "TOB")
 hist(tob0$value)
 
-tob1 <- tob_monthly |> group_by(year) |> summarise(value = mean(value)) |>
+tob1 <- tob_monthly |> group_by(year) |> summarise(value = mean(value, na.rm = TRUE)) |>
   mutate(year = year + 1) |>
-  filter(year %in% yrs) |>
+  filter(year %in% yrs, !is.na(value)) |>
   mutate(
     time = seq_along(year),
     value_raw = value,
@@ -408,9 +455,9 @@ hist(tob1$value)
 ## BO2 - negatively correlated with 2
 do_monthly <- readRDS("data-raw/cw_bottom_oxygen.rds")
 o20 <- do_monthly |>
-  filter(month %in% c(1,2,3,4,5,6)) |>
-  group_by(year) |> summarise(value = mean(value)) |>
-  filter(year %in% yrs) |>
+  filter(month %in% c(1,2,3,4,5,6), !is.na(value)) |>
+  group_by(year) |> summarise(value = mean(value, na.rm = TRUE)) |>
+  filter(year %in% yrs, !is.na(value)) |>
   mutate(time = seq_along(year),
          value_raw = value,
          value = (value - mean(value))/ sd(value),
@@ -423,9 +470,9 @@ hist(o20$value)
 ## BO2 - negatively correlated with 2
 so2_monthly <- readRDS("data-raw/cw_surface_oxygen.rds")
 so20 <- so2_monthly |>
-  filter(month %in% c(1,2,3,4,5,6)) |>
-  group_by(year) |> summarise(value = mean(value)) |>
-  filter(year %in% yrs) |>
+  filter(month %in% c(1,2,3,4,5,6), !is.na(value)) |>
+  group_by(year) |> summarise(value = mean(value, na.rm = TRUE)) |>
+  filter(year %in% yrs, !is.na(value)) |>
   mutate(time = seq_along(year),
          value_raw = value,
          value = (value - mean(value))/ sd(value),
@@ -513,35 +560,50 @@ hist(so20$value)
 
 # Explore covariates ----
 
-# bind_rows(pdo0, oni0, npi0, soi0) |>
-#   mutate(type = factor(type, levels = c("ENSO (ONI)", "PDO", "NPI", "SOI"))) %>%
-#   ggplot() +
-#   geom_line(aes(time, value, colour = type), alpha = 0.7, linewidth = 1) +
-#   # geom_point(aes(time, value, colour = type), size = 2) +
-#   # scale_color_viridis_d()+
-#   # scale_color_brewer(palette = "Paired")+
-#   scale_colour_manual(values = RColorBrewer::brewer.pal(n = 8, name = "Paired")[c(1,2,7,8)]) +
-#   scale_x_continuous(label = label_yrs ) +
-#   # theme(legend.position = "none")+
-#   labs(x = "", y = "Standardized Index", colour = "Climate Index")
-#
+ev1 <- bind_rows(pdo0, oni0, npi0, soi0) |>
+  mutate(type = factor(type, levels = c("ENSO (ONI)", "PDO", "NPI", "SOI"))) %>%
+  ggplot() +
+  geom_line(aes(time, value, colour = type), alpha = 0.7, linewidth = 1) +
+  # geom_point(aes(time, value, colour = type), size = 2) +
+  # scale_color_viridis_d()+
+  # scale_color_brewer(palette = "Paired")+
+  scale_colour_manual(values = RColorBrewer::brewer.pal(n = 8, name = "Paired")[c(1,2,7,8)]) +
+  scale_x_continuous(label = label_yrs ) +
+  theme(
+    axis.title = element_blank(),
+    legend.justification=c(0, 1)) +
+    # legend.position = "none")+
+  labs(x = "Year", y = "Standardized index", colour = "Climate Index")
+
 # ggsave("figs/climate-indices.png", width = 4, height = 2)
-#
-#
-# bind_rows(sst0, tob0, pp0,  pt0, so20, o20) |>
-#   #mutate(type = factor(type, levels = c("ENSO (ONI)", "PDO", "NPI", "SOI"))) %>%
-#   ggplot() +
-#   geom_line(aes(time, value, colour = type), alpha = 0.7, linewidth = 1) +
-#   # geom_point(aes(time, value, colour = type), size = 2) +
-#   # scale_color_viridis_d()+
-#   # scale_color_brewer(palette = "Paired")+
-#   scale_colour_manual(values = RColorBrewer::brewer.pal(n = 10, name = "Paired")[c(4,3,6,9,5,10)])  +
-#   scale_x_continuous( limits = c(1, 22), label = label_yrs ) +
-#   theme(legend.position = "none")+
-#   labs(x = "", y = "Standardized Index", colour = "Climate Index")
-#
+
+
+ev2 <- bind_rows(sst0, tob0, pp0,  pt0, so20, o20) |>
+  #mutate(type = factor(type, levels = c("ENSO (ONI)", "PDO", "NPI", "SOI"))) %>%
+  ggplot() +
+  geom_line(aes(time, value, colour = type), alpha = 0.7, linewidth = 1) +
+  # geom_point(aes(time, value, colour = type), size = 2) +
+  # scale_color_viridis_d()+
+  # scale_color_brewer(palette = "Paired")+
+  scale_colour_manual(values = RColorBrewer::brewer.pal(n = 10, name = "Paired")[c(4,3,6,9,5,10)])  +
+  scale_x_continuous( limits = c(1, 22), label = label_yrs ) +
+  theme(
+    axis.title.y = element_blank(),
+    legend.justification=c(0, 1)) +
+  # legend.position = "none")+
+  labs(x = "Year", y = "Standardized value", colour = "Variable")
+
 # ggsave("figs/ev-indices.png", width = 4, height = 2)
 
+y_lab_big <- ggplot() +
+  annotate(geom = "text", x = 1, y = 1, size = 4,
+           colour = "grey30",
+           label = "Standardized value", angle = 90) +
+  coord_cartesian(clip = "off")+
+  theme_void()
+
+y_lab_big + (ev1 /ev2) + patchwork::plot_layout(width = c(0.1,1))
+# ggsave("figs/climate-ev-indices.png", width = 6, height = 4)
 
 # Select 2 covariates ----
 
@@ -558,11 +620,23 @@ hist(so20$value)
   # pro_covar1 <- o20 |>
   # pro_covar1 <- so20 |> #*
   mutate(trend_number = "Trend 1",
-         # value = (value - mean(value))/ sd(value),
          Variable = type
   ) |>
   select(-year, -type)|>
   as.data.frame(stringsAsFactors = FALSE)
+
+if(set_group == "total"){
+  # pro_covar1 <- tob0 |>
+    pro_covar1 <- tob1 |>
+  # pro_covar1 <- sst0 |>
+  # pro_covar1 <- o20 |>
+  # pro_covar1 <- so20 |> #*
+  mutate(trend_number = "Trend 1",
+         Variable = type
+  ) |>
+  select(-year, -type)|>
+  as.data.frame(stringsAsFactors = FALSE)
+}
 
 correlation <- trend_cor(r, pro_covar1$value,
                          time_window = seq_len(max(pro_covar1$time)),
@@ -577,7 +651,7 @@ cor1 <- as.data.frame(correlation)
 # hist(correlation_f)
 
 
-  pro_covar1b <- oni0 |> # mat
+ pro_covar1b <- oni0 |> # mat
     # pro_covar1b <- so20 |> #*imm
   # pro_covar1b <- npi0 |>
   # pro_covar1b <- soi0 |>
@@ -592,6 +666,19 @@ cor1 <- as.data.frame(correlation)
   ) |>
   select(-year, -type)|>
   as.data.frame(stringsAsFactors = FALSE)
+
+  if(set_group == "total"){
+    # pro_covar1b <- pdo0 |> # mat
+      # pro_covar1b <- pdo1 |> # mat
+      pro_covar1b <- tob0 |>
+      mutate(trend_number = "Trend 1",
+             # # value = (value - mean(value))/ sd(value),
+             Variable = type
+      ) |>
+      select(-year, -type)|>
+      as.data.frame(stringsAsFactors = FALSE)
+  }
+
 
 correlation <- trend_cor(r, pro_covar1b$value,
                          time_window = seq_len(max(pro_covar1b$time)),
@@ -828,7 +915,12 @@ if(trend_count>1){
     if(pro_covar2$Variable[1]=="SST"){
       (p1 <- p1 + scale_colour_manual(values = RColorBrewer::brewer.pal(n = 6, name = "Paired")[c(1,2,5,6)]) )
     }else{
+      if(pro_covar1$Variable[1]=="TOB (previous year)"){
+
+        (p1 <- p1 + scale_colour_manual(values = RColorBrewer::brewer.pal(n = 6, name = "Paired")[c(5,6,3,4)]) )
+      } else {
       (p1 <- p1 + scale_colour_manual(values = RColorBrewer::brewer.pal(n = 4, name = "Paired")) )
+      }
     }
   }
 } else {
@@ -851,11 +943,14 @@ if(trend_count>2){
   (p2 <- p2 + scale_fill_manual(values = RColorBrewer::brewer.pal(n = 6, name = "Paired")[c(1,2,3,4,5,6)]) )
 } else {
 if(trend_count>1){
-
   if(pro_covar2$Variable[1]=="SST"){
       (p2 <- p2 + scale_fill_manual(values = RColorBrewer::brewer.pal(n = 6, name = "Paired")[c(1,2,5,6)]) )
   }else{
-  (p2 <- p2 + scale_fill_manual(values = RColorBrewer::brewer.pal(n = 4, name = "Paired")) )
+    if(pro_covar1$Variable[1]=="TOB (previous year)"){
+    (p2 <- p2 + scale_fill_manual(values = RColorBrewer::brewer.pal(n = 6, name = "Paired")[c(5,6,3,4)]) )
+    } else {
+    (p2 <- p2 + scale_fill_manual(values = RColorBrewer::brewer.pal(n = 4, name = "Paired")) )
+    }
   }
 } else {
   p2 <- p2 + scale_fill_manual(values = RColorBrewer::brewer.pal(n = 4, name = "Paired")[c(2,4)])
@@ -867,13 +962,14 @@ if(trend_count>1){
 if(trend_count>2){
   (p3 <- p3 + scale_fill_manual(values = RColorBrewer::brewer.pal(n = 6, name = "Paired")[c(5,4,2)]))
 } else {
-
   if(pro_covar2$Variable[1]=="SST"){
   (p3 <- p3 + scale_fill_manual(values = RColorBrewer::brewer.pal(n = 6, name = "Paired")[c(2,6)]))
   }else{
-
+    if(pro_covar1$Variable[1]=="TOB (previous year)"){
+      (p3 <- p3 + scale_fill_manual(values = RColorBrewer::brewer.pal(n = 6, name = "Paired")[c(6,4)]) )
+    } else {
     (p3 <- p3 + scale_fill_manual(values = RColorBrewer::brewer.pal(n = 6, name = "Paired")[c(2,4)]))
-
+    }
   }
 }
 
