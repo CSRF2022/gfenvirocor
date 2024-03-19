@@ -16,43 +16,43 @@ library(patchwork)
 
 
 species_list <- list(
-  # # # # # #"Arrowtooth Flounder" ,
-  # # # # # # #"Southern Rock Sole"    ,
-  # # "North Pacific Spiny Dogfish",
-  # # "Pacific Ocean Perch",
-  # # "Pacific Cod",
-  # # "Walleye Pollock",
-  # # "Sablefish",
-  # # "Lingcod",
-  # # "Bocaccio",
-  # "Canary Rockfish",
-  # "Redstripe Rockfish", # MSA added with mean > 4
-  # "Rougheye/Blackspotted Rockfish Complex", # WILL NEED UPDATE FOR ALL MAT CLASSES
-  # "Silvergray Rockfish", # MSA added with mean > 5
-  # "Shortspine Thornyhead",
-  # "Widow Rockfish", # hake would need mean > 1, mssm1 > 4
-  # "Yelloweye Rockfish",
-  # "Yellowmouth Rockfish", #
-  # # "Yellowtail Rockfish",
-  # # # # # # )
-  # # # # # # # # #
-  # # # # # # # # # species_list <- list(
-  "Curlfin Sole",#
-  "Sand Sole",#
-  "Butter Sole"
-  # "Petrale Sole", #
-  # "Arrowtooth Flounder", #
-  # "English Sole",#
-  # "Dover Sole",#
-  # "Rex Sole", #
-  # "Flathead Sole",#
-  # "Southern Rock Sole",#
-  # "Slender Sole",#
-  # "Pacific Sanddab"#
-  # "Pacific Halibut"#
-  # # # # ## "Starry Flounder"# too few males!
-  # # # # ## "C-O Sole", # way too few!
-  # # # # ## "Deepsea Sole" # no maturity
+  "Arrowtooth Flounder",
+  "North Pacific Spiny Dogfish",
+  "Pacific Ocean Perch",
+  "Pacific Cod",
+  "Walleye Pollock",
+  "Sablefish",
+  "Lingcod",
+  "Bocaccio",
+  "Canary Rockfish",
+  "Redstripe Rockfish", #
+  "Rougheye/Blackspotted Rockfish Complex", #
+  "Silvergray Rockfish", #
+  "Shortspine Thornyhead",
+  "Widow Rockfish", #
+  "Yelloweye Rockfish",
+  "Yellowmouth Rockfish", #
+  "Yellowtail Rockfish",
+  "Petrale Sole", #
+  "Arrowtooth Flounder", #
+  "English Sole",#
+  "Dover Sole",#
+  "Rex Sole", #
+  "Flathead Sole",#
+  "Southern Rock Sole",#
+  "Slender Sole",#
+  "Pacific Sanddab",#
+  "Pacific Halibut",#
+  "Pacific Hake",# any skates?
+  "Quillback Rockfish",
+  "Longnose Skate",
+  "Big Skate"
+  # "Curlfin Sole",#
+  # "Sand Sole",#
+  # "Butter Sole"
+  # ## "Starry Flounder"# too few males!
+  # ## "C-O Sole", # way too few!
+  # ## "Deepsea Sole" # no maturity
 )
 
 species_list <- list(species = species_list)
@@ -74,8 +74,8 @@ fit_all_distribution_models <- function(species) {
   stop_early <- FALSE
 
   ## this only affects maturity specific models
-  only_sampled <- FALSE
-  # only_sampled <- TRUE
+  # only_sampled <- FALSE
+  only_sampled <- TRUE
 
   options(scipen = 100, digits = 4)
   theme_set(theme_sleek())
@@ -104,10 +104,17 @@ fit_all_distribution_models <- function(species) {
   # naming scheme updated Jan. 3 2024
   # ...0 is the total, updated models are just for splits
   if(only_sampled) {
-    dens_model_name0 <- "dln-all-only-w-ann-prop"
-    dens_model_name <- "dln-all-only-true-ratio-6"
+    ## with bug in RWs with extra years
+    # dens_model_name0 <- "dln-all-only-w-ann-prop"
+    # dens_model_name <- "dln-all-only-true-ratio-6"
+
+    dens_model_name0 <- "dln-all-mar-2024"
+    dens_model_name <- "dln-only-sampled-split"
+
   } else {
-    dens_model_name0 <- "dln-all-only-w-ann-prop"
+
+    ## with bug in RWs with extra years
+    # dens_model_name0 <- "dln-all-only-w-ann-prop"
     ## pre rule refinement (survey means, not year means?)
     # dens_model_name <- "dln-all-syn-intercept"
     # probable that change after this introduced error..
@@ -117,7 +124,9 @@ fit_all_distribution_models <- function(species) {
   # use 6 sample cutoff
   # use SD to choose between aggregating by year or survey first, then survey, then all
   # dens_model_name <- "dln-all-split-6"
-  dens_model_name <- "dln-all-split-all-weights"
+  # dens_model_name <- "dln-all-split-all-weights"
+    dens_model_name0 <- "dln-all-mar-2024"
+    dens_model_name <- "dln-all-split"
   }
 
 
@@ -172,6 +181,9 @@ fit_all_distribution_models <- function(species) {
     custom_length_threshold <- NULL
   }
 
+  # if (grepl("Skate", species, fixed = TRUE)) {}
+
+
   spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species)))
 
  # browser()
@@ -183,6 +195,9 @@ fit_all_distribution_models <- function(species) {
     bind_rows(., readRDS("data-raw/survey-sets-part3.rds")) %>%
     bind_rows(., readRDS("data-raw/survey-sets-shortspine.rds")) %>%
     bind_rows(., readRDS("data-raw/survey-sets-rougheye.rds")) %>%
+    bind_rows(., readRDS("data-raw/survey-sets-hake.rds")) %>%
+    bind_rows(., readRDS("data-raw/survey-sets-quillback.rds")) %>%
+    bind_rows(., readRDS("data-raw/survey-sets-skates.rds")) %>%
     # this removes duplications and non-canadian data
     filter(
       survey_abbrev != "SABLE",
@@ -222,9 +237,13 @@ fit_all_distribution_models <- function(species) {
   # dsamp <- readRDS("data-raw/survey-samples-rougheye.rds")
   dsamp <- readRDS("data-raw/survey-samples-part2.rds") %>%
     bind_rows(., readRDS("data-raw/survey-samples-part3.rds")) %>%
+    # bind_rows(., readRDS("data-raw/survey-samples-part4.rds")) %>%
     bind_rows(., readRDS("data-raw/survey-samples-flatfish.rds")) %>%
     bind_rows(., readRDS("data-raw/survey-samples-rougheye.rds")) %>%
     bind_rows(., readRDS("data-raw/survey-samples-shortspine.rds")) %>%
+    bind_rows(., readRDS("data-raw/survey-samples-hake.rds")) %>%
+    bind_rows(., readRDS("data-raw/survey-samples-quillback.rds")) %>%
+    bind_rows(., readRDS("data-raw/survey-samples-skates.rds")) %>%
     filter(survey_abbrev %in% samples_included,
       !(survey_abbrev == "OTHER" & !(survey_series_id %in% c(9, 11, 68))),
       !(survey_series_id == 68 & latitude > 55.4),
@@ -341,6 +360,8 @@ fit_all_distribution_models <- function(species) {
   saveRDS(dss, paste0("data-generated/split-catch-data/", spp, ".rds"))
 
   # dss$maturity_plot
+  # gfplot::plot_mat_ogive(dss$m)
+
   # dss$weight_plot
   # dss$data %>% filter(group_catch_est >0) %>%
   #     ggplot() + geom_histogram(aes(log(group_catch_est)))
@@ -503,7 +524,7 @@ fit_all_distribution_models <- function(species) {
   ds <- ds %>% filter(!is.na(area_swept))
   ds <- ds %>% filter(!is.na(latitude))
   ds <- ds %>% filter(!is.na(longitude))
-  ds$offset <- log(ds$area_swept / 100000)
+  ds$offset <- log(ds$area_swept / 100000) # converts m2 to km2
   ds$survey_type <- relevel(ds$survey_type, "SYN")
 
 
@@ -651,14 +672,15 @@ fit_all_distribution_models <- function(species) {
   }
 
   # Set naming conventions ----
-  dir <-paste0("data-generated/density-models/", dens_model_name, "/")
+  dir.create(paste0("data-generated/density-models/", dens_model_name, "/"))
+  dir.create(paste0("data-generated/density-models/", dens_model_name0, "/"))
+
   dir0 <-paste0("data-generated/density-models/", dens_model_name0, "/total/")
   dir1 <-paste0("data-generated/density-models/", dens_model_name, "/mat-fem/")
   dir2 <-paste0("data-generated/density-models/", dens_model_name, "/mat-m/")
   dir3 <-paste0("data-generated/density-models/", dens_model_name, "/imm/")
 
   ### folder names for all density models
-  dir.create(dir, showWarnings = FALSE)
   dir.create(dir0, showWarnings = FALSE)
   dir.create(dir1, showWarnings = FALSE)
   dir.create(dir2, showWarnings = FALSE)
@@ -666,6 +688,7 @@ fit_all_distribution_models <- function(species) {
 
   ### directories for all generated indices
   dir.create(paste0("data-generated/density-index/"), showWarnings = FALSE)
+  dir.create(paste0("data-generated/density-index/", dens_model_name0), showWarnings = FALSE)
   dir.create(paste0("data-generated/density-index/", dens_model_name), showWarnings = FALSE)
   dir.create(paste0("data-generated/density-index/", dens_model_name0,
                     "/total/"), showWarnings = FALSE)
@@ -891,7 +914,7 @@ fit_all_distribution_models <- function(species) {
     m <- readRDS(fm)
 
     # browser()
-    if (!all(sanity(m))) {
+    if (!all(sanity(m, gradient_thresh = 0.005))) {
       if (length(m$family) == 6) {
         m <- refine_delta_model(m, alternate_family = set_family2, use_priors = set_priors)
       } else {
@@ -1041,7 +1064,7 @@ fit_all_distribution_models <- function(species) {
     saveRDS(mf, fmf)
   } else {
     mf <- readRDS(fmf)
-    if (!all(sanity(mf))) {
+    if (!all(sanity(mf, gradient_thresh = 0.005))) {
       if (length(mf$family) == 6) {
         mf <- refine_delta_model(mf, alternate_family = set_family2, use_priors = set_priors)
       } else {
@@ -1162,7 +1185,7 @@ fit_all_distribution_models <- function(species) {
     saveRDS(mm, fmm)
   } else {
     mm <- readRDS(fmm)
-    if (!all(sanity(mm))) {
+    if (!all(sanity(mm, gradient_thresh = 0.005))) {
       if (length(mm$family) == 6) {
         mm <- refine_delta_model(mm, alternate_family = set_family2, use_priors = set_priors)
       } else {
@@ -1279,7 +1302,7 @@ if(maturity_possible) {
 
   } else {
     mi <- readRDS(fmi)
-    if (!all(sanity(mi))) {
+    if (!all(sanity(mi, gradient_thresh = 0.005))) {
       if (length(mi$family) == 6) {
         mi <- refine_delta_model(mi, alternate_family = set_family2, use_priors = set_priors)
       } else {
@@ -1292,8 +1315,8 @@ if(maturity_possible) {
   # TODO: add R2 once it's working for delta models
   # r2_i <- r2.sdmTMB(mi)
 
-  # s <- sanity(mi)
-  s <- TRUE
+  s <- sanity(mi, gradient_thresh = 0.005)
+  # s <- TRUE
   if (all(s)) {
     if (file.exists(pifn) & file.exists(i3)) {
       pi <- readRDS(pifn)
@@ -1363,7 +1386,7 @@ if(maturity_possible) {
 
   ## Plot coastwide indices ----
 
-  p1 <- bc_inds %>%
+  (p1 <- bc_inds %>%
     mutate(index = fct_relevel(index, rev)) %>%
     ggplot(aes(year, est)) +
     geom_ribbon(aes(ymin = lwr, ymax = upr, fill = index), alpha = 0.3) +
@@ -1375,11 +1398,11 @@ if(maturity_possible) {
     ylab("Biomass estimate (kg)") +
     ggtitle(paste0(species), subtitle = paste0(
       "Model: ",
-      ifelse(length(m$family) == 6, m$family[6], paste0(m$family[1], "(link = 'log')")),
+      ifelse(isTRUE(m$family$delta), m$family$clean_name, paste0(m$family[1], "(link = 'log')")),
       ", spatial (", m[["spatial"]][1], ", ", m[["spatial"]][2],
       ") with st RW and ", dens_model_name_long,
       " (", paste(unique(m$data$survey_type), collapse = ", "), ")"
-    ))
+    )))
 
   # p1
   # ggsave(paste0("figs/density-index-", spp, "-all",
@@ -1424,7 +1447,7 @@ if(maturity_possible) {
     all_split_inds <- readRDS(fsi)
   }
 
-
+  # browser()
   ## Plot split indices ----
   p2 <- all_split_inds %>%
     left_join(survey_years, ., multiple = "all") %>%
