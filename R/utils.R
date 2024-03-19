@@ -3,6 +3,7 @@
 #' @export
 refine_delta_model <- function(m, alternate_family = set_family2, use_priors = sdmTMBpriors()){
   s <- sanity(m)
+
   # browser()
   if (!s$range_ok) {
     m <- update(m, share_range = TRUE,
@@ -74,6 +75,10 @@ refine_delta_model <- function(m, alternate_family = set_family2, use_priors = s
                   data = m$data, mesh = m$spde)
       s <- sanity(m)
     }
+  }
+  if (!s$gradients_ok) {
+    m <- run_extra_optimization(m)
+    s <- sanity(m)
   }
   if(!all(s)){
     m <- update(m, share_range = TRUE,
