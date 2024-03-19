@@ -7,14 +7,28 @@ library(patchwork)
 # devtools::load_all(".")
 theme_set(ggsidekick:::theme_sleek())
 
-f <- list.files(paste0("data-generated/maturity-ogives/"), pattern = ".rds", full.names = TRUE)
+first_split <- TRUE
 
-m <- purrr::map(f, readRDS)
+if(first_split) {
+  f <- list.files(paste0("data-generated/split-catch-data/"), pattern = ".rds", full.names = TRUE)
+} else {
+f <- list.files(paste0("data-generated/maturity-ogives/"), pattern = ".rds", full.names = TRUE)
+}
+
+d <- purrr::map(f, readRDS)
 
 p <- list()
+m <- list()
+for (i in seq_along(d)){
+# browser()
+ if(!is.null(d[[i]]$m)) {
+ if(first_split) {
+  m[[i]] <- d[[i]]$m
+} else {
+  m[[i]] <- d[[i]]
+}
 
-for (i in seq_along(m)){
-
+  # browser()
   m[[i]]$data$species_common_name <- ifelse(m[[i]]$data$species_common_name == "rougheye/blackspotted rockfish complex", "Rougheye/Blackspotted", m[[i]]$data$species_common_name)
 
 p[[i]] <- gfplot::plot_mat_ogive(m[[i]]) +
@@ -24,9 +38,12 @@ p[[i]] <- gfplot::plot_mat_ogive(m[[i]]) +
                 " sets)"
                 )) +
   theme(axis.title = element_blank())
+ } else{
+   p[[i]] <- NULL
 }
-# p
-# p[[1]]
+}
+
+p <- p %>% discard(is.null)
 
 # (g <- plot_list(gglist = p, ncol = 5)+ patchwork::plot_layout(guides = "collect"))
 
@@ -54,8 +71,12 @@ AAAAAA
          plot_layout(widths = c(0.05, 1)))
   /x_lab_big + plot_layout(heights = c(1,0.05), design = design,guides = "collect")
 )
-ggsave("figs/all-maturities.png", height = 18, width = 15)
 
+if(first_split) {
+  ggsave("figs/all-maturities-first-split.png", height = 18, width = 15)
+} else {
+ggsave("figs/all-maturities.png", height = 18, width = 15)
+}
 
 ## landscape version
 # (g <- ((y_lab_big |
