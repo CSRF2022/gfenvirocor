@@ -2,8 +2,10 @@
 .Rhistory
 .RData
 .Ruserdata
-.png
-.rds
+*.png
+*.rds
+*.docx
+*.pdf
 
 data-generated/
 data-raw/
