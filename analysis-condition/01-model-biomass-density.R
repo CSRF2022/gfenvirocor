@@ -964,9 +964,6 @@ fit_all_distribution_models <- function(species) {
     saveRDS(mf, fmf)
   }
 
-  # check that model updated properly
-  sort(unique(m$data$year))
-  sort(unique(mf$data$year))
 
   # TODO: add R2 once it's working for delta models
   # r2_mf <- r2.sdmTMB(mf)
@@ -1287,6 +1284,7 @@ if(maturity_possible) {
   # bc_inds <- bc_inds %>% mutate(model_string = dens_model_name)
 
   ## Plot coastwide indices ----
+  m <- readRDS(fm)
 
   (p1 <- bc_inds %>%
     mutate(index = fct_relevel(index, rev)) %>%
@@ -1319,7 +1317,6 @@ if(maturity_possible) {
   )
 
   if (!file.exists(fsi)) {
-    m <- readRDS(fm)
     mf <- readRDS(fmf)
     mm <- readRDS(fmm)
     inds0 <- split_index_by_survey(m, grid, species, "Total")
