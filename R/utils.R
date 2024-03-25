@@ -144,7 +144,7 @@ refine_model <- function(m, alternate_family = set_family2, use_priors = sdmTMBp
 #'
 plot_index <- function(dat, species, group_name, model_string, filename, remove_extra_years = NULL){
   if (!file.exists(filename)) {
-    i <- get_index(dat, area = 1, bias_correct = TRUE) #could update to 4 when rerun?
+    i <- get_index(dat, area = 4, bias_correct = TRUE)
     i$species <- species
     i$group <- group_name
     i$model_string <- model_string
@@ -175,7 +175,7 @@ plot_index <- function(dat, species, group_name, model_string, filename, remove_
 split_index_by_survey <- function(model, grid, species, group_name){
 
   grid <- filter(grid, year %in% c(sort(unique(model$data$year))))
-# browser()
+
   p <- grid |>
     split(grid$survey) |>
     lapply(function(x) predict(model, re_form_iid = NA, newdata = x,
@@ -186,7 +186,7 @@ split_index_by_survey <- function(model, grid, species, group_name){
   i$group <- group_name
   i$index <- paste0(i$group, "\n(", i$surveys, ")")
   i$model <- paste0(
-    ifelse(isTRUE(m$family$delta), m$family$clean_name, paste0(m$family[1], "(link = 'log')")),
+    ifelse(isTRUE(model$family$delta), model$family$clean_name, paste0(mmodel$family[1], "(link = 'log')")),
     "\nspatial (", model[["spatial"]][1], ", ", model[["spatial"]][2], ")")
 
   saveRDS(i, paste0("data-generated/density-split-ind/temp-index-split-",
