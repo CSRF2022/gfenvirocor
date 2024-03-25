@@ -16,43 +16,43 @@ library(patchwork)
 
 
 species_list <- list(
-  "Arrowtooth Flounder",
-  "North Pacific Spiny Dogfish",
-  "Pacific Ocean Perch",
-  "Pacific Cod",
-  "Walleye Pollock",
+  # "Arrowtooth Flounder",
+  # "North Pacific Spiny Dogfish",
+  # "Pacific Ocean Perch",
+  # "Pacific Cod",
+  # "Walleye Pollock",
   "Sablefish",
   "Lingcod",
-  "Bocaccio",
+  # "Bocaccio",
   "Canary Rockfish",
-  "Redstripe Rockfish", #
-  "Rougheye/Blackspotted Rockfish Complex", #
-  "Silvergray Rockfish", #
-  "Shortspine Thornyhead",
-  "Widow Rockfish", #
+  # "Redstripe Rockfish", #
+  # "Rougheye/Blackspotted Rockfish Complex", #
+  # "Silvergray Rockfish", #
+  # "Shortspine Thornyhead",
+  # "Widow Rockfish", #
   "Yelloweye Rockfish",
   "Yellowmouth Rockfish", #
-  "Yellowtail Rockfish",
-  "Petrale Sole", #
-  "Arrowtooth Flounder", #
-  "English Sole",#
-  "Dover Sole",#
-  "Rex Sole", #
-  "Flathead Sole",#
-  "Southern Rock Sole",#
-  "Slender Sole",#
-  "Pacific Sanddab",#
-  "Pacific Halibut",#
-  "Pacific Hake",# any skates?
-  "Quillback Rockfish",
-  "Longnose Skate",
-  "Big Skate"
-  # "Curlfin Sole",#
-  # "Sand Sole",#
-  # "Butter Sole"
-  # ## "Starry Flounder"# too few males!
-  # ## "C-O Sole", # way too few!
-  # ## "Deepsea Sole" # no maturity
+  # "Yellowtail Rockfish",
+  # "Petrale Sole", #
+  # "Arrowtooth Flounder", #
+  # "English Sole",#
+  # "Dover Sole",#
+  # "Rex Sole", #
+  # "Flathead Sole",#
+  # "Southern Rock Sole",#
+  # "Slender Sole",#
+  # "Pacific Sanddab",#
+  # "Pacific Halibut",#
+  # "Pacific Hake",#
+  # "Quillback Rockfish",
+  # "Longnose Skate",
+  # "Big Skate"
+  "Curlfin Sole",#
+  # # "Sand Sole",#
+  "Butter Sole"
+  # # ## "Starry Flounder"# too few males!
+  # # ## "C-O Sole", # way too few!
+  # # ## "Deepsea Sole" # no maturity
 )
 
 species_list <- list(species = species_list)
@@ -74,8 +74,8 @@ fit_all_distribution_models <- function(species) {
   stop_early <- FALSE
 
   ## this only affects maturity specific models
-  # only_sampled <- FALSE
-  only_sampled <- TRUE
+  only_sampled <- FALSE
+  # only_sampled <- TRUE
 
   options(scipen = 100, digits = 4)
   theme_set(theme_sleek())
@@ -266,49 +266,8 @@ fit_all_distribution_models <- function(species) {
 
 
   ## initial filtering ----
-  # dsum <- dset1 %>%
-  #   # filter(catch_weight > 0) %>%
-  #   # filter(survey_abbrev == "OTHER") %>%
-  #   # group_by(survey_abbrev, survey_series_desc, survey_series_id) %>%
-  #   group_by(survey_type, survey_series_id) %>%
-  #   summarise(
-  #     sum = sum(catch_weight, na.rm = T),
-  #     count = sum(catch_count, na.rm = T),
-  #     n = n(),
-  #     min_year = min(year), max_year = max(year)
-  #   )
-  # # write.csv(dsum, "all-surveys.csv")
-  # #
-  # dset1 %>% filter(year == 1999) %>% View() # one unusable set has wrong year
-
-  # dset1 %>%
-  #   filter(survey_series_id %in% c(1, 2, 3, 4, 6, 7, 9, 11,
-  #                                  # 14,
-  #                                  # 80,
-  #                                  88,
-  #                                  16, 68)) %>%
-  #   filter(usability_code %in% c(0, 1, 22, 16, 6)) %>% ggplot() +
-  #   facet_wrap(~year) +
-  #   geom_point(aes(longitude, latitude, colour = as.factor(survey_series_id)), alpha = 0.1)
-
-  # dsum2 <- dsamp %>%
-  #   filter(!is.na(length), sex %in% c(1, 2)) %>%
-  #   # group_by(survey_abbrev, survey_series_desc, survey_series_id, year) %>%
-  #   group_by(survey_type, year) %>%
-  #   summarise(
-  #     n = n()
-  #   )
-  # while there are lengths going back to 1984, no weight or sex before 2002
-  ## check against original function call
-  # dsamp1 <- readRDS("data-raw/survey-samples-all-original.rds") %>%
-  #   filter(survey_abbrev != "SABLE OFF") %>%
-  #   filter(species_common_name == tolower(species)) %>% distinct()
 
   dset <- dset1  %>%
-    # filter(survey_type %in% dsum$survey_type) %>%
-    # # keep those surveys with this species + all synoptic surveys
-    # filter(survey_abbrev %in% dsum$survey_abbrev |
-    #   survey_abbrev %in% c("SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI"))
     filter(survey_abbrev %in% surveys_included)
 
   check_for_duplicates <- dset[duplicated(dset$fishing_event_id), ]
@@ -319,13 +278,10 @@ fit_all_distribution_models <- function(species) {
   # unique(dsamp$survey_abbrev)
   # unique(dsamp$maturity_code)
 
-  # browser()
 
   maturity_possible <- TRUE
 
   if(spp == "curlfin-sole"){
-    # dsamp <- dsamp %>% mutate(maturity_code = ifelse(maturity_code %in% c(2,7), 0, maturity_code))
-
     maturity_possible <- FALSE
 
   }
@@ -366,49 +322,6 @@ fit_all_distribution_models <- function(species) {
   # dss$data %>% filter(group_catch_est >0) %>%
   #     ggplot() + geom_histogram(aes(log(group_catch_est)))
   # TODO: double check that split by weight is working properly, because when applied to biomass it doesn't matter if it's on or off
-
-  # hake_est <- dss$data %>%
-  #   mutate(
-  #     doorspread_m = ifelse(doorspread_m == 0, NA_real_, doorspread_m),
-  #     mouth_width_m = ifelse(mouth_width_m == 0, NA_real_, mouth_width_m)
-  #   ) %>%
-  #   filter(group_name == "Mature females" &
-  #          usability_code == 1 &
-  #            survey_series_id == 68 &
-  #          doorspread_m < 150 &
-  #          !is.na(doorspread_m) & !is.na(mouth_width_m)) %>%
-  #   summarise(
-  #     n = n(),
-  #     door_intercept =lm(doorspread_m~mouth_width_m)$coefficients[[1]],
-  #     door_slope = lm(doorspread_m~mouth_width_m)$coefficients[[2]]
-  #   )
-
-  # browser()
-
-
-  # dss$data %>%
-  #   mutate(
-  #     # should be unnecessary with new data
-  #     doorspread_m = ifelse(doorspread_m == 0, NA_real_, doorspread_m),
-  #     mouth_width_m = ifelse(mouth_width_m == 0, NA_real_, mouth_width_m)
-  #   ) %>%
-  #   filter(group_name == "Mature females" &
-  #            usability_code == 1 &
-  #            doorspread_m < 150 &
-  #            !is.na(doorspread_m) & !is.na(mouth_width_m)) %>%
-  #   ggplot() + geom_point(aes(mouth_width_m, doorspread_m), alpha = 0.1) +
-  #   facet_wrap(~survey_series_id, scales = "free")
-
-  # mssm <- dss$data %>%
-  #   mutate(
-  #     doorspread_m = ifelse(doorspread_m == 0, NA_real_, doorspread_m),
-  #     mouth_width_m = ifelse(mouth_width_m == 0, NA_real_, mouth_width_m)
-  #   ) %>% filter(survey_series_id %in% c(6,7))
-  #
-  # hist(mssm$mouth_width_m)
-  # hist(mssm$doorspread_m)
-
- # browser()
 
   meaneffort1 <- dss$data %>%
     filter(group_name %in% c("Mature", "Females", "Mature females") &
@@ -468,26 +381,6 @@ fit_all_distribution_models <- function(species) {
       speed_mpm = ifelse(speed_mpm == 0|is.na(speed_mpm), mean_speed, speed_mpm),
       log_depth = log(depth_m),
       log_depth_c = log_depth - 5, # mean and median for whole data set
-      # survey_type = as.factor(ifelse(survey_abbrev == "HS MSA", "MSA",
-      #   ifelse(survey_abbrev %in% c("MSSM WCVI", "MSSM QCS") &
-      #     year > 2002 & year <= 2005, "MSSM<=05",
-      #   ifelse(survey_abbrev %in% c("MSSM WCVI", "MSSM QCS") &
-      #     year > 2005, "MSSM>05",
-      #   ifelse(survey_abbrev %in% c("MSSM WCVI", "MSSM QCS") &
-      #     year <= 2002, "MSSM <03",
-      #   ifelse(survey_abbrev == "OTHER", "OTHER", "SYN")
-      #   ))))),
-      # survey_type = as.factor(
-      #   case_when(
-      #     survey_abbrev == "HS MSA"~"MSA",
-      #     survey_abbrev %in% c("MSSM WCVI", "MSSM QCS") & year>2002 & year<=2005~"MSSM<=05",
-      #     survey_abbrev %in% c("MSSM WCVI", "MSSM QCS") & year>2005~"MSSM>05",
-      #     survey_abbrev %in% c("MSSM WCVI", "MSSM QCS") & year <= 2002~"MSSM <03",
-      #     survey_series_id == 68~"HAKE",
-      #     survey_abbrev %in% c("SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI")~"SYN",
-      #     survey_abbrev %in% c("EUL N", "EUL S")~"EUL",
-      #     TRUE~survey_abbrev
-      #     )),
       area_swept = ifelse(is.na(tow_length_m),
         doorspread_m * duration_min * speed_mpm,
         doorspread_m * tow_length_m
@@ -496,12 +389,7 @@ fit_all_distribution_models <- function(species) {
 
   ds <- ds[,which(unlist(lapply(ds, function(x)!all(is.na(x))))),with=FALSE]
 
-  # which_surv0 <- ds %>%
-  #   filter(group_name %in% c("Mature", "Mature females")) %>%
-  #   filter(catch_weight > 0) %>%
-  #   group_by(survey_type) %>%
-  #   summarise(n = n()) %>%
-  #   filter(n > 20)
+
 
   # Select what data to include ----
   ds <- ds %>%
@@ -877,9 +765,7 @@ fit_all_distribution_models <- function(species) {
     m <- sdmTMB(
       catch_weight ~ 1 + survey_type +
         poly(log_depth_c, 2) +
-        poly(days_to_solstice, 2), # +
-      # (1|captain),
-      # (1|vessel_cap_combo),
+        poly(days_to_solstice, 2),
       offset = "offset",
       mesh = mesh,
       data = d1,
@@ -889,39 +775,31 @@ fit_all_distribution_models <- function(species) {
       silent = FALSE,
       time = "year",
       extra_time = extra_years,
-      # reml = TRUE,
       family = set_family,
-      control = sdmTMBcontrol(
-        # start = list(logit_p_mix = qlogis(0.01)),
-        # map = list(logit_p_mix = factor(NA)),
-        nlminb_loops = 1L,
-        newton_loops = 1L
-      ),
-      priors = set_priors
+      # control = sdmTMBcontrol(
+      #   # start = list(logit_p_mix = qlogis(0.01)),
+      #   # map = list(logit_p_mix = factor(NA)),
+      #   # nlminb_loops = 1L,
+      #   # newton_loops = 1L
+      # ),
+      priors = set_priors,
+      do_fit = FALSE
       # anisotropy = TRUE
     )
 
     saveRDS(m, fm)
 
-    if (length(m$family) == 6) {
-      m <- refine_delta_model(m, alternate_family = set_family2, use_priors = set_priors)
-    } else {
-      m <- refine_model(m)
+    if (!all(sanity(m, gradient_thresh = 0.005))) {
+      m <- refine_model(m, alternate_family = set_family2, use_priors = set_priors)
     }
-
     saveRDS(m, fm)
   } else {
     m <- readRDS(fm)
-
-    # browser()
+    m <- sdmTMB:::update_version(m)
     if (!all(sanity(m, gradient_thresh = 0.005))) {
-      if (length(m$family) == 6) {
-        m <- refine_delta_model(m, alternate_family = set_family2, use_priors = set_priors)
-      } else {
-        m <- refine_model(m, use_priors = set_priors)
-      }
-      saveRDS(m, fm)
+        m <- refine_model(m, alternate_family = set_family2, use_priors = set_priors)
     }
+    saveRDS(m, fm)
   }
 
   m
@@ -1056,22 +934,17 @@ fit_all_distribution_models <- function(species) {
     }
     saveRDS(mf, fmf)
 
-    if (length(mf$family) == 6) {
-      mf <- refine_delta_model(mf, alternate_family = set_family2, use_priors = set_priors)
-    } else {
-      mf <- refine_model(mf, use_priors = set_priors)
+    if (!all(sanity(mf, gradient_thresh = 0.005))) {
+      mf <- refine_model(mf, alternate_family = set_family2, use_priors = set_priors)
     }
     saveRDS(mf, fmf)
   } else {
     mf <- readRDS(fmf)
+    mf <- sdmTMB:::update_version(mf)
     if (!all(sanity(mf, gradient_thresh = 0.005))) {
-      if (length(mf$family) == 6) {
-        mf <- refine_delta_model(mf, alternate_family = set_family2, use_priors = set_priors)
-      } else {
-        mf <- refine_model(mf, use_priors = set_priors)
+        mf <- refine_model(mf, alternate_family = set_family2, use_priors = set_priors)
       }
-      saveRDS(mf, fmf)
-    }
+    saveRDS(mf, fmf)
   }
 
   # check that model updated properly
@@ -1177,22 +1050,17 @@ fit_all_distribution_models <- function(species) {
       }
     saveRDS(mm, fmm)
 
-    if (length(mm$family) == 6) {
-      mm <- refine_delta_model(mm, alternate_family = set_family2, use_priors = set_priors)
-    } else {
-      mm <- refine_model(mm, use_priors = set_priors)
+    if (!all(sanity(mm, gradient_thresh = 0.005))) {
+      mm <- refine_model(mm, alternate_family = set_family2, use_priors = set_priors)
     }
     saveRDS(mm, fmm)
   } else {
     mm <- readRDS(fmm)
+    mm <- sdmTMB:::update_version(mm)
     if (!all(sanity(mm, gradient_thresh = 0.005))) {
-      if (length(mm$family) == 6) {
-        mm <- refine_delta_model(mm, alternate_family = set_family2, use_priors = set_priors)
-      } else {
-        mm <- refine_model(mm, use_priors = set_priors)
+        mm <- refine_model(mm, alternate_family = set_family2, use_priors = set_priors)
       }
-      saveRDS(mm, fmm)
-    }
+    saveRDS(mm, fmm)
   }
 
   # TODO: add R2 once it's working for delta models
@@ -1291,25 +1159,21 @@ if(maturity_possible) {
 
     if(exists("mi")){
     saveRDS(mi, fmi)
-
-    if (length(mi$family) == 6) {
-      mi <- refine_delta_model(mi, alternate_family = set_family2, use_priors = set_priors)
-    } else {
-      mi <- refine_model(mi, use_priors = set_priors)
+    if (!all(sanity(mi, gradient_thresh = 0.005))) {
+    mi <- refine_model(mi, alternate_family = set_family2,
+                         use_priors = set_priors)
     }
     saveRDS(mi, fmi)
     }
 
   } else {
     mi <- readRDS(fmi)
+    mi <- sdmTMB:::update_version(mi)
     if (!all(sanity(mi, gradient_thresh = 0.005))) {
-      if (length(mi$family) == 6) {
-        mi <- refine_delta_model(mi, alternate_family = set_family2, use_priors = set_priors)
-      } else {
-        mi <- refine_model(mi, use_priors = set_priors)
+        mi <- refine_model(mi, alternate_family = set_family2,
+                           use_priors = set_priors)
       }
-      saveRDS(mi, fmi)
-    }
+    saveRDS(mi, fmi)
   }
 
   # TODO: add R2 once it's working for delta models
@@ -1417,19 +1281,6 @@ if(maturity_possible) {
   )
 
   if (!file.exists(fsi)) {
-
-    # inds0 <- readRDS(paste0("temp-index-split-",
-    #   gsub(" ", "-", gsub("\\/", "-", tolower(species))),
-    #   "-", gsub(" ", "-", "Total"), ".rds"))
-    # inds1 <- readRDS(paste0("temp-index-split-",
-    #   gsub(" ", "-", gsub("\\/", "-", tolower(species))),
-    #   "-", gsub(" ", "-", "Mature female"), ".rds"))
-    # inds2 <- readRDS(paste0("temp-index-split-",
-    #   gsub(" ", "-", gsub("\\/", "-", tolower(species))),
-    #   "-", gsub(" ", "-", "Mature male"), ".rds"))
-    # inds3 <- readRDS(paste0("temp-index-split-",
-    #   gsub(" ", "-", gsub("\\/", "-", tolower(species))),
-    #   "-", gsub(" ", "-", "Immature"), ".rds"))
 
     inds0 <- split_index_by_survey(m, grid, species, "Total")
     inds1 <- split_index_by_survey(mf, grid, species, "Mature female")
