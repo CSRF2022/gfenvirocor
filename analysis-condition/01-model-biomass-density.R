@@ -16,37 +16,37 @@ library(patchwork)
 
 
 species_list <- list(
-  # "Arrowtooth Flounder",
-  # "North Pacific Spiny Dogfish",
-  # "Pacific Ocean Perch",
-  # "Pacific Cod",
-  # "Walleye Pollock",
+  "Arrowtooth Flounder",
+  "North Pacific Spiny Dogfish",
+  "Pacific Ocean Perch",
+  "Pacific Cod",
+  "Walleye Pollock",
   "Sablefish",
   "Lingcod",
-  # "Bocaccio",
+  "Bocaccio",
   "Canary Rockfish",
-  # "Redstripe Rockfish", #
-  # "Rougheye/Blackspotted Rockfish Complex", #
-  # "Silvergray Rockfish", #
-  # "Shortspine Thornyhead",
-  # "Widow Rockfish", #
+  "Redstripe Rockfish", #
+  "Rougheye/Blackspotted Rockfish Complex", #
+  "Silvergray Rockfish", #
+  "Shortspine Thornyhead",
+  "Widow Rockfish", #
   "Yelloweye Rockfish",
   "Yellowmouth Rockfish", #
-  # "Yellowtail Rockfish",
-  # "Petrale Sole", #
-  # "Arrowtooth Flounder", #
-  # "English Sole",#
-  # "Dover Sole",#
-  # "Rex Sole", #
-  # "Flathead Sole",#
-  # "Southern Rock Sole",#
-  # "Slender Sole",#
-  # "Pacific Sanddab",#
-  # "Pacific Halibut",#
-  # "Pacific Hake",#
-  # "Quillback Rockfish",
-  # "Longnose Skate",
-  # "Big Skate"
+  "Yellowtail Rockfish",
+  "Petrale Sole", #
+  "Arrowtooth Flounder", #
+  "English Sole",#
+  "Dover Sole",#
+  "Rex Sole", #
+  "Flathead Sole",#
+  "Southern Rock Sole",#
+  "Slender Sole",#
+  "Pacific Sanddab",#
+  "Pacific Halibut",#
+  "Pacific Hake",#
+  "Quillback Rockfish",
+  "Longnose Skate",
+  "Big Skate",
   "Curlfin Sole",#
   # # "Sand Sole",#
   "Butter Sole"
@@ -109,7 +109,7 @@ fit_all_distribution_models <- function(species) {
     # dens_model_name <- "dln-all-only-true-ratio-6"
 
     dens_model_name0 <- "dln-all-mar-2024"
-    dens_model_name <- "dln-only-sampled-split"
+    dens_model_name <- "dln-only-sampled-shrunk"
 
   } else {
 
@@ -126,7 +126,7 @@ fit_all_distribution_models <- function(species) {
   # dens_model_name <- "dln-all-split-6"
   # dens_model_name <- "dln-all-split-all-weights"
     dens_model_name0 <- "dln-all-mar-2024"
-    dens_model_name <- "dln-all-split"
+    dens_model_name <- "dln-all-shrunk"
   }
 
 
@@ -844,10 +844,29 @@ fit_all_distribution_models <- function(species) {
     # )
   }
 
+  if (!file.exists(i0)) {
+    plot_index(p, species, "Total", dens_model_name, i0) +
+      ggtitle(paste0(species, ": total biomass (", dens_model_name, ")"))
+
+    # ggsave(paste0("figs/density-index-", m0, ".png"),
+    # height = fig_height / 2, width = fig_width /1.5
+    # )
+  }
+
   # # not working with offset
   # g <- ggeffects::ggeffect(m, paste0("log_depth [",
   #   range(d$log_depth)[1], ":", range(d$log_depth)[2], "by=0.05]"))
   # plot(g)
+
+
+  # certain model formulation functions (like formula() and terms() ) grab the ENTIRE global environment
+  # need to purge previous models before building new ones
+  set_spatial <- as.list(m[["spatial"]])
+  set_spatiotemporal <- as.list(m[["spatiotemporal"]])
+  set_family <- m$family
+
+  # browser()
+  rm(m, p)
 
   ## mature female model ----
 
@@ -892,8 +911,6 @@ fit_all_distribution_models <- function(species) {
 
 
 
-  # extra_years2 <- sdmTMB:::find_missing_time(d2$year)
-  # browser()
 
   if (!file.exists(fmf)) {
 
@@ -902,11 +919,11 @@ fit_all_distribution_models <- function(species) {
                      poly(log_depth_c, 2) +
                      poly(days_to_solstice, 2),
                    offset = "offset",
-                   spatial = as.list(m[["spatial"]]),
-                   spatiotemporal = as.list(m[["spatiotemporal"]]),
+                   spatial = set_spatial,
+                   spatiotemporal = set_spatiotemporal,
                    share_range = FALSE,
                    time = "year",
-                   family = m$family,
+                   family = set_family,
                    # extra_time = extra_years2,
                    extra_time = sdmTMB:::find_missing_time(d2$year),
                    # extra_time = sdmTMB:::find_missing_time(data$year),
@@ -919,11 +936,11 @@ fit_all_distribution_models <- function(species) {
       poly(log_depth_c, 2) +
       poly(days_to_solstice, 2),
     offset = "offset",
-    spatial = as.list(m[["spatial"]]),
-    spatiotemporal = as.list(m[["spatiotemporal"]]),
+    spatial = set_spatial,
+    spatiotemporal = set_spatiotemporal,
     share_range = FALSE,
     time = "year",
-    family = m$family,
+    family = set_family,
     # extra_time = extra_years2,
     extra_time = sdmTMB:::find_missing_time(d2$year),
     # extra_time = sdmTMB:::find_missing_time(data$year),
@@ -975,6 +992,22 @@ fit_all_distribution_models <- function(species) {
       height = fig_height, width = fig_width
     )
   }
+
+  if (!file.exists(i1)) {
+    plot_index(pf, species, "Mature female", dens_model_name, i1) +
+      ggtitle(paste0(species, ": mature female biomass (", dens_model_name, ")"))
+
+    # ggsave(paste0("figs/density-index-", m1, ".png"),
+    # height = fig_height / 2, width = fig_width / 1.5
+    # )
+  }
+
+  ## currently sticking with m values
+  # set_spatial <- as.list(mf[["spatial"]])
+  # set_spatiotemporal <- as.list(mf[["spatiotemporal"]])
+  # set_family <- mf$family
+
+  rm(mf, pf)
 
 
   ## mature male model ----
@@ -1029,24 +1062,31 @@ fit_all_distribution_models <- function(species) {
                                poly(log_depth_c, 2) +
                                poly(days_to_solstice, 2),
                              offset = "offset",
-                             spatial = as.list(mf[["spatial"]]),
-                             spatiotemporal = as.list(mf[["spatiotemporal"]]),
-                             share_range = FALSE,
-                             time = "year",
-                             family = m$family,
+                     spatial = set_spatial,
+                     spatiotemporal = set_spatiotemporal,
+                     share_range = FALSE,
+                     time = "year",
+                     family = set_family,
                      priors = set_priors,
                      extra_time = sdmTMB:::find_missing_time(d2b$year),
                      mesh = mesh2b,
                      data = d2b
         )
       } else{
-    mm <- update(mf,
-      priors = set_priors,
-      extra_time = sdmTMB:::find_missing_time(d2b$year),
-      mesh = mesh2b,
-      family = m$family,
-      data = d2b
-    )
+        mm <- sdmTMB(group_catch_est ~ 1 + survey_type +
+                       poly(log_depth_c, 2) +
+                       poly(days_to_solstice, 2),
+                     offset = "offset",
+                     spatial = set_spatial,
+                     spatiotemporal = set_spatiotemporal,
+                     share_range = FALSE,
+                     time = "year",
+                     family = set_family,
+                     priors = set_priors,
+                     extra_time = sdmTMB:::find_missing_time(d2b$year),
+                     mesh = mesh2b,
+                     data = d2b
+        )
       }
     saveRDS(mm, fmm)
 
@@ -1084,6 +1124,21 @@ fit_all_distribution_models <- function(species) {
     )
   }
 
+    if (!file.exists(i2)) {
+      plot_index(pm, species, "Mature male", dens_model_name, i2) +
+        ggtitle(paste0(species, ": mature male biomass (", dens_model_name, ")"))
+
+      # ggsave(paste0("figs/density-index-", m2, ".png"),
+      # height = fig_height / 2, width = fig_width / 1.5
+      # )
+    }
+
+
+    # set_spatial <- as.list(mm[["spatial"]])
+    # set_spatiotemporal <- as.list(mm[["spatiotemporal"]])
+    # set_family <- mm$family
+
+    rm(mm, pm)
 
   ## immature model ----
 
@@ -1132,28 +1187,36 @@ if(maturity_possible) {
 
     if (!file.exists(fmi)) {
     if(nrow(which_surv)<2){
-      mi <- sdmTMB(group_catch_est ~ 1 +
+      try( mi <- sdmTMB(group_catch_est ~ 1 +
                      poly(log_depth_c, 2) +
                      poly(days_to_solstice, 2),
                    offset = "offset",
-                   spatial = as.list(mf[["spatial"]]),
-                   spatiotemporal = as.list(mf[["spatiotemporal"]]),
+                   spatial = set_spatial,
+                   spatiotemporal = set_spatiotemporal,
+                   share_range = FALSE,
                    time = "year",
-                   family = m$family,
+                   family = set_family,
                    extra_time = sdmTMB:::find_missing_time(d3$year),
                    priors = set_priors,
                    # priors = set_priors,
                    silent = FALSE,
                    mesh = mesh3, data = d3
-      )
+      ))
     } else{
-    try(mi <- update(mf,
-      # spatial = simpspatial,
-      priors = set_priors,
-      extra_time = sdmTMB:::find_missing_time(d3$year),
-      mesh = mesh3,
-      family = m$family,
-      data = d3
+    try(mi <- sdmTMB(group_catch_est ~ 1 + survey_type +
+                             poly(log_depth_c, 2) +
+                             poly(days_to_solstice, 2),
+                           offset = "offset",
+                           spatial = set_spatial,
+                           spatiotemporal = set_spatiotemporal,
+                           share_range = FALSE,
+                           time = "year",
+                           family = set_family,
+                           extra_time = sdmTMB:::find_missing_time(d3$year),
+                           priors = set_priors,
+                           # priors = set_priors,
+                           silent = FALSE,
+                           mesh = mesh3, data = d3
     ))
     }
 
@@ -1202,32 +1265,7 @@ if(maturity_possible) {
   }
 }
 
-  # Generate all coastwide indices ----
-  # browser()
-  if (!file.exists(i0)) {
-    plot_index(p, species, "Total", dens_model_name, i0) +
-      ggtitle(paste0(species, ": total biomass (", dens_model_name, ")"))
 
-    # ggsave(paste0("figs/density-index-", m0, ".png"),
-    # height = fig_height / 2, width = fig_width /1.5
-    # )
-  }
-  if (!file.exists(i1)) {
-    plot_index(pf, species, "Mature female", dens_model_name, i1) +
-      ggtitle(paste0(species, ": mature female biomass (", dens_model_name, ")"))
-
-    # ggsave(paste0("figs/density-index-", m1, ".png"),
-    # height = fig_height / 2, width = fig_width / 1.5
-    # )
-  }
-  if (!file.exists(i2)) {
-    plot_index(pm, species, "Mature male", dens_model_name, i2) +
-      ggtitle(paste0(species, ": mature male biomass (", dens_model_name, ")"))
-
-    # ggsave(paste0("figs/density-index-", m2, ".png"),
-    # height = fig_height / 2, width = fig_width / 1.5
-    # )
-  }
   if (!file.exists(i3)) {
     try(plot_index(pi, species, "Immature", dens_model_name, i3) +
       ggtitle(paste0(species, ": immature biomass (", dens_model_name, ")")))
@@ -1281,7 +1319,9 @@ if(maturity_possible) {
   )
 
   if (!file.exists(fsi)) {
-
+    m <- readRDS(fm)
+    mf <- readRDS(fmf)
+    mm <- readRDS(fmm)
     inds0 <- split_index_by_survey(m, grid, species, "Total")
     inds1 <- split_index_by_survey(mf, grid, species, "Mature female")
     inds2 <- split_index_by_survey(mm, grid, species, "Mature male")
