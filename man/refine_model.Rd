@@ -2,10 +2,12 @@
 % Please edit documentation in R/utils.R
 \name{refine_model}
 \alias{refine_model}
-\title{refine regular model}
+\title{helper functions
+refine delta model}
 \usage{
-refine_model(m)
+refine_model(m, alternate_family = set_family2, use_priors = sdmTMBpriors())
 }
 \description{
-refine regular model
+helper functions
+refine delta model
 }

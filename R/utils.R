@@ -1,7 +1,9 @@
 #' helper functions
 #' refine delta model
 #' @export
-refine_delta_model <- function(m, alternate_family = set_family2, use_priors = sdmTMBpriors()){
+refine_model <- function(m, alternate_family = set_family2, use_priors = sdmTMBpriors()){
+
+  if(isTRUE(m$family$delta)) {
   s <- sanity(m)
 
   # browser()
@@ -103,45 +105,38 @@ refine_delta_model <- function(m, alternate_family = set_family2, use_priors = s
   }
   sanity(m)
   return(m)
+  } else {
+    s <- sanity(m)
+    # browser()
+    # if(!s$gradients_ok){
+    #   m <- run_extra_optimization(m)
+    #   s <- sanity(m)
+    # }
+    if(!s$se_magnitude_ok|!s$se_na_ok){
+      m <- update(m, share_range = TRUE,
+                  spatial = as.list(m[["spatial"]]),
+                  spatiotemporal = as.list(m[["spatiotemporal"]]),
+                  extra_time = m$extra_time,
+                  priors = use_priors,
+                  data = m$data, family = m$family, mesh = m$spde)
+      s <- sanity(m)
+    }
+    if (!s$se_magnitude_ok|!s$se_na_ok) {
+      m <- update(m, spatial = "off",
+                  spatiotemporal = as.list(m[["spatiotemporal"]]),
+                  extra_time = m$extra_time,
+                  priors = use_priors,
+                  data = m$data, family = m$family, mesh = m$spde)
+      s <- sanity(m)
+    }
+    if(!s$gradients_ok){
+      m <- run_extra_optimization(m)
+      s <- sanity(m)
+    }
+    sanity(m)
+    return(m)
+  }
 }
-
-#' refine regular model
-#' @export
-#'
-refine_model <- function(m,
-                         use_priors = sdmTMBpriors()
-                         ){
-  s <- sanity(m)
-  # browser()
-  # if(!s$gradients_ok){
-  #   m <- run_extra_optimization(m)
-  #   s <- sanity(m)
-  # }
-  if(!s$se_magnitude_ok|!s$se_na_ok){
-    m <- update(m, share_range = TRUE,
-                spatial = as.list(m[["spatial"]]),
-                spatiotemporal = as.list(m[["spatiotemporal"]]),
-                extra_time = m$extra_time,
-                priors = use_priors,
-                data = m$data, family = m$family, mesh = m$spde)
-    s <- sanity(m)
-  }
-  if (!s$se_magnitude_ok|!s$se_na_ok) {
-    m <- update(m, spatial = "off",
-                spatiotemporal = as.list(m[["spatiotemporal"]]),
-                extra_time = m$extra_time,
-                priors = use_priors,
-                data = m$data, family = m$family, mesh = m$spde)
-    s <- sanity(m)
-  }
-  if(!s$gradients_ok){
-    m <- run_extra_optimization(m)
-    s <- sanity(m)
-  }
-  sanity(m)
-  return(m)
-}
-
 
 
 #'
@@ -190,9 +185,9 @@ split_index_by_survey <- function(model, grid, species, group_name){
   i$species <- species
   i$group <- group_name
   i$index <- paste0(i$group, "\n(", i$surveys, ")")
-  i$model <- paste0(ifelse(length(model$family)==6, model$family[6],
-    paste0(model$family[1],"(link = 'log')")), "\nspatial (",
-    model[["spatial"]][1], ", ", model[["spatial"]][2], ")")
+  i$model <- paste0(
+    ifelse(isTRUE(m$family$delta), m$family$clean_name, paste0(m$family[1], "(link = 'log')")),
+    "\nspatial (", model[["spatial"]][1], ", ", model[["spatial"]][2], ")")
 
   saveRDS(i, paste0("data-generated/density-split-ind/temp-index-split-",
                     gsub(" ", "-", gsub("\\/", "-", tolower(species))), "-",
