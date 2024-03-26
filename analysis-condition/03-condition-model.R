@@ -6,6 +6,7 @@ library(ggsidekick)
 devtools::load_all(".")
 
 species_list <- list(
+  "Arrowtooth Flounder",
   "North Pacific Spiny Dogfish",
   "Pacific Ocean Perch",
   "Pacific Cod",
@@ -14,11 +15,11 @@ species_list <- list(
   "Lingcod",
   "Bocaccio",
   "Canary Rockfish",
-  "Redstripe Rockfish", # MSA added with mean > 4
-  "Rougheye/Blackspotted Rockfish Complex", # WILL NEED UPDATE FOR ALL MAT CLASSES
-  "Silvergray Rockfish", # MSA added with mean > 5
+  "Redstripe Rockfish", #
+  "Rougheye/Blackspotted Rockfish Complex", #
+  "Silvergray Rockfish", #
   "Shortspine Thornyhead",
-  "Widow Rockfish", # hake would need mean > 1, mssm1 > 4
+  "Widow Rockfish", #
   "Yelloweye Rockfish",
   "Yellowmouth Rockfish", #
   "Yellowtail Rockfish",
@@ -32,9 +33,13 @@ species_list <- list(
   "Slender Sole",#
   "Pacific Sanddab",#
   "Pacific Halibut",#
-  "Curlfin Sole",#
-  "Sand Sole",#
-  "Butter Sole"
+  "Pacific Hake",# any skates?
+  "Quillback Rockfish",
+  "Longnose Skate",
+  "Big Skate"
+  # "Curlfin Sole",#
+  # "Sand Sole",#
+  # "Butter Sole"
 )
 
 
@@ -64,8 +69,8 @@ calc_condition_indices <- function(species, maturity, males, females) {
   # add_density <- FALSE
   add_density <- TRUE
 
+  # # probably don't need these anymore
   unweighted <- TRUE
-
   # unweighted <- FALSE
   # adjusted_weights <- TRUE
   # adjusted_weights <- FALSE
@@ -79,9 +84,9 @@ calc_condition_indices <- function(species, maturity, males, females) {
   fig_width <- 5 * 2
   delta_dens_model <- TRUE
 
-  dens_model_name0 <- "dln-all-only-w-ann-prop"
-  dens_model_name1 <- "dln-all-split-all-weights"
-  dens_model_name2 <- "dln-all-only-true-ratio-6"
+  dens_model_total <- "dln-all-mar-2024" # this is for total
+  dens_model_name1 <- "dln-all-shrunk" # these are `all catches' models
+  dens_model_name2 <- "dln-only-sampled-shrunk" # these are `sampled catches' models
 
   theme_set(ggsidekick:::theme_sleek())
 
@@ -99,8 +104,8 @@ calc_condition_indices <- function(species, maturity, males, females) {
 
   # Check which density models to use ----
   id0 <- readRDS(paste0("data-generated/density-index/",
-                        dens_model_name0, "/total/i-",
-                        spp, "-total-", dens_model_name0, "-",
+                        dens_model_total, "/total/i-",
+                        spp, "-total-", dens_model_total, "-",
                         knot_distance,
                         "-km.rds"))
 
@@ -177,12 +182,12 @@ calc_condition_indices <- function(species, maturity, males, females) {
               prop_ci_error = total_ci_error/sum_est
     )
 
-  itest$model_total <- dens_model_name0
+  itest$model_total <- dens_model_total
 
   dir.create(paste0("data-generated/compare-models/"),
              showWarnings = FALSE)
   saveRDS(itest, paste0("data-generated/compare-models/",
-                        spp, "-relative-to-", dens_model_name0, "-",
+                        spp, "-relative-to-", dens_model_total, "-",
                         knot_distance,
                         "-km.rds"))
 
@@ -192,7 +197,8 @@ calc_condition_indices <- function(species, maturity, males, females) {
   if(nrow(itest) == 1){
     dens_model_name <- itest$model_string
   } else {
-    if(nrow(itest) == 0) { return(paste(species, "doesn't have split indices",                        "that cumulatively fall within 5% of total biomass CIs."))
+    if(nrow(itest) == 0) { return(paste(species, "doesn't have split indices",
+                                        "that cumulatively fall within 5% of total biomass CIs."))
     } else {
       dens_model_name <- itest[itest$total_diff==min(itest$total_diff),]$model_string
     }
@@ -264,13 +270,13 @@ calc_condition_indices <- function(species, maturity, males, females) {
     if(mat_class == "mat") {
 
       md <- readRDS(paste0("data-generated/density-models/",
-                           dens_model_name0, "/total/",
-                           spp, "-total-", dens_model_name0, "-",
+                           dens_model_total, "/total/",
+                           spp, "-total-", dens_model_total, "-",
                            knot_distance,
                            "-km.rds"))
     } else{
 
-      dens_model_name0 <- dens_model_name
+      dens_model_total <- dens_model_name
 
       fmi <- paste0("data-generated/density-models/",
                     dens_model_name,"/imm/",
@@ -303,7 +309,7 @@ calc_condition_indices <- function(species, maturity, males, females) {
     pd0 <- pd0 %>%
       mutate(
         log_density = log(density),
-        model = dens_model_name0
+        model = dens_model_total
       ) %>%
       select(
         year, survey_abbrev, fishing_event_id, X, Y, log_depth,
@@ -467,7 +473,7 @@ calc_condition_indices <- function(species, maturity, males, females) {
     } else {
       pf <- paste0(
         "data-generated/density-predictions/p-", spp,
-        "-total-", dens_model_name0, "-", knot_distance,  "-km.rds"
+        "-total-", dens_model_total, "-", knot_distance,  "-km.rds"
       )
       if (file.exists(pf)) {
         # model everything together
@@ -503,7 +509,7 @@ calc_condition_indices <- function(species, maturity, males, females) {
     # load lagged density predictions for full survey grid if going to be used as covariates condition
     gridB <- readRDS(paste0(
       "data-generated/density-predictions/p-", spp,
-      "-total-", dens_model_name0, "-", knot_distance,  "-km.rds"
+      "-total-", dens_model_total, "-", knot_distance,  "-km.rds"
     )) %>%
       select(year, X, Y, survey, depth, days_to_solstice, log_depth, density) %>%
       mutate(
@@ -611,47 +617,35 @@ calc_condition_indices <- function(species, maturity, males, females) {
   }
 
   # Estimate condition model ----
-  ## start with just an intercept model ----
-
   d %>%
     group_by(survey_group) %>%
     summarise(n = n())
 
-  # browser()
-
-  # model_name <- "all-st2002-doy"
-  # model_name <- "all-blackswan-doy"
-  model_name <- "doy"
-
-  if(unweighted) {
+  # if(unweighted) {
     d$sample_multiplier <- 1
-    # model_name <- "all-st2002-doy-unweighted"
-    # model_name <- "all-blackswan-doy-unweighted"
     model_name <- "doy-unweighted"
-  } else {
-    if(adjusted_weights){
-
-      # model_name <- "all-st2002-doy-small-weights"
-      # model_name <- "all-st2002-doy-within-yr-weights"
-      model_name <- "doy-within-yr-weights"
-
-    d <- d %>% group_by(year) %>% mutate(
-        ann_sample_n = n(),
-        sample_multiplier0 = sample_multiplier,
-        est_num_unsampled_group_members2 = (group_catch_weight - group_sampled_weight)/
-          (group_sampled_weight/group_num_sampled),
-        sample_multiplier2 = 1 + (est_num_unsampled_group_members2 / group_num_sampled),
-        ann_unsampled = sum(est_num_unsampled_group_members2 / group_num_sampled),
-        unsampled_portion = est_num_unsampled_group_members2 / group_num_sampled,
-        sample_multiplier1 = 1 + (unsampled_portion/ann_unsampled)*ann_sample_n,
-        # sample_multiplier = 1 + (unsampled_portion/ann_unsampled), # small-weights
-        sample_multiplier = ((1 + unsampled_portion)/
-          (ann_unsampled + ann_sample_n))*ann_sample_n #within-yr-weights
-        ) %>% ungroup()
-
-    hist(d$sample_multiplier)
-    }
-  }
+    # model_name <- "doy" # next update change to this
+  # } else {
+  #   if(adjusted_weights){
+  #     model_name <- "doy-within-yr-weights"
+  #
+  #   d <- d %>% group_by(year) %>% mutate(
+  #       ann_sample_n = n(),
+  #       sample_multiplier0 = sample_multiplier,
+  #       est_num_unsampled_group_members2 = (group_catch_weight - group_sampled_weight)/
+  #         (group_sampled_weight/group_num_sampled),
+  #       sample_multiplier2 = 1 + (est_num_unsampled_group_members2 / group_num_sampled),
+  #       ann_unsampled = sum(est_num_unsampled_group_members2 / group_num_sampled),
+  #       unsampled_portion = est_num_unsampled_group_members2 / group_num_sampled,
+  #       sample_multiplier1 = 1 + (unsampled_portion/ann_unsampled)*ann_sample_n,
+  #       # sample_multiplier = 1 + (unsampled_portion/ann_unsampled), # small-weights
+  #       sample_multiplier = ((1 + unsampled_portion)/
+  #         (ann_unsampled + ann_sample_n))*ann_sample_n #within-yr-weights
+  #       ) %>% ungroup()
+  #
+  #   hist(d$sample_multiplier)
+  #   }
+  # }
 
   dir.create(paste0("data-generated/condition-models-",
                     group_tag, "/", model_name, "/"),
@@ -664,9 +658,6 @@ calc_condition_indices <- function(species, maturity, males, females) {
     "data-generated/condition-models-", group_tag, "/", model_name, "/", spp, "-c-",
     group_tag, "-", model_name, "-", knot_distance, "-km.rds"
   )
-
-  # browser()
-
 
   if (diff(range(d$days_to_solstice))<60) {
     if (length(unique(d$survey_group)) == 1) {
@@ -692,7 +683,7 @@ calc_condition_indices <- function(species, maturity, males, females) {
 
   if (!exists("m1")) {
 
-    # TODO: Add DOY with cyclic smoother?
+    # TODO: Add DOY with cyclic smoother if we add in commercial data?
     # require(mgcv)
     # set.seed(6)
     # x <- sort(runif(200)*10)
@@ -760,26 +751,15 @@ calc_condition_indices <- function(species, maturity, males, females) {
   if (add_density) {
     d$log_density_c <- d$log_density - mean(d$log_density, na.rm = TRUE)
 
-    # model_name <- "all-st2002-doy-lddev"
-    # model_name <- "all-st2002-doy-ddev"
-    # model_name <- "all-st2002-doy-dlag1"
-    # model_name <- "all-st2002-doy-d0c"
-    # model_name <- "all-st2002-doy-ld0c"
-    model_name <- "doy-ld0c"
-
-    if(unweighted) {
+    # if(unweighted) {
       d$sample_multiplier <- 1
-      # model_name <- "all-st2002-doy-d0c-unweighted"
-      # model_name <- "all-st2002-doy-ld0c-unweighted"
-      model_name <- "doy-ld0c-unweighted"
-    } else {
-      if(adjusted_weights){
-        # model_name <- "all-st2002-doy-d0c-within-yr-weights"
-        # model_name <- "all-st2002-doy-d0c-small-weights"
-        # model_name <- "all-st2002-doy-1d0c-small-weights"
-        model_name <- "doy-d0c-small-weights"
-      }
-    }
+      model_name <- "all-blackswan-doy-ld0c-unweighted"
+      # model_name <- "doy-ld0c" # next update, change to this
+    # } else {
+    #   if(adjusted_weights){
+    #     model_name <- "doy-d0c-within-yr-weights"
+    #   }
+    # }
 
     dir.create(paste0("data-generated/condition-models-", group_tag,
                       "/", model_name, "/"), showWarnings = FALSE)
@@ -821,18 +801,12 @@ calc_condition_indices <- function(species, maturity, males, females) {
       "data-generated/condition-models-", group_tag, "/", model_name, "/",
       spp, "-c-", group_tag, "-", model_name, "-", knot_distance, "-km.rds"
     )
-    # browser()
 
     if (file.exists(mf2)) {
       try(m2 <- readRDS(mf2))
     }
 
     if (!exists("m2")) {
-      # browser()
-      # mx <- model.frame(cond_formula2, d)
-      # colnames(mx)
-      # bx <- rep(Inf, ncol(mx))
-      # bx[colnames(mx) == "log_density_c"] <- 0
 
       m2 <- update(m1, cond_formula2,
         weights = d$sample_multiplier,
@@ -941,12 +915,7 @@ calc_condition_indices <- function(species, maturity, males, females) {
  # browser()
 
   # Map model predictions ----
-#
-#   dset <- readRDS("data-generated/set-data-used.rds") %>%
-#     filter(species_common_name == tolower(species)) %>%
-#     sdmTMB::add_utm_columns(., ll_names = c("longitude", "latitude"), utm_crs = 32609) %>%
-#     # filter(year > 2000)
-#     filter(year >= min(m$data$year), year <= max(m$data$year))
+
   dset <- readRDS(paste0("data-generated/density-data/", spp, ".rds")) %>%
     filter(year >= min(m$data$year), year <= max(m$data$year))
 
@@ -1033,6 +1002,7 @@ calc_condition_indices <- function(species, maturity, males, females) {
     ind2$species <- species
     ind2$group <- group_label
     ind2$model_string <- model_name
+    ind2$dens_model_name <- dens_model_name
 
     saveRDS(ind2, i1)
   } else {
