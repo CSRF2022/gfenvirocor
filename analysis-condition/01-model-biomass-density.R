@@ -656,6 +656,24 @@ fit_all_distribution_models <- function(species) {
   #   # filter(group_name %in% c("Females", "Mature females"))
   #   summarize_all(mean)
 
+
+
+    # simplify dataframe to be included with models
+    d <- d %>% select(
+      fishing_event_id,
+      catch_weight, density_kgha,
+      group_name, group_catch_est,
+      X, Y, latitude, longitude,
+      year, days_to_solstice, DOY,
+      survey_abbrev, survey_type,
+      depth_m, log_depth_c,
+      area_swept, offset,
+      duration_min, speed_mpm,
+      doorspread_m, tow_length_m,
+      usability_name,
+      captain, vessel, vessel_cap_combo
+    )
+
     d1 <- d %>%
       filter(group_name %in% c("Mature", "Females", "Mature females"))
 
@@ -687,6 +705,8 @@ fit_all_distribution_models <- function(species) {
 
   hist(log(dp$catch_weight))
   range(d$catch_weight)
+
+  rm(ds, dp)
 
   # Make mesh for total density ----
 
