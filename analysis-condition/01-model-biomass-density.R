@@ -3,6 +3,7 @@
 # TODO: get matching depth for use in models and on prediction grids?
 
 devtools::load_all()
+
 options(scipen = 100, digits = 4)
 
 
@@ -16,11 +17,11 @@ library(patchwork)
 
 
 species_list <- list(
-  "Arrowtooth Flounder",
-  "North Pacific Spiny Dogfish",
-  "Pacific Ocean Perch",
-  "Pacific Cod",
-  "Walleye Pollock",
+  # "Arrowtooth Flounder",
+  # "North Pacific Spiny Dogfish",
+  # "Pacific Ocean Perch",
+  # "Pacific Cod",
+  # "Walleye Pollock",
   "Sablefish",
   "Lingcod",
   "Bocaccio",
@@ -782,8 +783,7 @@ fit_all_distribution_models <- function(species) {
       #   # nlminb_loops = 1L,
       #   # newton_loops = 1L
       # ),
-      priors = set_priors,
-      do_fit = FALSE
+      priors = set_priors
       # anisotropy = TRUE
     )
 
@@ -1004,7 +1004,7 @@ fit_all_distribution_models <- function(species) {
   # set_spatiotemporal <- as.list(mf[["spatiotemporal"]])
   # set_family <- mf$family
 
-  rm(mf, pf)
+  rm(mf, pf, d1, d2)
 
 
   ## mature male model ----
@@ -1135,7 +1135,7 @@ fit_all_distribution_models <- function(species) {
     # set_spatiotemporal <- as.list(mm[["spatiotemporal"]])
     # set_family <- mm$family
 
-    rm(mm, pm)
+    rm(mm, pm, d2b)
 
   ## immature model ----
 
@@ -1288,8 +1288,8 @@ if(maturity_possible) {
 
   (p1 <- bc_inds %>%
     mutate(index = fct_relevel(index, rev)) %>%
-    ggplot(aes(year, est)) +
-    geom_ribbon(aes(ymin = lwr, ymax = upr, fill = index), alpha = 0.3) +
+    ggplot(aes(year, est/1000)) +
+    geom_ribbon(aes(ymin = lwr/1000, ymax = upr/1000, fill = index), alpha = 0.3) +
     geom_line(aes(colour = index), linewidth = 0.7) +
     scale_colour_viridis_d(direction = 1, end = 0.8, option = "A") +
     scale_fill_viridis_d(direction = 1, end = 0.8, option = "A") +
@@ -1317,6 +1317,7 @@ if(maturity_possible) {
   )
 
   if (!file.exists(fsi)) {
+    # browser()
     mf <- readRDS(fmf)
     mm <- readRDS(fmm)
     inds0 <- split_index_by_survey(m, grid, species, "Total")
@@ -1344,15 +1345,15 @@ if(maturity_possible) {
     distinct() %>%
     filter(group == "Total") %>%
     mutate(index = fct_relevel(index, rev)) %>%
-    ggplot(aes(year, est)) +
-    geom_ribbon(aes(ymin = lwr, ymax = upr, fill = survey), alpha = 0.3) +
+    ggplot(aes(year, est/1000)) +
+    geom_ribbon(aes(ymin = lwr/1000, ymax = upr/1000, fill = survey), alpha = 0.3) +
     geom_line(aes(colour = survey)) +
     # facet_wrap(~index, scales = "free") +
     # facet_wrap(~index, scales = "free_x") +
     scale_colour_viridis_d(direction = -1, end = 0.9) +
     scale_fill_viridis_d(direction = -1, end = 0.9) +
     labs(colour = "Area", fill = "Area") +
-    coord_cartesian(ylim = c(0, max(all_split_inds$est) * 1.5)) +
+    coord_cartesian(ylim = c(0, max(all_split_inds$est/1000) * 1.5)) +
     ggtitle("Total") +
     xlab("Year") +
     ylab("Biomass estimate (kg)")
@@ -1367,22 +1368,22 @@ if(maturity_possible) {
 
   p3 <- p3dat %>%
     mutate(index = fct_relevel(index, rev)) %>%
-    ggplot(aes(year, est)) +
-    geom_ribbon(aes(ymin = lwr, ymax = upr, fill = survey), alpha = 0.3) +
+    ggplot(aes(year, est/1000)) +
+    geom_ribbon(aes(ymin = lwr/1000, ymax = upr/1000, fill = survey), alpha = 0.3) +
     geom_line(aes(colour = survey)) +
     # facet_wrap(~index, scales = "free") +
     facet_wrap(~index, scales = "free_x") +
     scale_colour_viridis_d(direction = -1, end = 0.9) +
     scale_fill_viridis_d(direction = -1, end = 0.9) +
     labs(colour = "Area", fill = "Area") +
-    coord_cartesian(ylim = c(0, max(p3dat$est) * 1.25)) +
+    coord_cartesian(ylim = c(0, max(p3dat$est/1000) * 1.25)) +
     # ggtitle(paste0(species, " (", dens_model_name, ")"))+
     xlab("Year") +
-    ylab("Biomass estimate (kg)")
+    ylab("Relative biomass estimate (tonnes)")
 
   if (length(unique(all_split_inds$model)) > 1) {
     p3 <- p3 + geom_text(aes(label = model),
-      x = 2003, y = max(p3dat$est) * 1.1, size = 2.5, hjust = 0
+      x = 2003, y = max(p3dat$est/1000) * 1.1, size = 2.5, hjust = 0
     )
   }
 
@@ -1458,5 +1459,6 @@ pmap(species_list, fit_all_distribution_models)
 #   height = fig_height / 2, width = fig_width / 2
 # )
 #
+
 
 
