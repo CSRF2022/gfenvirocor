@@ -6,35 +6,40 @@ library(tidyverse)
 library(gfplot)
 
 species_list <- list(
+  "Arrowtooth Flounder",
   "North Pacific Spiny Dogfish",
-  # "Pacific Ocean Perch",
-  # "Pacific Cod",
-  # "Walleye Pollock",
-  # "Sablefish",
-  # "Lingcod",
-  # "Bocaccio",
-  # "Canary Rockfish",
-  # "Redstripe Rockfish", # MSA added with mean > 4
-  "Rougheye/Blackspotted Rockfish Complex", # WILL NEED UPDATE FOR ALL MAT CLASSES
-  # "Silvergray Rockfish", # MSA added with mean > 5
+  "Pacific Ocean Perch",
+  "Pacific Cod",
+  "Walleye Pollock",
+  "Sablefish",
+  "Lingcod",
+  "Bocaccio",
+  "Canary Rockfish",
+  "Redstripe Rockfish", #
+  "Rougheye/Blackspotted Rockfish Complex", #
+  "Silvergray Rockfish", #
   "Shortspine Thornyhead",
-  # "Widow Rockfish", # hake would need mean > 1, mssm1 > 4
-  # "Yelloweye Rockfish",
-  # "Yellowmouth Rockfish", #
-  # "Yellowtail Rockfish",
-  # "Petrale Sole", #
-  # "Arrowtooth Flounder", #
-  # "English Sole",#
-  # "Dover Sole",#
-  # "Rex Sole", #
-  # "Flathead Sole",#
-  # "Southern Rock Sole",#
-  # "Slender Sole",#
-  # "Pacific Sanddab",#
-  # "Pacific Halibut"#
-  "Curlfin Sole",#
-  "Sand Sole",#
-  "Butter Sole"
+  "Widow Rockfish", #
+  "Yelloweye Rockfish",
+  "Yellowmouth Rockfish", #
+  "Yellowtail Rockfish",
+  "Petrale Sole", #
+  "Arrowtooth Flounder", #
+  "English Sole",#
+  "Dover Sole",#
+  "Rex Sole", #
+  "Flathead Sole",#
+  "Southern Rock Sole",#
+  "Slender Sole",#
+  "Pacific Sanddab",#
+  "Pacific Halibut",#
+  "Pacific Hake",# any skates?
+  "Quillback Rockfish",
+  "Longnose Skate",
+  "Big Skate"
+  # "Curlfin Sole",#
+  # "Sand Sole",#
+  # "Butter Sole"
 )
 
 species_list <- list(species = species_list)
@@ -44,146 +49,38 @@ get_condition_data <- function(species){
 ## code checking within function
 # species <- "Arrowtooth Flounder"
 # species <- "Petrale Sole"
-
 # species <- "Pacific Cod"
+
 # mat_threshold  <-  0.05
 mat_threshold <- 0.5
 # mat_threshold <- 0.95
 
-# surveys_excluded <- c(
-#   "SABLE INLET", "SABLE OFF", "SABLE RAND", # all 3 of these are duplicated in SABLE
-#   "HBLL INS N", "HBLL INS S", "SYN SOG", "EUL N", "EUL S", "DOG", "DOG-C", "DOG-J",  # not using inside waters for now
-#   "OTHER"
-# )
-
 spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species)))
 
-surveys_included <- c("HBLL OUT N", "HBLL OUT S",
-                      "IPHC FISS",
-                      "SABLE", # only have weights for certain species?
-                      "MSSM QCS", "MSSM WCVI",
-                      "OTHER", # filtered to two older bottom trawl surveys + hake
-                      "HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI")
 
-# browser()
+# # # Load data ----
 
-dat <- readRDS("data-raw/survey-samples-flatfish.rds") %>%
-  bind_rows(., readRDS("data-raw/survey-samples-part2.rds")) %>%
-  bind_rows(., readRDS("data-raw/survey-samples-part3.rds")) %>%
-  bind_rows(., readRDS("data-raw/survey-samples-shortspine.rds")) %>%
-  bind_rows(., readRDS("data-raw/survey-samples-rougheye.rds")) %>%
-  ## remove sample_ids which were entirely recorded in cm rather than mm
-  ## fortunately doesn't change anything,
-  ## so will leave them in so that they will be included once corrected
-  # filter(!(sample_id %in% c(536500, 536506, 537170, 532297))) %>%
-# dat <- readRDS("data-raw/survey-samples-part2.rds") %>%
-  # filter(survey_abbrev == "OTHER" & !is.na(weight))
-  filter(species_common_name == tolower(species)) %>%
-  # filter((survey_abbrev %in% surveys_included)) %>%
-  # filter(!is.na(weight), !is.na(length)) %>%
-  mutate(
-    survey_abbrev = ifelse(
-      survey_abbrev %in% c("MSSM", "MSSM QCS", "MSSM WCVI") & latitude < 50,
-      "MSSM WCVI", ifelse(
-        survey_abbrev %in% c("MSSM", "MSSM QCS", "MSSM WCVI") & latitude > 50,
-        "MSSM QCS", survey_abbrev
-        )
-      ),
-    survey_group = ifelse(
-      survey_abbrev %in% c("HBLL OUT N", "HBLL OUT S"),
-      "HBLL", ifelse(
-        survey_abbrev %in% c("OTHER", "HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI"),
-        "TRAWL", ifelse(
-          survey_abbrev %in% c("MSSM QCS", "MSSM WCVI"), "MSSM", survey_abbrev
-          )
-        )
-      )#,
-    ## density model survey types
-    # survey_type = as.factor(ifelse(survey_abbrev == "HS MSA", "MSA",
-    #   ifelse(survey_abbrev %in% c("MSSM WCVI", "MSSM QCS") &
-    #     year > 2002 & year <= 2005, "MSSM<=05",
-    #   ifelse(survey_abbrev %in% c("MSSM WCVI", "MSSM QCS") &
-    #     year > 2005, "MSSM>05",
-    #   ifelse(survey_abbrev %in% c("MSSM WCVI", "MSSM QCS") &
-    #     year <= 2002, "MSSM <03",
-    #   ifelse(survey_abbrev == "OTHER", "OTHER",
-    #   ifelse(survey_abbrev %in% c("HBLL OUT N", "HBLL OUT S"), "HBLL",
-    #   ifelse(survey_abbrev %in% c("SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI"), "SYN",
-    #     survey_abbrev
-    #     )))))))),
-    ) %>%
-  distinct()
+dat <- readRDS("data-generated/all-samples-used.rds") %>%
+filter(species_common_name == tolower(species),
+       ## remove the combined version of the sablefish survey (only version retained currently)
+       ## because this survey is at different time of year than all the others
+       !(survey_abbrev %in% c("SABLE")),
+       !is.na(longitude), !is.na(latitude)
+       )
 
-
-## not needed because only the more common length type populates the length variable
-## alternates are included only in their own columns
-# dat <- filter(dat, length_type = which.max(table(dat$length_type)))
-
-
-# dset <- readRDS("data-raw/survey-sets-all.rds") %>%
-# dset <- readRDS("data-raw/pcod-survey-sets-all.rds") %>%
-# dset <- readRDS("data-raw/survey-sets-flatfish.rds") %>%
-# dset <- readRDS("data-raw/survey-sets-part2.rds") %>%
-dset <- readRDS("data-raw/survey-sets-flatfish.rds") %>%
-  bind_rows(., readRDS("data-raw/survey-sets-part2.rds")) %>%
-  bind_rows(., readRDS("data-raw/survey-sets-part3.rds")) %>%
-  bind_rows(., readRDS("data-raw/survey-sets-shortspine.rds")) %>%
-  bind_rows(., readRDS("data-raw/survey-sets-rougheye.rds")) %>%
-  filter(
-    !(survey_abbrev %in% c("SABLE INLET", "SABLE OFF", "SABLE RAND")),
-    # some MSSM sets are in both as QCS and WCVI
-    !(survey_series_id == 6 & latitude < 50),
-    !(survey_series_id == 7 & latitude > 50),
-    # 11 useful for deeper species, 9 from 1996 probably too limited, 68 is hake
-    !(survey_abbrev == "OTHER" & !(survey_series_id %in% c(9, 11, 68)))
-  ) %>%
-  mutate(survey_abbrev = ifelse(
-    survey_abbrev == "MSSM" & latitude < 50, "MSSM WCVI", ifelse(
-      survey_abbrev == "MSSM" & latitude > 50, "MSSM QCS", survey_abbrev
-      )
-    ),
-    # survey_group = ifelse(
-    #   survey_abbrev %in% c("HBLL OUT N", "HBLL OUT S"), "HBLL", ifelse(
-    #     survey_abbrev %in% c("OTHER", "HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI"),
-    #     "TRAWL", ifelse(
-    #       survey_abbrev %in% c("MSSM QCS", "MSSM WCVI"), "MSSM", survey_abbrev
-    #       )
-    #     )
-    #   ),
-    survey_group = as.factor(
-      case_when(
-        survey_abbrev %in% c("HBLL OUT N", "HBLL OUT S")~"HBLL",
-        survey_abbrev %in% c("MSSM QCS", "MSSM WCVI")~"MSSM",
-        survey_abbrev %in% c("OTHER", "HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI")~"TRAWL",
-        survey_series_id == 68~"HAKE",
-        TRUE~survey_abbrev
-      ))
-  ) %>%
-  filter((survey_abbrev %in% surveys_included), !is.na(longitude), !is.na(latitude))
-
-# saveRDS(dset, paste0("data-generated/set-data-used.rds"))
-
-dset <- dset %>% filter(species_common_name == tolower(species))
-
-
+check_for_duplicates <- dat[duplicated(dat$specimen_id), ]
 sort(unique(dat$survey_abbrev))
-sort(unique(dset$survey_abbrev))
+
+# dset <- readRDS("data-generated/all-sets-used.rds") %>%
+#   filter(species_common_name == tolower(species))
+# sort(unique(dset$survey_abbrev))
 # unique(select(dset, usability_code, usability_desc)) %>% view()
 
-check_for_duplicates <- dset[duplicated(dset$fishing_event_id), ]
-check_for_duplicates <- dat[duplicated(dat$specimen_id), ]
-# glimpse(dset)
-# dat1 %>% filter(!is.na(length) & !is.na(weight)) %>% group_by(survey_abbrev, year) %>% summarise(n=n()) %>% View()
 
 #TODO: temporary because false zeros were in an older data pull
 dat$catch_count <- ifelse(dat$catch_weight > 0 & dat$catch_count == 0, NA, dat$catch_count)
 dat$catch_weight <- ifelse(dat$catch_count > 0 & dat$catch_weight == 0, NA, dat$catch_weight)
 
-
-
-
-### figure out why data sets weren't matching (month variable was problem so renamed above)
-# select(dat, trip_start_date, trip_month, set_month, day, latitude, longitude) %>% distinct() %>% View()
 
 datf <- filter(dat, !is.na(length))
 # datf <- filter(datf, !is.na(weight))
@@ -193,116 +90,17 @@ datf <- filter(datf, !is.na(survey_abbrev))
 unique(datf$survey_abbrev)
 unique(dat$survey_abbrev)
 
-## missing event info is not an issue for the new datasets
-# datf2 <- filter(datf, !is.na(longitude) )
-# unique(datf2$survey_abbrev)
-# unique(datf2$survey_group)
-#
-# (nrow(datf) -nrow(datf2))/nrow(datf)
-
-# ## get count of sampled fish with missing set data
-# datf %>% filter(is.na(longitude)) %>%
-#   ## add this line to get individual sets that are missing from get_survey_sets()
-#   # select(survey_abbrev, year, fishing_event_id) %>% distinct() %>%
-#   group_by(survey_abbrev, year) %>%
-#   summarise(n = n()) %>% View()
 
 # TODO: decide which surveys to include, for now including all data available
-# Have there been any measurement changes or are there differences between HBLL ans synoptic in lengths or maturity keys?
-
-# dat <- filter(dat, survey_abbrev %in% c("SYN HS"   ,"SYN QCS",  "SYN WCHG", "SYN WCVI"))
-# dat <- filter(dat, !is.na(depth_m))
-
-
-# # 1. Le Cren’s relative condition factor
-#
-# mf <- gfplot::fit_length_weight(dat, sex = "female")
-# mm <- gfplot::fit_length_weight(dat, sex = "male")
-#
-#
-# ## Length-weight plot ----
-# plot_length_weight(object_female = mf, object_male = mm)
-#
-#
-# # mf$data$predicted_weight <- exp(mf$pars$log_a + mf$pars$b * log(mf$data$length))
-# # mf$data$residuals <- (mf$data$weight - mf$data$predicted_weight)/mf$data$weight
-# # plot(residuals~length, data = mf$data)
-#
-#
-# df <- dplyr::filter(dat, sex == 2, !is.na(weight), !is.na(length))
-# dm <- dplyr::filter(dat, sex == 1, !is.na(weight), !is.na(length))
-#
-# df$wbar <- exp(mf$pars$log_a) * df$length^mf$pars$b * 1000
-# dm$wbar <- exp(mm$pars$log_a) * dm$length^mm$pars$b * 1000
-#
-# # include unknown sex individuals for now, because immature individuals can be difficult to sex and differences in growth rate may be slim
-# du <- dplyr::filter(dat, sex %in% c(0, 3), !is.na(weight), !is.na(length))
-#
-# # Apply an intermediate slope and intercept to these individuals
-# du$wbar <- exp((mm$pars$log_a + mf$pars$log_a) / 2) * du$length^((mm$pars$b + mf$pars$b) / 2) * 1000
-#
-# dd <- bind_rows(df, dm, du)
-# dd$cond_fac <- dd$weight / dd$wbar
-#
-# # plot(cond_fac~length, data = dd)
-#
-# 2. Remove outliers
-# dd <- filter(dd, cond_fac < quantile(dd$cond_fac, probs = 0.995))
-# dd <- filter(dd, cond_fac > quantile(dd$cond_fac, probs = 0.005))
-
-# ds <- select(dd, fishing_event_id, sex, age, length, weight, maturity_code, wbar, cond_fac, specimen_id, year, survey_abbrev)
-
-# plot(cond_fac ~ length, data = dd)
-
-# # remove extreme outliers from a sample where the scale or board were clearly calibrated wrong.
-# dd1 <- filter(dd, cond_fac < 10)
-# plot(cond_fac ~ length, data = dd1)
-#
-# hist(log(dd1$cond_fac), breaks = 50)
-# mean(dd1$cond_fac)
-# sd(log(dd1$cond_fac))*4
-#
-# ggplot(dd1) + geom_point( aes(length, cond_fac)) +
-#   facet_wrap(~survey_abbrev)
-#
-#
-## remove the most extreme outliers that are likely errors
-# upper_quantile <- 0.9975
-# lower_quantile <- 0.0025
-# quantile(dd1$cond_fac, upper_quantile)
-#
-#
-# dd2 <- filter(dd1, cond_fac < quantile(dd$cond_fac, probs = upper_quantile))
-# plot(cond_fac ~ length, data = dd2)
-#
-# # TODO: could trim lower, but looking more balance without trimming for petrale
-# dd2 <- filter(dd2, cond_fac > quantile(dd$cond_fac, probs = lower_quantile))
-# plot(cond_fac ~ length, data = dd2)
-#
-
-# # black swan version
-# exp(qnorm(0.9999, 0, sd = exp(mf$pars$log_sigma)))
-# exp(mean(log(dd$cond_fac)) + (sd(log(dd$cond_fac))*4))
-# quantile(dd$cond_fac, upper_quantile)
-#
-# qnorm(0.0001, 0, sd = exp(mf$pars$log_sigma))
-# exp(mean(log(dd$cond_fac)) - (sd(log(dd$cond_fac))*4))
-# exp(quantile(dd$cond_fac, lower_quantile))
-#
-#
-# dd2 <- filter(dd, cond_fac < exp(mean(log(dd$cond_fac)) + (sd(log(dd$cond_fac))*4)))
-# dd2 <- filter(dd2, cond_fac > exp(mean(log(dd$cond_fac)) - (sd(log(dd$cond_fac))*4)))
-#
-# plot(cond_fac ~ length, data = dd2)
-#
-# group_by(dd2, year) %>%
-#   summarise(mcond = mean(cond_fac)) %>%
-#   ggplot(aes(year, mcond)) +
-#   geom_line()
-# for pcod area 1 fish (only sampled pre 2000 anyway) are very low!
+# Have there been any measurement changes or are there differences between HBLL and synoptic in lengths or maturity keys?
 
 fish <- dat
 
+
+## not needed because only the more common length type populates the length variable
+## alternates are included only in their own columns
+# dat <- filter(dat, length_type = which.max(table(dat$length_type)))
+## but include this check, just in case there's a problem
 if(length(unique(fish$length_type))>1){stop("Stop. Two different length types.")}
 
 ggplot(
@@ -314,26 +112,31 @@ ggplot(
 
 # 2. Split samples into immature and mature and into length bins ----
 # Starting with code lifted from split by maturity function in case we also want to functionalize this
-# arguements required:
-custom_maturity_at <- NULL
-
-sample_id_re <- TRUE
-
-## could use separate estimates for each year
-# year_re <- TRUE
-## discovered that petrale length at maturity was unusually high in WCVI 2004 and 2006
-year_re <- FALSE
-p_threshold <- mat_threshold
+# arguments required:
 split_by_maturity <- TRUE
 split_by_sex <- TRUE
 immatures_pooled <- TRUE
 
+## might be worth getting the same model from the density split
+# dss <- readRDS(paste0("data-generated/split-catch-data/", spp, ".rds"))
+# m <- dss$m
+## if using this, need to remove all updates to m
+update_m <- TRUE
+## for now leaving it this way for comparison
+
+p_threshold <- mat_threshold
 
 if(species=="North Pacific Spiny Dogfish") {
   custom_maturity <- c(NA, 55)
 } else{
   custom_maturity <- NULL
 }
+
+## could use separate estimates for each year
+# year_re <- TRUE
+## discovered that petrale length at maturity was unusually high in WCVI 2004 and 2006
+year_re <- FALSE
+sample_id_re <- TRUE
 
 
 # -----
@@ -391,13 +194,14 @@ if (split_by_maturity) {
     } else {
       warning("Some years lack maturity data, but catch still split.", call. = FALSE)
 
+      if(update_m) {
       m <- fit_mat_ogive(fish,
         type = "length",
         sample_id_re = sample_id_re,
         usability_codes = NULL,
         custom_maturity_at = custom_maturity
       )
-
+      }
       if (p_threshold == 0.5) {
         f_fish$threshold <- m$mat_perc$f.p0.5
         m_fish$threshold <- m$mat_perc$m.p0.5
@@ -413,12 +217,8 @@ if (split_by_maturity) {
     }
   } else {
     if (year_re) {
-
       # sample_id_re <- FALSE
-      # p_threshold <- 0.5
-      # Probability of maturity to split at Default = 0.5. Alternatives are 0.05 or 0.95.
-      # year_re <- FALSE
-
+      if(update_m) {
       m <- fit_mat_ogive(fish,
         type = "length",
         sample_id_re = sample_id_re,
@@ -426,6 +226,10 @@ if (split_by_maturity) {
         custom_maturity_at = custom_maturity,
         year_re = TRUE
       )
+
+      gfplot::plot_mat_annual_ogives(m)
+      }
+
       if (p_threshold == 0.5) {
         f_fish$threshold <- lapply(f_fish$year_f, function(x) m$mat_perc[[x]]$f.p0.5)
         m_fish$threshold <- lapply(m_fish$year_f, function(x) m$mat_perc[[x]]$m.p0.5)
@@ -439,13 +243,14 @@ if (split_by_maturity) {
         m_fish$threshold <- lapply(m_fish$year_f, function(x) m$mat_perc[[x]]$m.p0.95)
       }
     } else {
+      if(update_m) {
       m <- fit_mat_ogive(fish,
         type = "length",
         sample_id_re = sample_id_re,
         usability_codes = NULL,
         custom_maturity_at = custom_maturity
       )
-
+      }
       # apply global estimates to all catches
       if (p_threshold == 0.5) {
         f_fish$threshold <- m$mat_perc$f.p0.5
@@ -522,11 +327,10 @@ if (split_by_maturity) {
     mutate(group_name = ifelse(sex == 1, "Males", "Females"))
 }
 
-# browser()
-# gfplot::plot_mat_annual_ogives(m)
-gfplot::plot_mat_ogive(m)
-saveRDS(m, paste0("data-generated/maturity-ogives/", spp, "-all.rds"))
-
+if(update_m) {
+  gfplot::plot_mat_ogive(m)
+  saveRDS(m, paste0("data-generated/maturity-ogives/", spp, "-all.rds"))
+}
 
 # 2. Le Cren’s relative condition factor ----
 
@@ -752,7 +556,6 @@ ggsave(paste0("figs/cond-black-swan-",
 # abline(v = m$mat_perc$mean$m.mean.p0.5, col = "blue")
 
 # save data
-spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species)))
 
 dir.create(paste0("data-generated/condition-data-black-swan/"), showWarnings = FALSE)
 saveRDS(ds, paste0("data-generated/condition-data-black-swan/", spp, "-mat-", mat_threshold, "-condition.rds"))
