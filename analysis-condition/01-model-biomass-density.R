@@ -21,21 +21,21 @@ species_list <- list(
   # "North Pacific Spiny Dogfish",
   # "Pacific Ocean Perch",
   # "Pacific Cod",
-  # "Walleye Pollock",
+  "Walleye Pollock",
   "Sablefish",
   "Lingcod",
-  "Bocaccio",
-  "Canary Rockfish",
-  "Redstripe Rockfish", #
-  "Rougheye/Blackspotted Rockfish Complex", #
-  "Silvergray Rockfish", #
-  "Shortspine Thornyhead",
-  "Widow Rockfish", #
-  "Yelloweye Rockfish",
-  "Yellowmouth Rockfish", #
-  "Yellowtail Rockfish",
-  "Petrale Sole", #
-  "Arrowtooth Flounder", #
+  # "Bocaccio",
+  # "Canary Rockfish",
+  # "Redstripe Rockfish", #
+  # "Rougheye/Blackspotted Rockfish Complex", #
+  # "Silvergray Rockfish", #
+  # "Shortspine Thornyhead",
+  # "Widow Rockfish", #
+  # "Yelloweye Rockfish",
+  # "Yellowmouth Rockfish", #
+  # "Yellowtail Rockfish",
+  # "Petrale Sole", #
+  # "Arrowtooth Flounder", #
   "English Sole",#
   "Dover Sole",#
   "Rex Sole", #
@@ -80,12 +80,13 @@ fit_all_distribution_models <- function(species) {
 
   options(scipen = 100, digits = 4)
   theme_set(theme_sleek())
+  fig_height <- 4 * 2
+  fig_width <- 5 * 2
 
   dens_model_name_long <- "depth, DOY, and survey type"
 
   set_min_sample_number <- 6
   mat_threshold <- 0.5
-  # knot_distance <<- 15
   knot_distance <<- 20
   set_priors <<- sdmTMBpriors(
     matern_s = pc_matern(
@@ -98,59 +99,36 @@ fit_all_distribution_models <- function(species) {
     )
   )
 
-
-  # set_family <- delta_gamma()
   set_family <- delta_lognormal()
+  set_family2 <- tweedie()
+  # set_family2 <- delta_gamma()
 
   # naming scheme updated Jan. 3 2024
+  ## all previous to March 2024 had bug in RWs with extra years
   # ...0 is the total, updated models are just for splits
   if(only_sampled) {
-    ## with bug in RWs with extra years
-    # dens_model_name0 <- "dln-all-only-w-ann-prop"
-    # dens_model_name <- "dln-all-only-true-ratio-6"
-
     dens_model_name0 <- "dln-all-mar-2024"
     dens_model_name <- "dln-only-sampled-shrunk"
-
   } else {
-
-    ## with bug in RWs with extra years
-    # dens_model_name0 <- "dln-all-only-w-ann-prop"
-    ## pre rule refinement (survey means, not year means?)
-    # dens_model_name <- "dln-all-syn-intercept"
-    # probable that change after this introduced error..
-    # use 10 sample cutoff for aggregating by year, then survey, then all
-    # dens_model_name <- "dln-all-split-on-min-10"
-  # now thoroughly checked...
-  # use 6 sample cutoff
+  # now using 6 sample cutoff
   # use SD to choose between aggregating by year or survey first, then survey, then all
-  # dens_model_name <- "dln-all-split-6"
-  # dens_model_name <- "dln-all-split-all-weights"
     dens_model_name0 <- "dln-all-mar-2024"
     dens_model_name <- "dln-all-shrunk"
   }
 
-
-  set_family2 <- tweedie()
-  # set_family2 <- delta_gamma()
-
-  fig_height <- 4 * 2
-  fig_width <- 5 * 2
 
   # subset of surveys used for density models
   surveys_included <- c(
     "HS MSA",
     "SYN HS", "SYN QCS",
     "SYN WCHG", "SYN WCVI",
-    "MSSM QCS", "MSSM WCVI", #already filtered to avoid duplication
+    "MSSM QCS", "MSSM WCVI", # already filtered to avoid duplication
     "HAKE",
     "OTHER" # already filtered to two older bottom trawl surveys + hake
   )
 
-
   if (length(set_family$family) > 1) {
     set_spatial <- "on"
-    # set_spatial <- list("on", "off")
     set_spatiotemporal <- list("rw", "rw")
   } else {
     set_spatial <- "on"
@@ -163,11 +141,6 @@ fit_all_distribution_models <- function(species) {
     # # custom_length_threshold <- c(70.9, 86.2)
     # # set_family <- delta_lognormal_mix()
     # # set_family2 <- delta_lognormal()
-    # set_family <- delta_gamma_mix()
-    # set_family2 <- delta_gamma()
-    # # set_spatial <- list("on", "off")
-    # # set_spatiotemporal <- list("rw", "off")
-    # dens_model_name <- "-dgm-doy-1-22-xt-offset"
   } else {
     custom_maturity_code <- NULL
     custom_length_threshold <- NULL
@@ -184,22 +157,22 @@ fit_all_distribution_models <- function(species) {
     filter(survey_abbrev %in% surveys_included) %>%
     distinct()
 
-
   dsamp <- readRDS("data-generated/all-samples-used.rds") %>%
     filter(species_common_name == tolower(species)) %>%
     distinct()
 
-
-  ## initial filtering ----
-
   check_for_duplicates <- dset[duplicated(dset$fishing_event_id), ]
+  if(nrow(check_for_duplicates)>0){ stop(paste(species, "has duplicate event ids."))}
+
+  check_for_duplicates2 <- dsamp[duplicated(dsamp$specimen_id), ]
+  if(nrow(check_for_duplicates2)>0){ stop(paste(species, "has duplicate specimen ids."))}
+
   # I'm not using sample is so shouldn't be any unless something else can cause this
   # test_event <- dset[ dset$fishing_event_id == 329270, ]
 
   # unique(dset$survey_abbrev)
   # unique(dsamp$survey_abbrev)
   # unique(dsamp$maturity_code)
-
 
   maturity_possible <- TRUE
 
@@ -220,7 +193,7 @@ fit_all_distribution_models <- function(species) {
     # split_by_weight = FALSE, # automatically switches to TRUE for common weight-based catch variables
     sample_id_re = TRUE, # used for maturity ogives
     # sample_id_re = FALSE,
-    survey = surveys_included,
+    # survey = surveys_included, # turning this off allows all samples provided to be used for maturity split
     immatures_pooled = TRUE,
     # use_median_ratio = TRUE,
     min_sample_number = set_min_sample_number,
@@ -230,8 +203,6 @@ fit_all_distribution_models <- function(species) {
     p_threshold = mat_threshold,
     plot = maturity_possible
   )
-
-  # browser()
 
   dir.create(paste0("data-generated/split-catch-data/"), showWarnings = FALSE)
 
@@ -243,7 +214,6 @@ fit_all_distribution_models <- function(species) {
   # dss$weight_plot
   # dss$data %>% filter(group_catch_est >0) %>%
   #     ggplot() + geom_histogram(aes(log(group_catch_est)))
-  # TODO: double check that split by weight is working properly, because when applied to biomass it doesn't matter if it's on or off
 
   meaneffort1 <- dss$data %>%
     filter(group_name %in% c("Mature", "Females", "Mature females") &
@@ -311,8 +281,6 @@ fit_all_distribution_models <- function(species) {
 
   ds <- ds[,which(unlist(lapply(ds, function(x)!all(is.na(x))))),with=FALSE]
 
-
-
   # Select what data to include ----
   ds <- ds %>%
     # filter(!(usability_code %in% c(5,9,13))) %>%
@@ -334,11 +302,10 @@ fit_all_distribution_models <- function(species) {
   ds <- ds %>% filter(!is.na(area_swept))
   ds <- ds %>% filter(!is.na(latitude))
   ds <- ds %>% filter(!is.na(longitude))
-  ds$offset <- log(ds$area_swept / 100000) # converts m2 to km2
+  ds$area_swept_km2 <- ds$area_swept / 100000  # converts m2 to km2
+  ds$offset <- log(ds$area_swept_km2)
   ds$survey_type <- relevel(ds$survey_type, "SYN")
 
-
-# browser()
   # Which surveys to include? ----
   # keep only surveys that caught this species within years of interest
   # currently at least 20 times total or an average of 4 times per year
@@ -403,7 +370,6 @@ fit_all_distribution_models <- function(species) {
   which_surv_all
 }
 
-
   which_surv_all <- which_surveys(ds)
 
   dir.create(paste0("data-generated/surv-summary/"), showWarnings = FALSE)
@@ -416,24 +382,17 @@ fit_all_distribution_models <- function(species) {
     summarize_all(max) %>%
     filter(
       # round(prop_pos, 2) >= 0.01 &
-           prop_pos >= 0.01 &
-           ## all species-maturity classes met this before I added YE
-           # round(max_prop_pos, 2) >= 0.05 &
-           max_pos_by_year >= 3 &
-           !(prop_years_w_0 > 0.5 & max_pos_by_year < 5)
-          )
+      prop_pos >= 0.01 &
+      ## all species-maturity classes met this before I added YE
+      # round(max_prop_pos, 2) >= 0.05 &
+      max_pos_by_year >= 3 &
+      !(prop_years_w_0 > 0.5 & max_pos_by_year < 5)
+     )
 
   ds <- filter(ds, survey_type %in% which_surv$survey_type)
 
 
-
   # Plot usabilities ----
-  # ds %>% group_by(usability_code, usability_desc, survey_type) %>% summarise(
-  #   mean_catch = mean(catch_weight, na.rm = TRUE),
-  #   sum_catch = sum(catch_weight, na.rm = TRUE),
-  #   n = n()
-  # )
-
   ds %>%
       mutate(group_name = ifelse(is.na(group_catch_est), "Unsampled", group_name),
              group_catch_est = ifelse(group_name == "Unsampled", catch_weight, group_catch_est)
@@ -441,11 +400,7 @@ fit_all_distribution_models <- function(species) {
     filter(group_name %in% c("Mature", "Females", "Mature females", "Unsampled")) %>%
     distinct() %>%
     ggplot() +
-    # geom_violin(aes(area_swept, usability_desc))+
-    geom_point(aes(area_swept, usability_name,
-                   # colour = group_name,
-                   size = log(catch_weight + 1)),
-               alpha = 0.3) +
+    geom_point(aes(area_swept, usability_name,size = log(catch_weight + 1)),alpha = 0.3) +
     scale_y_discrete(limits = rev) +
     facet_grid(~survey_type, scales = "free") +
     theme(axis.title.y = element_blank())
@@ -530,24 +485,7 @@ fit_all_distribution_models <- function(species) {
   i2 <- paste0("data-generated/density-index/", dens_model_name, "/mat-m/i-", m2, ".rds")
   i3 <- paste0("data-generated/density-index/", dens_model_name, "/imm/i-", m3, ".rds")
 
-
-#   if (is.null(extra_years)) {
-#     grid <- replicate_df(gfplot::synoptic_grid,
-#       time_name = "year",
-#       time_values = unique(d$year)
-#     ) %>%
-#       mutate(
-#         fishing_event_id = as.factor(paste(d$fishing_event_id[1])),
-#         days_to_solstice = 0,
-#         log_depth = log(depth),
-#         log_depth_c = log_depth - 5, # mean and median for whole data set
-#         survey_type = as.factor("SYN"),
-#         vessel = as.factor("584"),
-#         captain = as.factor("408"),
-#         vessel_cap_combo = as.factor("584-408") # has greatest spatial coverage
-#       )
-#   } else {
-#     # if extra time
+  # Generate synoptic grid for all modelled years ----
     grid <- replicate_df(gfplot::synoptic_grid,
       time_name = "year",
       time_values = min(d$year):max(d$year)
@@ -566,29 +504,19 @@ fit_all_distribution_models <- function(species) {
 
 
   # Total density dataframe ----
-  # d1a <- d %>% select(year, month, day, fishing_event_id,
-  #                    X, Y, longitude, latitude,
-  #                    survey_abbrev, survey_type,
-  #                    catch_weight, depth_m, log_depth_c, days_to_solstice,
-  #                    usability_code, area_swept, offset) %>%
-  #     group_by(year, month, day, fishing_event_id,
-  #              X, Y, longitude, latitude,
-  #              survey_abbrev, survey_type, usability_code) %>%
-  #   # filter(group_name %in% c("Females", "Mature females"))
-  #   summarize_all(mean)
-
-
 
     # simplify dataframe to be included with models
     d <- d %>% select(
       fishing_event_id,
-      catch_weight, density_kgha,
+      catch_weight,
       group_name, group_catch_est,
+      n_fish_sampled, proportion, median_prop_ann,
       X, Y, latitude, longitude,
       year, days_to_solstice, DOY,
       survey_abbrev, survey_type,
       depth_m, log_depth, log_depth_c,
-      area_swept, offset,
+      # area_swept,
+      area_swept_km2, offset,
       duration_min, speed_mpm,
       doorspread_m, tow_length_m,
       usability_name,
@@ -669,7 +597,7 @@ fit_all_distribution_models <- function(species) {
 
 # browser()
 
-  d1$density_kgha <- d1$catch_weight/(d1$area_swept_km2*100)
+  d1$density_kgha <- d1$catch_weight/(d1$area_swept_km2*100) # converts to ha
 
   plot_mesh(
     mesh_obj = mesh,
@@ -684,15 +612,11 @@ fit_all_distribution_models <- function(species) {
                 dens_model_name,
                 ".png"), width = 14, height = 14)
 
-  d1 %>% #filter(usability_code != 0) %>%
-    # filter(year %in% c(2003, 2004)) %>%
-  ggplot() + geom_histogram(aes(depth_m)) +
-    # geom_histogram(aes(depth_m), fill = "red", data = filter(d1, catch_weight > 0 & year %in% c(2003, 2004))) +
+  d1 %>% ggplot() + geom_histogram(aes(depth_m)) +
     geom_histogram(aes(depth_m), fill = "red", data = filter(d1, catch_weight > 0 )) +
     facet_wrap(~survey_type, scales = "free_y")
 
-  d1 %>% #filter(usability_code != 0) %>%
-    ggplot() + geom_histogram(aes(days_to_solstice)) +
+  d1 %>% ggplot() + geom_histogram(aes(days_to_solstice)) +
     geom_histogram(aes(days_to_solstice), fill = "red", data = filter(d1, catch_weight > 0)) +
     facet_wrap(~survey_type, scales = "free_y")
 
