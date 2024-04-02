@@ -17,25 +17,25 @@ library(patchwork)
 
 
 species_list <- list(
-  # "Arrowtooth Flounder",
-  # "North Pacific Spiny Dogfish",
-  # "Pacific Ocean Perch",
-  # "Pacific Cod",
+  "Arrowtooth Flounder",
+  "North Pacific Spiny Dogfish",
+  "Pacific Ocean Perch",
+  "Pacific Cod",
   "Walleye Pollock",
   "Sablefish",
   "Lingcod",
-  # "Bocaccio",
-  # "Canary Rockfish",
-  # "Redstripe Rockfish", #
-  # "Rougheye/Blackspotted Rockfish Complex", #
-  # "Silvergray Rockfish", #
-  # "Shortspine Thornyhead",
-  # "Widow Rockfish", #
-  # "Yelloweye Rockfish",
-  # "Yellowmouth Rockfish", #
-  # "Yellowtail Rockfish",
-  # "Petrale Sole", #
-  # "Arrowtooth Flounder", #
+  "Bocaccio",
+  "Canary Rockfish",
+  "Redstripe Rockfish", #
+  "Rougheye/Blackspotted Rockfish Complex", #
+  "Silvergray Rockfish", #
+  "Shortspine Thornyhead",
+  "Widow Rockfish", #
+  "Yelloweye Rockfish",
+  "Yellowmouth Rockfish", #
+  "Yellowtail Rockfish",
+  "Petrale Sole", #
+  "Arrowtooth Flounder", #
   "English Sole",#
   "Dover Sole",#
   "Rex Sole", #
@@ -62,9 +62,7 @@ species_list <- list(species = species_list)
 # species <- "Pacific Halibut"
 # species <- "Petrale Sole"
 # species <- "Arrowtooth Flounder"
-
 # species <- "Pacific Cod"
-
 
 # Function for running species density models --------
 
@@ -75,8 +73,8 @@ fit_all_distribution_models <- function(species) {
   stop_early <- FALSE
 
   ## this only affects maturity specific models
-  only_sampled <- FALSE
-  # only_sampled <- TRUE
+  # only_sampled <- FALSE
+  only_sampled <- TRUE
 
   options(scipen = 100, digits = 4)
   theme_set(theme_sleek())
@@ -510,7 +508,8 @@ fit_all_distribution_models <- function(species) {
       fishing_event_id,
       catch_weight,
       group_name, group_catch_est,
-      n_fish_sampled, proportion, median_prop_ann,
+      n_events_sampled, n_fish_sampled,
+      proportion, median_prop_ann,
       X, Y, latitude, longitude,
       year, days_to_solstice, DOY,
       survey_abbrev, survey_type,
@@ -661,6 +660,7 @@ fit_all_distribution_models <- function(species) {
   } else {
     m <- readRDS(fm)
     m <- sdmTMB:::update_version(m)
+    # browser()
     if (!all(sanity(m, gradient_thresh = 0.005))) {
         m <- refine_model(m, alternate_family = set_family2, use_priors = set_priors)
     }
@@ -1221,7 +1221,7 @@ if(maturity_possible) {
     coord_cartesian(ylim = c(0, max(all_split_inds$est/1000) * 1.5)) +
     ggtitle("Total") +
     xlab("Year") +
-    ylab("Biomass estimate (kg)")
+    ylab("Relative biomass estimate (tonnes)")
 
   p2
 
