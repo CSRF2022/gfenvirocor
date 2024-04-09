@@ -15,6 +15,7 @@ species_list <- list(
   "Lingcod",
   "Bocaccio",
   "Canary Rockfish",
+  "Redbanded Rockfish",
   "Redstripe Rockfish", #
   "Rougheye/Blackspotted Rockfish Complex", #
   "Silvergray Rockfish", #
@@ -66,8 +67,8 @@ calc_condition_indices <- function(species, maturity, males, females) {
   # stop_early <- TRUE
   stop_early <- FALSE
 
-  # add_density <- FALSE
-  add_density <- TRUE
+  add_density <- FALSE
+  # add_density <- TRUE
 
   # # probably don't need these anymore
   unweighted <- TRUE
@@ -211,12 +212,9 @@ calc_condition_indices <- function(species, maturity, males, females) {
   }
 
   # Load condition data and attach lagged density estimates ----
-
   dir.create(paste0("data-generated/condition-data-w-imm-dens/"),
              showWarnings = FALSE)
-  # f <- paste0("data-generated/condition-data-inclusive-w-imm-dens/",
-  # f <- paste0("data-generated/condition-data-black-swan-w-imm-dens/",
-  #             spp, "-mat-", mat_threshold, "-condition-imm-dens-doy.rds")
+
   f <- paste0("data-generated/condition-data-w-imm-dens/",
               spp, "-mat-", mat_threshold, "-condition-best-model.rds")
 
@@ -292,6 +290,9 @@ calc_condition_indices <- function(species, maturity, males, females) {
 
     }
     # browser()
+
+    md <- sdmTMB:::update_version(md)
+
 
     nd0 <- nd0 %>% filter(year >= min(md$data$year))
     # can't predict prior to first year of density model
@@ -558,7 +559,16 @@ calc_condition_indices <- function(species, maturity, males, females) {
   hist(d$cond_fac)
   hist(log(d$cond_fac))
 
-  d$survey_group <- as.factor(d$survey_group)
+  d <- d %>% mutate(
+    survey_group = as.factor(
+      case_when(
+        survey_abbrev %in% c("HBLL OUT N", "HBLL OUT S")~"HBLL",
+        survey_abbrev %in% c("MSSM QCS", "MSSM WCVI")~"MSSM",
+        survey_abbrev %in% c("OTHER", "HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI")~"TRAWL",
+        survey_series_id == 68~"HAKE",
+        TRUE~survey_abbrev
+      ))
+    )
   d <- d %>% filter(year >= min(gridA$year))
 
   mesh <- make_mesh(d, c("X", "Y"), cutoff = knot_distance)
@@ -621,31 +631,8 @@ calc_condition_indices <- function(species, maturity, males, females) {
     group_by(survey_group) %>%
     summarise(n = n())
 
-  # if(unweighted) {
     d$sample_multiplier <- 1
-    model_name <- "doy-unweighted"
-    # model_name <- "doy" # next update change to this
-  # } else {
-  #   if(adjusted_weights){
-  #     model_name <- "doy-within-yr-weights"
-  #
-  #   d <- d %>% group_by(year) %>% mutate(
-  #       ann_sample_n = n(),
-  #       sample_multiplier0 = sample_multiplier,
-  #       est_num_unsampled_group_members2 = (group_catch_weight - group_sampled_weight)/
-  #         (group_sampled_weight/group_num_sampled),
-  #       sample_multiplier2 = 1 + (est_num_unsampled_group_members2 / group_num_sampled),
-  #       ann_unsampled = sum(est_num_unsampled_group_members2 / group_num_sampled),
-  #       unsampled_portion = est_num_unsampled_group_members2 / group_num_sampled,
-  #       sample_multiplier1 = 1 + (unsampled_portion/ann_unsampled)*ann_sample_n,
-  #       # sample_multiplier = 1 + (unsampled_portion/ann_unsampled), # small-weights
-  #       sample_multiplier = ((1 + unsampled_portion)/
-  #         (ann_unsampled + ann_sample_n))*ann_sample_n #within-yr-weights
-  #       ) %>% ungroup()
-  #
-  #   hist(d$sample_multiplier)
-  #   }
-  # }
+    model_name <- "apr-2024"
 
   dir.create(paste0("data-generated/condition-models-",
                     group_tag, "/", model_name, "/"),
@@ -753,7 +740,7 @@ calc_condition_indices <- function(species, maturity, males, females) {
 
     # if(unweighted) {
       d$sample_multiplier <- 1
-      model_name <- "all-blackswan-doy-ld0c-unweighted"
+      model_name <- "apr-2024-density"
       # model_name <- "doy-ld0c" # next update, change to this
     # } else {
     #   if(adjusted_weights){
