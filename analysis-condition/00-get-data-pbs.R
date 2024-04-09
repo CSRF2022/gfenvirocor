@@ -50,6 +50,7 @@
 # species_list <- c(
 #   "Pacific Hake",
 #   "Quillback Rockfish",
+  # "Redbanded Rockfish"
 #   "Big Skate",
 #   "Longnose Skate"
 # )
@@ -98,6 +99,7 @@ dset <- readRDS("data-raw/survey-sets-flatfish.rds") %>%
   bind_rows(., readRDS("data-raw/survey-sets-part3.rds")) %>%
   bind_rows(., readRDS("data-raw/survey-sets-shortspine.rds")) %>%
   bind_rows(., readRDS("data-raw/survey-sets-rougheye.rds")) %>%
+  bind_rows(., readRDS("data-raw/survey-sets-redbanded.rds")) %>%
   bind_rows(., readRDS("data-raw/survey-sets-hake.rds")) %>%
   bind_rows(., readRDS("data-raw/survey-sets-quillback.rds")) %>%
   bind_rows(., readRDS("data-raw/survey-sets-skates.rds")) %>%
@@ -139,7 +141,7 @@ dset <- readRDS("data-raw/survey-sets-flatfish.rds") %>%
       ))
   ) %>% distinct()
 
-# saveRDS(dset, "data-generated/all-sets-used.rds")
+saveRDS(dset, "data-generated/all-sets-used.rds")
 
 
 dsamp <- readRDS("data-raw/survey-samples-part2.rds") %>%
@@ -147,6 +149,7 @@ dsamp <- readRDS("data-raw/survey-samples-part2.rds") %>%
   # bind_rows(., readRDS("data-raw/survey-samples-part4.rds")) %>%
   bind_rows(., readRDS("data-raw/survey-samples-flatfish.rds")) %>%
   bind_rows(., readRDS("data-raw/survey-samples-rougheye.rds")) %>%
+  bind_rows(., readRDS("data-raw/survey-samples-redbanded.rds")) %>%
   bind_rows(., readRDS("data-raw/survey-samples-shortspine.rds")) %>%
   bind_rows(., readRDS("data-raw/survey-samples-hake.rds")) %>%
   bind_rows(., readRDS("data-raw/survey-samples-quillback.rds")) %>%
@@ -176,7 +179,7 @@ dsamp <- readRDS("data-raw/survey-samples-part2.rds") %>%
   select(-dna_container_id, -dna_sample_type) %>%
   distinct()
 
-# saveRDS(dsamp, "data-generated/all-samples-used.rds")
+saveRDS(dsamp, "data-generated/all-samples-used.rds")
 
 
 check_for_duplicates <- dsamp[duplicated(dsamp$specimen_id), ]
