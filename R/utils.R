@@ -2,18 +2,18 @@
 #' refine delta model
 #' @export
 refine_model <- function(m, alternate_family = set_family2, use_priors = sdmTMBpriors()){
+  # browser()
+  reverted_mesh <- update_mesh(m)
 
   if(isTRUE(m$family$delta)) {
   s <- sanity(m)
-
-  # browser()
   if (!s$range_ok) {
     m <- update(m, share_range = TRUE,
                 spatial = as.list(m[["spatial"]]),
                 spatiotemporal = as.list(m[["spatiotemporal"]]),
                 extra_time = m$extra_time,
                 priors = use_priors,
-                data = m$data, family = m$family, mesh = m$spde)
+                data = m$data, family = m$family, mesh = reverted_mesh)
     s <- sanity(m)
   }
   if (!s$hessian_ok & !s$nlminb_ok) {
@@ -25,7 +25,7 @@ refine_model <- function(m, alternate_family = set_family2, use_priors = sdmTMBp
                 spatiotemporal = as.list(m[["spatiotemporal"]]),
                 extra_time = m$extra_time,
                 priors = use_priors,
-                data = m$data, mesh = m$spde)
+                data = m$data, mesh = reverted_mesh)
     s <- sanity(m)
   }
   if (!s$se_magnitude_ok|!s$se_na_ok|!s$sigmas_ok) {
@@ -33,7 +33,7 @@ refine_model <- function(m, alternate_family = set_family2, use_priors = sdmTMBp
                 spatiotemporal = as.list(m[["spatiotemporal"]]),
                 extra_time = m$extra_time,
                 priors = use_priors,
-                data = m$data, family = m$family, mesh = m$spde)
+                data = m$data, family = m$family, mesh = reverted_mesh)
     s <- sanity(m)
   }
   if (!s$hessian_ok) {
@@ -45,7 +45,7 @@ refine_model <- function(m, alternate_family = set_family2, use_priors = sdmTMBp
                 spatiotemporal = as.list(m[["spatiotemporal"]]),
                 extra_time = m$extra_time,
                 priors = use_priors,
-                data = m$data, mesh = m$spde)
+                data = m$data, mesh = reverted_mesh)
     s <- sanity(m)
   } else {
     if (!s$se_magnitude_ok|!s$se_na_ok|!s$sigmas_ok) {
@@ -53,7 +53,7 @@ refine_model <- function(m, alternate_family = set_family2, use_priors = sdmTMBp
                   spatiotemporal = as.list(m[["spatiotemporal"]]),
                   extra_time = m$extra_time,
                   priors = use_priors,
-                  data = m$data, family = m$family, mesh = m$spde)
+                  data = m$data, family = m$family, mesh = reverted_mesh)
       s <- sanity(m)
     }
 
@@ -62,7 +62,7 @@ refine_model <- function(m, alternate_family = set_family2, use_priors = sdmTMBp
                   spatiotemporal = list("off", "rw"),
                   extra_time = m$extra_time,
                   priors = use_priors,
-                  data = m$data, family = m$family, mesh = m$spde)
+                  data = m$data, family = m$family, mesh = reverted_mesh)
       s <- sanity(m)
     }
 
@@ -74,7 +74,7 @@ refine_model <- function(m, alternate_family = set_family2, use_priors = sdmTMBp
                   share_range = FALSE,
                   extra_time = m$extra_time,
                   priors = use_priors,
-                  data = m$data, mesh = m$spde)
+                  data = m$data, mesh = reverted_mesh)
       s <- sanity(m)
     }
   }
@@ -88,7 +88,7 @@ refine_model <- function(m, alternate_family = set_family2, use_priors = sdmTMBp
                 spatiotemporal = as.list(m[["spatiotemporal"]]),
                 extra_time = m$extra_time,
                 priors = use_priors,
-                data = m$data, family = m$family, mesh = m$spde)
+                data = m$data, family = m$family, mesh = reverted_mesh)
     s <- sanity(m)
   }
   if (!s$se_magnitude_ok|!s$se_na_ok) {
@@ -96,7 +96,7 @@ refine_model <- function(m, alternate_family = set_family2, use_priors = sdmTMBp
                 spatiotemporal = as.list(m[["spatiotemporal"]]),
                 extra_time = m$extra_time,
                 priors = use_priors,
-                data = m$data, family = m$family, mesh = m$spde)
+                data = m$data, family = m$family, mesh = reverted_mesh)
     s <- sanity(m)
   }
   if(!s$gradients_ok){
@@ -118,7 +118,7 @@ refine_model <- function(m, alternate_family = set_family2, use_priors = sdmTMBp
                   spatiotemporal = as.list(m[["spatiotemporal"]]),
                   extra_time = m$extra_time,
                   priors = use_priors,
-                  data = m$data, family = m$family, mesh = m$spde)
+                  data = m$data, family = m$family, mesh = reverted_mesh)
       s <- sanity(m)
     }
     if (!s$se_magnitude_ok|!s$se_na_ok) {
@@ -126,7 +126,7 @@ refine_model <- function(m, alternate_family = set_family2, use_priors = sdmTMBp
                   spatiotemporal = as.list(m[["spatiotemporal"]]),
                   extra_time = m$extra_time,
                   priors = use_priors,
-                  data = m$data, family = m$family, mesh = m$spde)
+                  data = m$data, family = m$family, mesh = reverted_mesh)
       s <- sanity(m)
     }
     if(!s$gradients_ok){
@@ -138,6 +138,12 @@ refine_model <- function(m, alternate_family = set_family2, use_priors = sdmTMBp
   }
 }
 
+#'
+#' @export
+#'
+update_mesh <- function(x) { # x = fitted sdmTMB model
+  make_mesh(x$data, x$spde$xy_cols, mesh = x$spde$mesh)
+}
 
 #'
 #' @export
@@ -186,7 +192,7 @@ split_index_by_survey <- function(model, grid, species, group_name){
   i$group <- group_name
   i$index <- paste0(i$group, "\n(", i$surveys, ")")
   i$model <- paste0(
-    ifelse(isTRUE(model$family$delta), model$family$clean_name, paste0(mmodel$family[1], "(link = 'log')")),
+    ifelse(isTRUE(model$family$delta), model$family$clean_name, paste0(model$family[1], "(link = 'log')")),
     "\nspatial (", model[["spatial"]][1], ", ", model[["spatial"]][2], ")")
 
   saveRDS(i, paste0("data-generated/density-split-ind/temp-index-split-",

@@ -6,35 +6,35 @@ library(tidyverse)
 library(gfplot)
 
 species_list <- list(
-  "Arrowtooth Flounder",
-  "North Pacific Spiny Dogfish",
-  "Pacific Ocean Perch",
-  "Pacific Cod",
-  "Walleye Pollock",
-  "Sablefish",
-  "Lingcod",
-  "Bocaccio",
-  "Canary Rockfish",
-  "Redstripe Rockfish", #
-  "Rougheye/Blackspotted Rockfish Complex", #
-  "Silvergray Rockfish", #
-  "Shortspine Thornyhead",
-  "Widow Rockfish", #
-  "Yelloweye Rockfish",
-  "Yellowmouth Rockfish", #
-  "Yellowtail Rockfish",
-  "Petrale Sole", #
-  "Arrowtooth Flounder", #
-  "English Sole",#
-  "Dover Sole",#
-  "Rex Sole", #
-  "Flathead Sole",#
-  "Southern Rock Sole",#
-  "Slender Sole",#
-  "Pacific Sanddab",#
-  "Pacific Halibut",#
-  "Pacific Hake",# any skates?
-  "Quillback Rockfish",
+  # "Arrowtooth Flounder",
+  # "North Pacific Spiny Dogfish",
+  # "Pacific Ocean Perch",
+  # "Pacific Cod",
+  # "Walleye Pollock",
+  # "Sablefish",
+  # "Lingcod",
+  # "Bocaccio",
+  # "Canary Rockfish",
+  # "Redstripe Rockfish", #
+  # "Rougheye/Blackspotted Rockfish Complex", #
+  # "Silvergray Rockfish", #
+  # "Shortspine Thornyhead",
+  # "Widow Rockfish", #
+  # "Yelloweye Rockfish",
+  # "Yellowmouth Rockfish", #
+  # "Yellowtail Rockfish",
+  # "Petrale Sole", #
+  # "Arrowtooth Flounder", #
+  # "English Sole",#
+  # "Dover Sole",#
+  # "Rex Sole", #
+  # "Flathead Sole",#
+  # "Southern Rock Sole",#
+  # "Slender Sole",#
+  # "Pacific Sanddab",#
+  # "Pacific Halibut",#
+  # "Pacific Hake",# any skates?
+  # "Quillback Rockfish",
   "Longnose Skate",
   "Big Skate"
   # "Curlfin Sole",#
@@ -57,22 +57,24 @@ mat_threshold <- 0.5
 
 spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species)))
 
-
 # # # Load data ----
-
+# browser()
 dat <- readRDS("data-generated/all-samples-used.rds") %>%
-filter(species_common_name == tolower(species),
-       ## remove the combined version of the sablefish survey (only version retained currently)
+filter(## remove the combined version of the sablefish survey (only version retained currently)
        ## because this survey is at different time of year than all the others
        !(survey_abbrev %in% c("SABLE")),
-       !is.na(longitude), !is.na(latitude)
+       !is.na(longitude), !is.na(latitude),
+       species_common_name == tolower(species)
        )
 
 check_for_duplicates <- dat[duplicated(dat$specimen_id), ]
+
+if(nrow(check_for_duplicates)>0){ stop(paste(species, "has duplicate specimen ids."))}
+
 sort(unique(dat$survey_abbrev))
 
-# dset <- readRDS("data-generated/all-sets-used.rds") %>%
-#   filter(species_common_name == tolower(species))
+dset <- readRDS("data-generated/all-sets-used.rds") %>%
+  filter(species_common_name == tolower(species))
 # sort(unique(dset$survey_abbrev))
 # unique(select(dset, usability_code, usability_desc)) %>% view()
 
@@ -147,7 +149,7 @@ if (split_by_maturity) {
 
   if (length(maturity_codes) < 3) {
     warning("Fewer than 3 maturity codes; returning NULL data.", call. = FALSE)
-    return(list(data = survey_sets, maturity = NULL, weight_model = NULL))
+    # return(list(data = survey_sets, maturity = NULL, weight_model = NULL))
   }
 
   # Check if only some years without maturity data, and set year_re = FALSE in that case
@@ -160,7 +162,7 @@ if (split_by_maturity) {
 
   if (max(levels_per_year) < 3) { # NA plus only one recorded maturity level is max ever recorded
     warning("Maturity data not recorded, so catch not split.", call. = FALSE)
-    return(list(data = survey_sets, model = NULL))
+    # return(list(data = survey_sets, model = NULL))
   }
 
   if (min(levels_per_year) < 3) { # some years lack maturity data
@@ -190,7 +192,7 @@ if (split_by_maturity) {
 
     if (length(levels_per_year) < 1) { # TODO: check if this threshold should actually be 2
       warning("Maturity data not recorded, so catch not split.", call. = FALSE)
-      return(list(data = survey_sets, model = NULL))
+      # return(list(data = survey_sets, model = NULL))
     } else {
       warning("Some years lack maturity data, but catch still split.", call. = FALSE)
 
