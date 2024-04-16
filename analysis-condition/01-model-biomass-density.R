@@ -15,45 +15,59 @@ library(ggsidekick)
 library(patchwork)
 # library(gfenvirocor)
 
+# load overall species list
+source("analysis-condition/00-species-list.R")
 
+# # or override with custom subset
 species_list <- list(
-  "Arrowtooth Flounder",
-  "North Pacific Spiny Dogfish",
-  "Pacific Ocean Perch",
-  "Pacific Cod",
-  "Walleye Pollock",
-  "Sablefish",
-  "Lingcod",
-  "Bocaccio",
-  "Canary Rockfish",
-  "Redstripe Rockfish", #
-  "Rougheye/Blackspotted Rockfish Complex", #
-  "Silvergray Rockfish", #
-  "Shortspine Thornyhead",
-  "Widow Rockfish", #
-  "Yelloweye Rockfish",
-  "Yellowmouth Rockfish", #
-  "Yellowtail Rockfish",
-  "Petrale Sole", #
-  "Arrowtooth Flounder", #
-  "English Sole",#
-  "Dover Sole",#
-  "Rex Sole", #
-  "Flathead Sole",#
-  "Southern Rock Sole",#
-  "Slender Sole",#
-  "Pacific Sanddab",#
-  "Pacific Halibut",#
-  "Pacific Hake",#
-  "Quillback Rockfish",
-  "Longnose Skate",
-  "Big Skate",
-  "Curlfin Sole",#
-  # # "Sand Sole",#
-  "Butter Sole"
-  # # ## "Starry Flounder"# too few males!
-  # # ## "C-O Sole", # way too few!
-  # # ## "Deepsea Sole" # no maturity
+  # "North Pacific Spiny Dogfish",
+  # "Pacific Ocean Perch",
+  # "Pacific Cod",
+  # "Walleye Pollock",
+  # "Sablefish",
+  # "Lingcod",
+  # "Bocaccio",
+  # "Canary Rockfish",
+  # "Quillback Rockfish",
+  # "Redbanded Rockfish",
+  # "Redstripe Rockfish", #
+  # "Rougheye/Blackspotted Rockfish Complex", #
+  # "Silvergray Rockfish", #
+  # "Shortspine Thornyhead",
+  # "Widow Rockfish", #
+  # "Yelloweye Rockfish",
+  # "Yellowmouth Rockfish", #
+  # "Yellowtail Rockfish",
+  # # "Copper Rockfish",
+  "Shortraker Rockfish"
+  # "Rosethorn Rockfish",
+  # "Harlequin Rockfish",
+  # "Pygmy Rockfish",
+  # "Sharpchin Rockfish",
+  # "Darkblotched Rockfish",
+  # "Greenstriped Rockfish",
+  # "Petrale Sole", #
+  # "Arrowtooth Flounder", #
+  # "English Sole",#
+  # "Dover Sole",#
+  # "Rex Sole", #
+  # "Flathead Sole",#
+  # "Southern Rock Sole",#
+  # "Slender Sole",#
+  # "Pacific Sanddab",#
+  # "Pacific Halibut"#
+  # "Butter Sole",
+  # "Pacific Hake",#
+  # "Longnose Skate",
+  # "Big Skate",
+  # "Spotted Ratfish",
+  # "Sandpaper Skate",
+  # "Pacific Tomcod",
+  # "Curlfin Sole", #
+  # "Sand Sole" #
+  # ## "Starry Flounder"# too few males!
+  # ## "C-O Sole", # way too few!
+  # ## "Deepsea Sole" # no maturity
 )
 
 species_list <- list(species = species_list)
@@ -104,6 +118,7 @@ fit_all_distribution_models <- function(species) {
   # naming scheme updated Jan. 3 2024
   ## all previous to March 2024 had bug in RWs with extra years
   # ...0 is the total, updated models are just for splits
+  # shrunk refers to the fix for the file size issue
   if(only_sampled) {
     dens_model_name0 <- "dln-all-mar-2024"
     dens_model_name <- "dln-only-sampled-shrunk"
@@ -133,22 +148,59 @@ fit_all_distribution_models <- function(species) {
     set_spatiotemporal <- "rw"
   }
 
+  custom_maturity_code <- NULL
+  custom_length_threshold <- NULL
+
+  # overwrite for certain species
   if (species == "North Pacific Spiny Dogfish") {
     custom_maturity_code <- c(NA, 55)
-    custom_length_threshold <- NULL
     # # custom_length_threshold <- c(70.9, 86.2)
     # # set_family <- delta_lognormal_mix()
     # # set_family2 <- delta_lognormal()
-  } else {
-    custom_maturity_code <- NULL
-    custom_length_threshold <- NULL
   }
+
+  if (species == "Big Skate") {
+    # # McFarlane and King 2006 -- shouldn't be relied on
+    # Ebert et al. 2008
+    custom_length_threshold <- c(102.9, 113.1)
+  }
+
+  if (species == "Longnose Skate") {
+    # # McFarlane and King 2006
+    # custom_length_threshold <- c(65, 83)
+    # Arrington 2020
+    custom_length_threshold <- c(85, 102)
+  }
+
+  if (species == "Sandpaper Skate") {
+    # Perez 2005
+    custom_length_threshold <- c(49.2, 46.7)
+  }
+
+  if (species == "Spotted Ratfish") {
+    # King and McPhie 2015
+    custom_length_threshold <- c(30.2, 39.3)
+  }
+
+  if (species == "Shortraker Rockfish") {
+    # McDermott 1994:  Hutchinson 2004 F 44.9
+    # Conrath 2017 for female,
+    # Haldorson and Love reported 47 but based on
+    # Westrheim, 1975 for both sexes = 45
+    custom_length_threshold <- c(45, 49.9)
+  }
+
+  # if (species == "Pacific Halibut") {
+  #   # Takada 2017 for females, males less precise.. btw 70-79
+  #   # no accurate values for males available so wont use for now
+  #   custom_length_threshold <- c(70, 96.7)
+  # }
 
   # if (grepl("Skate", species, fixed = TRUE)) {}
 
   spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species)))
 
-
+# browser()
   # # Load data ----
   dset <- readRDS("data-generated/all-sets-used.rds") %>%
     filter(species_common_name == tolower(species)) %>%
@@ -185,11 +237,22 @@ fit_all_distribution_models <- function(species) {
   # dset2 <- filter(dset, catch_weight > 900)
   }
 
+  sets_mat_m <- filter(dsamp, !is.na(maturity_code), !is.na(length), maturity_code != 0, sex == 1)
+  sets_mat_f <- filter(dsamp, !is.na(maturity_code), !is.na(length), maturity_code != 0, sex == 2)
+
+  # browser()
+
+  if(min(length(unique(sets_mat_f$fishing_event_id)), length(unique(sets_mat_f$fishing_event_id))) >= 20){
+    set_sample_id_re <- TRUE
+  }else{
+    set_sample_id_re <- FALSE
+  }
+
 # Split by maturity ----
   dss <- gfplot::split_catch_by_sex(dset, dsamp,
     # catch_variable = "est_catch_count", # could use this to avoid biomass ~ condition issue
     # split_by_weight = FALSE, # automatically switches to TRUE for common weight-based catch variables
-    sample_id_re = TRUE, # used for maturity ogives
+    sample_id_re = set_sample_id_re, # used for maturity ogives
     # sample_id_re = FALSE,
     # survey = surveys_included, # turning this off allows all samples provided to be used for maturity split
     immatures_pooled = TRUE,
@@ -627,6 +690,24 @@ fit_all_distribution_models <- function(species) {
 
   ## total abundance model ----
   if (!file.exists(fm)) {
+    if(nrow(which_surv)<2){
+      m <- sdmTMB(
+        catch_weight ~ 1 +
+          poly(log_depth_c, 2) +
+          poly(days_to_solstice, 2),
+        offset = "offset",
+        mesh = mesh,
+        data = d1,
+        spatial = set_spatial,
+        spatiotemporal = set_spatiotemporal,
+        share_range = FALSE,
+        silent = FALSE,
+        time = "year",
+        extra_time = extra_years,
+        family = set_family,
+        priors = set_priors
+      )
+    } else {
     m <- sdmTMB(
       catch_weight ~ 1 + survey_type +
         poly(log_depth_c, 2) +
@@ -650,7 +731,7 @@ fit_all_distribution_models <- function(species) {
       priors = set_priors
       # anisotropy = TRUE
     )
-
+    }
     saveRDS(m, fm)
 
     if (!all(sanity(m, gradient_thresh = 0.005))) {
@@ -1046,7 +1127,6 @@ if(maturity_possible) {
                   ".png"), width = 14, height = 14)
 
 
-
     if (!file.exists(fmi)) {
     if(nrow(which_surv)<2){
       try( mi <- sdmTMB(group_catch_est ~ 1 +
@@ -1101,6 +1181,8 @@ if(maturity_possible) {
     saveRDS(mi, fmi)
   }
 
+
+  if(exists("mi")){
   # TODO: add R2 once it's working for delta models
   # r2_i <- r2.sdmTMB(mi)
 
@@ -1126,7 +1208,7 @@ if(maturity_possible) {
     }
   }
 }
-
+}
 
   if (!file.exists(i3)) {
     try(plot_index(pi, species, "Immature", dens_model_name, i3) +
