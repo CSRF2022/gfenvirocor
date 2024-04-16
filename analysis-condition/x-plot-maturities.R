@@ -7,39 +7,56 @@ library(patchwork)
 # devtools::load_all(".")
 theme_set(ggsidekick:::theme_sleek())
 
+source("analysis-condition/00-species-list.R")
+
+included_only <- TRUE
 first_split <- TRUE
+
+# included_only <- FALSE
+# first_split <- FALSE
 
 if(first_split) {
   f <- list.files(paste0("data-generated/split-catch-data/"), pattern = ".rds", full.names = TRUE)
 } else {
-f <- list.files(paste0("data-generated/maturity-ogives/"), pattern = ".rds", full.names = TRUE)
+  f <- list.files(paste0("data-generated/maturity-ogives/"), pattern = ".rds", full.names = TRUE)
 }
 
 d <- purrr::map(f, readRDS)
 
 p <- list()
 m <- list()
+
 for (i in seq_along(d)){
 # browser()
- if(!is.null(d[[i]]$m)) {
- if(first_split) {
-  m[[i]] <- d[[i]]$m
-} else {
-  m[[i]] <- d[[i]]
-}
+
+if(is.null(d[[i]]$m)) { p[[i]] <- NULL } else {
+
+  if(first_split) {
+    m[[i]] <- d[[i]]$m
+
+  } else {
+    m[[i]] <- d[[i]]
+  }
 
   # browser()
-  m[[i]]$data$species_common_name <- ifelse(m[[i]]$data$species_common_name == "rougheye/blackspotted rockfish complex", "Rougheye/Blackspotted", m[[i]]$data$species_common_name)
+  # m[[i]]$data$species_common_name <- ifelse(
+  #   m[[i]]$data$species_common_name == "rougheye/blackspotted rockfish complex", "Rougheye/Blackspotted", m[[i]]$data$species_common_name)
 
-p[[i]] <- gfplot::plot_mat_ogive(m[[i]]) +
-  ggtitle(paste0(toupper(m[[i]]$data$species_common_name), " (",
+  p[[i]] <- gfplot::plot_mat_ogive(m[[i]]) +
+    ggtitle(paste0(toupper(
+      ifelse(m[[i]]$data$species_common_name == "rougheye/blackspotted rockfish complex",
+           "Rougheye/Blackspotted", m[[i]]$data$species_common_name)), " (",
                 length(unique(m[[i]]$data$specimen_id)),
                 " fish, ", length(unique(m[[i]]$data$sample_id)),
+      # "/", length(unique(d[[i]]$data$sample_id)),
                 " sets)"
                 )) +
-  theme(axis.title = element_blank())
- } else{
-   p[[i]] <- NULL
+    theme(axis.title = element_blank())
+
+  # browser()
+  if(included_only){
+    if(m[[i]]$data$species_common_name[1] %in% tolower(c(species_to_remove))) { p[[i]] <- NULL }
+  }
 }
 }
 
@@ -63,6 +80,7 @@ design = "
 AAAAAA
 #BBBBB
 "
+
 (g <- ((y_lab_big |
           wrap_plots(gglist = p, ncol = 4) &
           theme(text = element_text(size = 9),
@@ -73,10 +91,15 @@ AAAAAA
 )
 
 if(first_split) {
-  ggsave("figs/all-maturities-first-split.png", height = 18, width = 15)
+  if(included_only){
+    ggsave("figs/all-maturities-density-split-filtered.png", height = 18, width = 15)
+  }else{
+    ggsave("figs/all-maturities-density-split-all-20.png", height = 18, width = 15)
+  }
 } else {
-ggsave("figs/all-maturities.png", height = 18, width = 15)
+  ggsave("figs/all-maturities-condition-split-all.png", height = 18, width = 15)
 }
+
 
 ## landscape version
 # (g <- ((y_lab_big |
@@ -94,48 +117,42 @@ ggsave("figs/all-maturities.png", height = 18, width = 15)
 
 
 ## while the maturity data is loaded, might as well produce all the Le Cren's plots together
+dat <- readRDS("data-generated/all-samples-used.rds") %>%
+  filter(## remove the combined version of the sablefish survey (only version retained currently)
+    ## because this survey is at different time of year than all the others
+    !(survey_abbrev %in% c("SABLE")),
+    !is.na(longitude), !is.na(latitude)
+  )
 
-dat <- readRDS("data-raw/survey-samples-flatfish.rds") %>%
-  bind_rows(., readRDS("data-raw/survey-samples-part2.rds")) %>%
-  bind_rows(., readRDS("data-raw/survey-samples-part3.rds")) %>%
-  bind_rows(., readRDS("data-raw/survey-samples-shortspine.rds")) %>%
-  bind_rows(., readRDS("data-raw/survey-samples-rougheye.rds")) %>%
-  mutate(
-    survey_abbrev = ifelse(
-      survey_abbrev %in% c("MSSM", "MSSM QCS", "MSSM WCVI") & latitude < 50,
-      "MSSM WCVI", ifelse(
-        survey_abbrev %in% c("MSSM", "MSSM QCS", "MSSM WCVI") & latitude > 50,
-        "MSSM QCS", survey_abbrev
-      )
-    ),
-    survey_group = ifelse(
-      survey_abbrev %in% c("HBLL OUT N", "HBLL OUT S"),
-      "HBLL", ifelse(
-        survey_abbrev %in% c("OTHER", "HS MSA", "SYN HS", "SYN QCS", "SYN WCHG", "SYN WCVI"),
-        "TRAWL", ifelse(
-          survey_abbrev %in% c("MSSM QCS", "MSSM WCVI"), "MSSM", survey_abbrev
-        )
-      )
-    )
-  ) %>%
-  distinct()
+dat <- dat %>%
+  filter(!(weight > 900 & species_common_name == tolower("Pacific Sanddab")))  %>%
+  filter(!(weight > 3500 & species_common_name %in% tolower(c("Yellowmouth Rockfish",
+                                                              # "Widow Rockfish",
+                                                              "Quillback Rockfish"))))
 
 mat_threshold <- 0.5
 f1 <- list.files(paste0("data-generated/condition-data-black-swan/"), pattern = ".rds", full.names = TRUE)
 
 d1 <- purrr::map_dfr(f1, readRDS)
+spp <- unique(d1$species_common_name)
 
 p2 <- list()
 
-for (i in seq_along(m)){
-
+for (i in seq_along(spp)){
+  # if(is.null(m[[i]])) {
+  #   p2[[i]] <- NULL
+  # } else {
   min_LC <- min(d1$cond_fac, na.rm = TRUE)
   max_LC <- max(d1$cond_fac, na.rm = TRUE)
 
-  .ds <- d1 |> filter(species_common_name == m[[i]]$data$species_common_name[1])|>
+  .ds <- d1 |> filter(species_common_name == spp[i])|>
     mutate(sex_label = as.factor(ifelse(sex == 1, "Male", ifelse(sex == 2, "Female", "Unknown"))))
 
-  p2[[i]] <- dat %>% filter(species_common_name == m[[i]]$data$species_common_name[1]) |>
+
+
+  # browser()
+
+  p2[[i]] <- dat %>% filter(species_common_name == spp[i]) |>
     mutate(weight = weight/1000,
            sex_label = as.factor(ifelse(sex == 1, "Male", ifelse(sex == 2, "Female", "Unknown")))
            ) |>
@@ -146,18 +163,25 @@ for (i in seq_along(m)){
      geom_point(colour = "red") +
      geom_point(colour = "white", data = .ds) +
      geom_point(aes(colour = cond_fac), data = .ds, alpha = 0.4) +
-     geom_vline(xintercept = m[[i]]$mat_perc$f.p0.5, col = "#fde725") +
-     geom_vline(xintercept = m[[i]]$mat_perc$mean$f.mean.p0.5, col = "#fde725") +
-     geom_vline(xintercept = m[[i]]$mat_perc$m.p0.5, col = "#440154", alpha = 0.5) +
-     geom_vline(xintercept = m[[i]]$mat_perc$mean$m.mean.p0.5, col = "#440154", alpha = 0.5) +
+     geom_vline(xintercept = unique(.ds[.ds$sex == 2,]$threshold), col = "#fde725") +
+     # geom_vline(xintercept = m[[i]]$mat_perc$mean$f.mean.p0.5, col = "#fde725") +
+     geom_vline(xintercept = unique(.ds[.ds$sex == 1,]$threshold), col = "#21908CFF", alpha = 0.5) +
+     # geom_vline(xintercept = m[[i]]$mat_perc$mean$m.mean.p0.5, col = "#440154", alpha = 0.5) +
      labs(
        colour = "Le Cren's",
        shape = "Sex",
        x = "Length (cm)", y = "Weight (kg)") +
      scale_colour_viridis_c(limits= c(min_LC, max_LC)) +
-     ggtitle(paste0(toupper(m[[i]]$data$species_common_name[1]))) +
+     ggtitle(paste0(toupper(spp[i]))) +
      ggsidekick::theme_sleek() + theme(legend.position = c(0.2,0.8))
+  # }
+
+  if(included_only){
+    if(spp[i] %in% tolower(c(species_to_remove))) { p2[[i]] <- NULL }
+  }
 }
+
+p2 <- p2 %>% discard(is.null)
 
 y_lab_big <- ggplot() +
   annotate(geom = "text", x = 1, y = 1, size = 5,
@@ -188,5 +212,8 @@ AAAAAA
 
 
 # (g <- plot_list(gglist = p2, ncol = 3)+ patchwork::plot_layout())
-
-ggsave("figs/all-Le-Crens.png", height = 12, width = 16)
+if(included_only){
+ ggsave("figs/all-Le-Crens-filtered.png", height = 16, width = 12)
+} else{
+  ggsave("figs/all-Le-Crens-all-20-trim.png", height = 16, width = 16)
+}
