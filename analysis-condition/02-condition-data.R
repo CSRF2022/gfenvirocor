@@ -5,51 +5,22 @@
 library(tidyverse)
 library(gfplot)
 
-species_list <- list(
-  # "Arrowtooth Flounder",
-  # "North Pacific Spiny Dogfish",
-  # "Pacific Ocean Perch",
-  # "Pacific Cod",
-  # "Walleye Pollock",
-  # "Sablefish",
-  # "Lingcod",
-  # "Bocaccio",
-  # "Canary Rockfish",
-  # "Redstripe Rockfish", #
-  # "Rougheye/Blackspotted Rockfish Complex", #
-  # "Silvergray Rockfish", #
-  # "Shortspine Thornyhead",
-  # "Widow Rockfish", #
-  # "Yelloweye Rockfish",
-  # "Yellowmouth Rockfish", #
-  # "Yellowtail Rockfish",
-  # "Petrale Sole", #
-  # "Arrowtooth Flounder", #
-  # "English Sole",#
-  # "Dover Sole",#
-  # "Rex Sole", #
-  # "Flathead Sole",#
-  # "Southern Rock Sole",#
-  # "Slender Sole",#
-  # "Pacific Sanddab",#
-  # "Pacific Halibut",#
-  # "Pacific Hake",# any skates?
-  # "Quillback Rockfish",
-  "Longnose Skate",
-  "Big Skate"
-  # "Curlfin Sole",#
-  # "Sand Sole",#
-  # "Butter Sole"
-)
+# load overall species list
+source("analysis-condition/00-species-list.R")
 
 species_list <- list(species = species_list)
 
 get_condition_data <- function(species){
 
+update_m <- FALSE
+# update_m <- TRUE
+
 ## code checking within function
 # species <- "Arrowtooth Flounder"
 # species <- "Petrale Sole"
 # species <- "Pacific Cod"
+# species <- "Walleye Pollock"
+# species <- "Pygmy Rockfish"
 
 # mat_threshold  <-  0.05
 mat_threshold <- 0.5
@@ -120,19 +91,57 @@ split_by_sex <- TRUE
 immatures_pooled <- TRUE
 
 ## might be worth getting the same model from the density split
+
+if(!update_m){
 # dss <- readRDS(paste0("data-generated/split-catch-data/", spp, ".rds"))
 # m <- dss$m
-## if using this, need to remove all updates to m
-update_m <- TRUE
-## for now leaving it this way for comparison
+m <- readRDS(paste0("data-generated/split-catch-data/", spp, ".rds"))$m
+}
 
 p_threshold <- mat_threshold
+custom_maturity <- NULL
+custom_length_threshold <- NULL
 
 if(species=="North Pacific Spiny Dogfish") {
   custom_maturity <- c(NA, 55)
-} else{
-  custom_maturity <- NULL
 }
+
+if (species == "Sandpaper Skate") {
+  # Perez 2005
+  custom_length_threshold <- c(49.2, 46.7)
+}
+
+if (species == "Big Skate") {
+  # # McFarlane and King 2006 -- shouldn't be relied on
+  # Ebert et al. 2008
+  custom_length_threshold <- c(102.9, 113.1)
+}
+if (species == "Longnose Skate") {
+  # # McFarlane and King 2006
+  # custom_length_threshold <- c(65, 83)
+  # Arrington 2020
+  custom_length_threshold <- c(85, 102)
+}
+
+if (species == "Spotted Ratfish") {
+  # King and McPhie 2015
+  custom_length_threshold <- c(30.2, 39.3)
+}
+
+if (species == "Shortraker Rockfish") {
+  # McDermott 1994:  Hutchinson 2004 F 44.9
+  # Conrath 2017 for female,
+  # Haldorson and Love reported 47 but based on
+  # Westrheim, 1975 for both sexes = 45
+  custom_length_threshold <- c(45, 49.9)
+}
+
+# if (species == "Pacific Halibut") {
+#   # Takada 2017 for females, males less precise.. btw 70-79
+#   # no accurate values for males available so wont use for now
+#   custom_length_threshold <- c(70, 96.7)
+# }
+
 
 ## could use separate estimates for each year
 # year_re <- TRUE
@@ -143,12 +152,13 @@ sample_id_re <- TRUE
 
 # -----
 # does maturity data exist at all for this species?
-
+# browser()
 if (split_by_maturity) {
   maturity_codes <- unique(fish$maturity_code)
 
-  if (length(maturity_codes) < 3) {
-    warning("Fewer than 3 maturity codes; returning NULL data.", call. = FALSE)
+
+  if (length(maturity_codes) < 3&is.null(custom_length_threshold)) {
+    return("Fewer than 3 maturity codes. Please provide custom length thresholds from literature.")
     # return(list(data = survey_sets, maturity = NULL, weight_model = NULL))
   }
 
@@ -187,23 +197,27 @@ if (split_by_maturity) {
     filter(sex == 1) %>%
     mutate(year_f = as.character(year))
 
-
   if (min(levels_per_year) < 3) { # some years lack maturity data
-
     if (length(levels_per_year) < 1) { # TODO: check if this threshold should actually be 2
       warning("Maturity data not recorded, so catch not split.", call. = FALSE)
       # return(list(data = survey_sets, model = NULL))
     } else {
       warning("Some years lack maturity data, but catch still split.", call. = FALSE)
 
-      if(update_m) {
-      m <- fit_mat_ogive(fish,
-        type = "length",
-        sample_id_re = sample_id_re,
-        usability_codes = NULL,
-        custom_maturity_at = custom_maturity
-      )
-      }
+      if(!is.null(custom_length_threshold)){
+        f_fish$threshold <- custom_length_threshold[2]
+        m_fish$threshold <- custom_length_threshold[1]
+      } else {
+
+        if(update_m) {
+          m <- fit_mat_ogive(fish,
+                             type = "length",
+                             sample_id_re = sample_id_re,
+                             usability_codes = NULL,
+                             custom_maturity_at = custom_maturity
+          )
+        }
+
       if (p_threshold == 0.5) {
         f_fish$threshold <- m$mat_perc$f.p0.5
         m_fish$threshold <- m$mat_perc$m.p0.5
@@ -216,10 +230,17 @@ if (split_by_maturity) {
         f_fish$threshold <- m$mat_perc$f.p0.95
         m_fish$threshold <- m$mat_perc$m.p0.95
       }
+      }
     }
   } else {
     if (year_re) {
       # sample_id_re <- FALSE
+
+      if(!is.null(custom_length_threshold)){
+        f_fish$threshold <- custom_length_threshold[2]
+        m_fish$threshold <- custom_length_threshold[1]
+      } else {
+
       if(update_m) {
       m <- fit_mat_ogive(fish,
         type = "length",
@@ -244,7 +265,13 @@ if (split_by_maturity) {
         f_fish$threshold <- lapply(f_fish$year_f, function(x) m$mat_perc[[x]]$f.p0.95)
         m_fish$threshold <- lapply(m_fish$year_f, function(x) m$mat_perc[[x]]$m.p0.95)
       }
+      }
     } else {
+      if(!is.null(custom_length_threshold)){
+        f_fish$threshold <- custom_length_threshold[2]
+        m_fish$threshold <- custom_length_threshold[1]
+      } else {
+
       if(update_m) {
       m <- fit_mat_ogive(fish,
         type = "length",
@@ -279,6 +306,7 @@ if (split_by_maturity) {
       #   f_fish$threshold <- lapply(f_fish$sample_id, function(x) m$mat_perc[[x]]$f.p0.95)
       #   m_fish$threshold <- lapply(m_fish$sample_id, function(x) m$mat_perc[[x]]$m.p0.95)
       # }
+      }
     }
   }
 
@@ -329,7 +357,7 @@ if (split_by_maturity) {
     mutate(group_name = ifelse(sex == 1, "Males", "Females"))
 }
 
-if(update_m) {
+if(update_m&is.null(custom_length_threshold)) {
   gfplot::plot_mat_ogive(m)
   saveRDS(m, paste0("data-generated/maturity-ogives/", spp, "-all.rds"))
 }
@@ -434,6 +462,21 @@ ds <- dd2 %>%
   ) %>%
   unique()
 
+# browser()
+
+# remove some rockfish outliers
+dat <- dat %>%
+  filter(!(weight > 900 & species_common_name == tolower("Pacific Sanddab")))  %>%
+  filter(!(weight > 3500 & species_common_name %in% tolower(c("Yellowmouth Rockfish",
+                                                              # "Widow Rockfish",
+                                                              "Quillback Rockfish"))))
+ds <- ds %>%
+  filter(!(weight > 0.900 & species_common_name == tolower("Pacific Sanddab")))  %>%
+  filter(!(weight > 3.500 & species_common_name %in% tolower(c("Yellowmouth Rockfish",
+                                                              # "Widow Rockfish",
+                                                              "Quillback Rockfish"))))
+
+
 # # investigate results
 # ds %>%
 #   select(
@@ -471,25 +514,23 @@ ds <- dd2 %>%
 ggplot(dat |> mutate(weight = weight/1000) |> filter(
   sex %in% c(1,2)
   ), aes(length, weight)) +
-  geom_point(aes(colour = year),) +
-  geom_point(colour = "white", data = ds) +
+  geom_point(aes(colour = year)) +
+  geom_point(data = ds, colour = "white") +
   geom_point(data = ds, colour = "black", alpha = 0.4) +
-  geom_point(data = filter(dat,
-      sample_id %in% c(554878, 406981, 537306, 443178,
-
-                       # 150218, # rest of arrowtooth sample
-                       514880, 536500, 536506, 537170, 532297)|
-      specimen_id %in% c(
-        # 5113159, #arrowtooth error
-        # 12684889,
-        # 7629026,
-        16224012, 11018029, 11018030)),
-      aes(length, weight/1000),
-      colour = "green") +
-  geom_vline(xintercept = m$mat_perc$f.p0.5, col = "purple") +
-  geom_vline(xintercept = m$mat_perc$mean$f.mean.p0.5, col = "purple") +
-  geom_vline(xintercept = m$mat_perc$m.p0.5, col = "darkblue") +
-  geom_vline(xintercept = m$mat_perc$mean$m.mean.p0.5, col = "darkblue") +
+  ## checking if specific unit corrections were made
+  # geom_point(data = filter(dat,
+  #     sample_id %in% c(554878, 406981, 537306, 443178,
+  #                      # 150218, # rest of arrowtooth sample
+  #                      514880, 536500, 536506, 537170, 532297)|
+  #     specimen_id %in% c(
+  #       # 5113159, #arrowtooth error
+  #       # 12684889,
+  #       # 7629026,
+  #       16224012, 11018029, 11018030)),
+  #     aes(length, weight/1000),
+  #     colour = "green") +
+  geom_vline(xintercept = f_fish$threshold, col = "#fde725") +
+  geom_vline(xintercept = m_fish$threshold, col = "#21908CFF") +
   labs(
     colour = "Year",
     x = "Length (cm)", y = "Weight (kg)") +
@@ -515,29 +556,29 @@ ggsave(paste0("figs/cond-black-swan-",
 ggplot(dat |> mutate(weight = weight/1000) |> filter(
   sex %in% c(1,2)
   # fishing_event_id %in% fishing_event_id
-), aes(length, weight)) +
+), aes(length, weight, shape = as.factor(sex))) +
   geom_point(colour = "red") +
   geom_point(colour = "white", data = ds) +
   geom_point(aes(colour = cond_fac), data = ds, alpha = 0.4) +
-  geom_vline(xintercept = m$mat_perc$f.p0.5, col = "purple") +
-  geom_vline(xintercept = m$mat_perc$mean$f.mean.p0.5, col = "purple") +
-  geom_vline(xintercept = m$mat_perc$m.p0.5, col = "darkblue") +
-  geom_vline(xintercept = m$mat_perc$mean$m.mean.p0.5, col = "darkblue") +
+  geom_vline(xintercept = ds$threshold, col = "#fde725") +
+  geom_vline(xintercept = ds$threshold, col = "#21908CFF") +
   labs(
-    colour = "Le Cren's",
+    colour = "Le Cren's", shape = "Sex",
     x = "Length (cm)", y = "Weight (kg)") +
   scale_colour_viridis_c() +
+  scale_shape_discrete(guide = NULL) +
   ggtitle(paste0(species
                  , " with filter at ", sd_threshold, " SD",
                  ifelse(is_heavy_tail, " heavy tailed", " normal")
                  #, " (trimmed at ", lower_quantile, " and ", upper_quantile, " quantiles)"
   )) +
+  # facet_wrap(~sex) +
   ggsidekick::theme_sleek() + theme(legend.position = c(0.2,0.8))
 # browser()
 ggsave(paste0("figs/cond-black-swan-",
               ifelse(is_heavy_tail, "t", "norm"),
               "-", sd_threshold, "sd-",
-              spp, ".png"), width = 10, height = 10)
+              spp, ".png"), width = 10, height = 6)
 
 
 # hist(ds$sample_multiplier)
@@ -558,11 +599,14 @@ ggsave(paste0("figs/cond-black-swan-",
 # abline(v = m$mat_perc$mean$m.mean.p0.5, col = "blue")
 
 # save data
-
+# if(update_m){
+#   dir.create(paste0("data-generated/condition-data-updated-m/"), showWarnings = FALSE)
+#   saveRDS(ds, paste0("data-generated/condition-data-updated-m/", spp, "-mat-", mat_threshold, "-condition.rds"))
+# }else{
 dir.create(paste0("data-generated/condition-data-black-swan/"), showWarnings = FALSE)
 saveRDS(ds, paste0("data-generated/condition-data-black-swan/", spp, "-mat-", mat_threshold, "-condition.rds"))
+# }
 }
-
 
 pmap(species_list, get_condition_data)
 
