@@ -5,42 +5,53 @@ library(ggsidekick)
 # remotes::install_github("seananderson/ggeffects", ref = "sdmTMB")
 devtools::load_all(".")
 
+# load overall species list
+source("analysis-condition/00-species-list.R")
+
+# # or override with custom subset
 species_list <- list(
-  "Arrowtooth Flounder",
-  "North Pacific Spiny Dogfish",
-  "Pacific Ocean Perch",
-  "Pacific Cod",
-  "Walleye Pollock",
-  "Sablefish",
-  "Lingcod",
-  "Bocaccio",
-  "Canary Rockfish",
-  "Redbanded Rockfish",
-  "Redstripe Rockfish", #
-  "Rougheye/Blackspotted Rockfish Complex", #
-  "Silvergray Rockfish", #
-  "Shortspine Thornyhead",
-  "Widow Rockfish", #
-  "Yelloweye Rockfish",
-  "Yellowmouth Rockfish", #
-  "Yellowtail Rockfish",
-  "Petrale Sole", #
-  "Arrowtooth Flounder", #
-  "English Sole",#
-  "Dover Sole",#
-  "Rex Sole", #
-  "Flathead Sole",#
-  "Southern Rock Sole",#
-  "Slender Sole",#
-  "Pacific Sanddab",#
-  "Pacific Halibut",#
-  "Pacific Hake",# any skates?
-  "Quillback Rockfish",
-  "Longnose Skate",
-  "Big Skate"
-  # "Curlfin Sole",#
-  # "Sand Sole",#
-  # "Butter Sole"
+# "North Pacific Spiny Dogfish",
+# "Pacific Ocean Perch",
+# "Pacific Cod",
+# "Walleye Pollock",
+# "Sablefish",
+# "Lingcod",
+# "Bocaccio",
+# "Canary Rockfish",
+# "Quillback Rockfish",
+# "Redbanded Rockfish",
+# "Redstripe Rockfish", #
+# "Rougheye/Blackspotted Rockfish Complex", #
+# "Silvergray Rockfish", #
+# "Shortspine Thornyhead",
+# "Widow Rockfish", #
+# "Yelloweye Rockfish",
+# "Yellowmouth Rockfish", #
+# "Yellowtail Rockfish",
+"Shortraker Rockfish",
+"Rosethorn Rockfish",
+"Harlequin Rockfish",
+# "Pygmy Rockfish",
+"Sharpchin Rockfish",
+"Darkblotched Rockfish",
+"Greenstriped Rockfish",
+# "Petrale Sole", #
+# "Arrowtooth Flounder", #
+# "English Sole",#
+# "Dover Sole",#
+# "Rex Sole", #
+# "Flathead Sole",#
+# "Southern Rock Sole",#
+# "Slender Sole",#
+# "Pacific Sanddab",#
+# "Pacific Halibut",#
+# "Butter Sole",
+# "Pacific Hake",#
+# "Pacific Tomcod",
+"Spotted Ratfish",
+# "Longnose Skate",
+# "Big Skate",
+"Sandpaper Skate"
 )
 
 
