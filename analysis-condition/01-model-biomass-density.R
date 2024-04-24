@@ -26,7 +26,7 @@ species_list <- list(
   # "Walleye Pollock",
   # "Sablefish",
   # "Lingcod",
-  # "Bocaccio",
+  "Bocaccio"
   # "Canary Rockfish",
   # "Quillback Rockfish",
   # "Redbanded Rockfish",
@@ -39,7 +39,7 @@ species_list <- list(
   # "Yellowmouth Rockfish", #
   # "Yellowtail Rockfish",
   # # "Copper Rockfish",
-  "Shortraker Rockfish"
+  # "Shortraker Rockfish",
   # "Rosethorn Rockfish",
   # "Harlequin Rockfish",
   # "Pygmy Rockfish",
@@ -241,8 +241,9 @@ fit_all_distribution_models <- function(species) {
   sets_mat_f <- filter(dsamp, !is.na(maturity_code), !is.na(length), maturity_code != 0, sex == 2)
 
   # browser()
-
   if(min(length(unique(sets_mat_f$fishing_event_id)), length(unique(sets_mat_f$fishing_event_id))) >= 20){
+  ## shouldn't one of these be for males? TODO: update for next run but not likely to change much
+  # if(min(length(unique(sets_mat_m$fishing_event_id)), length(unique(sets_mat_f$fishing_event_id))) >= 20){
     set_sample_id_re <- TRUE
   }else{
     set_sample_id_re <- FALSE
@@ -363,8 +364,8 @@ fit_all_distribution_models <- function(species) {
   ds <- ds %>% filter(!is.na(area_swept))
   ds <- ds %>% filter(!is.na(latitude))
   ds <- ds %>% filter(!is.na(longitude))
-  ds$area_swept_km2 <- ds$area_swept / 100000  # converts m2 to km2
-  ds$offset <- log(ds$area_swept_km2)
+  ds$area_swept_km2 <- ds$area_swept / 1000000  # converts m2 to km2
+  ds$offset <- log(ds$area_swept_km2*100) # offset in ha
   ds$survey_type <- relevel(ds$survey_type, "SYN")
 
   # Which surveys to include? ----
@@ -568,6 +569,7 @@ fit_all_distribution_models <- function(species) {
 
     # simplify dataframe to be included with models
     d <- d %>% select(
+      species_common_name,
       fishing_event_id,
       catch_weight,
       group_name, group_catch_est,
@@ -761,8 +763,8 @@ fit_all_distribution_models <- function(species) {
     grid <- filter(grid, year %in% c(sort(unique(m$data$year))))
   } else {
     # if extra time
-    grid <- filter(grid, year %in% c(sort(unique(m$data$year))))
-    # grid <- filter(grid, year %in% sort(union(m$data$year, m$extra_time)))
+    # grid <- filter(grid, year %in% c(sort(unique(m$data$year))))
+    grid <- filter(grid, year %in% sort(union(m$data$year, m$extra_time)))
   }
 
 
@@ -923,8 +925,8 @@ fit_all_distribution_models <- function(species) {
 
     pf <- predict(mf,
       re_form_iid = NA, # only needed if random intercepts
-      newdata = filter(grid, year %in% sort(unique(mf$data$year))),
-      # newdata = filter(grid, year %in% sort(union(mf$data$year, mf$extra_time))),
+      # newdata = filter(grid, year %in% sort(unique(mf$data$year))),
+      newdata = filter(grid, year %in% sort(union(mf$data$year, mf$extra_time))),
       return_tmb_object = TRUE
     )
 
@@ -1054,8 +1056,8 @@ fit_all_distribution_models <- function(species) {
   } else {
     pm <- predict(mm,
       re_form_iid = NA,
-      newdata = filter(grid, year %in% sort(unique(mm$data$year))),
-      # newdata = filter(grid, year %in% sort(union(mm$data$year, mm$extra_time))),
+      # newdata = filter(grid, year %in% sort(unique(mm$data$year))),
+      newdata = filter(grid, year %in% sort(union(mm$data$year, mm$extra_time))),
       return_tmb_object = TRUE
     )
 
@@ -1194,8 +1196,8 @@ if(maturity_possible) {
     } else {
       pi <- predict(mi,
         re_form_iid = NA,
-        newdata = filter(grid, year %in% sort(unique(mi$data$year))),
-        # newdata = filter(grid, year %in% sort(union(mi$data$year, mi$extra_time))),
+        # newdata = filter(grid, year %in% sort(unique(mi$data$year))),
+        newdata = filter(grid, year %in% sort(union(mi$data$year, mi$extra_time))),
         return_tmb_object = TRUE
       )
 
@@ -1330,7 +1332,7 @@ if(maturity_possible) {
 
   if (length(unique(all_split_inds$model)) > 1) {
     p3 <- p3 + geom_text(aes(label = model),
-      x = 2003, y = max(p3dat$est/1000) * 1.1, size = 2.5, hjust = 0
+      x = 2006, y = max(p3dat$est/1000) * 1.1, size = 2.5, hjust = 0
     )
   }
 
