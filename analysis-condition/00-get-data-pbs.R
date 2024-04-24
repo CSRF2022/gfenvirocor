@@ -66,11 +66,20 @@
 #                        remove_false_zeros = TRUE, usability = NULL)
 # tictoc::toc()
 #
+# saveRDS(dd, "data-raw/survey-sets-all.rds")
+# saveRDS(dd, "data-raw/survey-sets-all-2.rds")
+# saveRDS(dd, "data-raw/survey-sets-rougheye.rds")
+#
 # tictoc::tic()
 # ds <- get_survey_samples2(species_list,
 #                           include_event_info = TRUE,
 #                           unsorted_only = FALSE)
 # tictoc::toc()
+#
+# saveRDS(ds, "data-raw/survey-samples-all-1.rds")
+# saveRDS(ds, "data-raw/survey-samples-all-2.rds")
+# saveRDS(ds, "data-raw/survey-samples-all-3.rds")
+# saveRDS(ds, "data-raw/survey-samples-rougheye.rds")
 
 library(tidyverse)
 # for condition model (inclusive of those for density models)
@@ -85,16 +94,8 @@ surveys_included <- c("HBLL OUT N", "HBLL OUT S",
 
 
 dset <- readRDS("data-raw/survey-sets-all.rds") %>%
-  # readRDS("data-raw/survey-sets-flatfish.rds") %>%
-  # bind_rows(., readRDS("data-raw/survey-sets-part2.rds")) %>%
-  # bind_rows(., readRDS("data-raw/survey-sets-part3.rds")) %>%
-  bind_rows(., readRDS("data-raw/survey-sets-part4.rds")) %>%
-  # bind_rows(., readRDS("data-raw/survey-sets-shortspine.rds")) %>%
+  bind_rows(., readRDS("data-raw/survey-sets-all-2.rds")) %>%
   bind_rows(., readRDS("data-raw/survey-sets-rougheye.rds")) %>%
-  # bind_rows(., readRDS("data-raw/survey-sets-redbanded.rds")) %>%
-  # bind_rows(., readRDS("data-raw/survey-sets-hake.rds")) %>%
-  # bind_rows(., readRDS("data-raw/survey-sets-quillback.rds")) %>%
-  # bind_rows(., readRDS("data-raw/survey-sets-skates.rds")) %>%
   # this removes duplications and non-Canadian data
   filter(
     survey_abbrev %in% surveys_included,
@@ -137,17 +138,8 @@ dset <- readRDS("data-raw/survey-sets-all.rds") %>%
 
 dsamp <- readRDS("data-raw/survey-samples-all-1.rds") %>%
   bind_rows(., readRDS("data-raw/survey-samples-all-2.rds")) %>%
-  # readRDS("data-raw/survey-samples-part2.rds") %>%
-  # bind_rows(., readRDS("data-raw/survey-samples-part3.rds")) %>%
-  bind_rows(., readRDS("data-raw/survey-samples-part4.rds")) %>%
-  # bind_rows(., readRDS("data-raw/survey-samples-flatfish.rds")) %>%
+  bind_rows(., readRDS("data-raw/survey-samples-all-3.rds")) %>%
   bind_rows(., readRDS("data-raw/survey-samples-rougheye.rds")) %>%
-  # bind_rows(., readRDS("data-raw/survey-samples-redbanded.rds")) %>%
-  # bind_rows(., readRDS("data-raw/survey-samples-shortspine.rds")) %>%
-  # bind_rows(., readRDS("data-raw/survey-samples-hake.rds")) %>%
-  # bind_rows(., readRDS("data-raw/survey-samples-quillback.rds")) %>%
-  # bind_rows(., readRDS("data-raw/survey-samples-skates.rds")) %>%
-  # # bind_rows(., readRDS("data-raw/survey-samples-ln-skate.rds")) %>%
   filter(survey_abbrev %in% surveys_included,
          !(survey_abbrev == "OTHER" & !(survey_series_id %in% c(9, 11, 68))),
          !(survey_series_id == 68 & latitude > 55.4),
@@ -226,6 +218,18 @@ test_id <- dsamp |> filter(fishing_event_id == 4363329, species_code == "614")
 
 bad_skates <- dsamp2 %>% filter((weight > 2*1000 & length < 15) |
                                   (length < 5 & weight > 100)) #%>% View()
+
+## get just petrale data
+# species <- "Petrale Sole"
+# dset <- readRDS("data-raw/survey-sets-all.rds")
+# dsamp <- readRDS("data-raw/survey-samples-all-1.rds") %>%
+#   bind_rows(., readRDS("data-raw/survey-samples-all-2.rds"))
+# dset <- dset %>% filter(species_common_name == tolower(species))
+# dsamp <- dsamp %>% filter(species_common_name == tolower(species))
+#
+# saveRDS(dset, "data-generated/all-sets-petrale.rds")
+# saveRDS(dsamp, "data-generated/all-samples-petrale.rds")
+#
 
 species <- "Sandpaper Skate"
 dsamp2 <- dsamp %>% filter(species_common_name == tolower(species))
