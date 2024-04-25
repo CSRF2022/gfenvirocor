@@ -33,8 +33,8 @@ set_chains <- 3
 # density <- TRUE
 density <- FALSE
 ### if condition
-adjusted_for_density <- FALSE
-# adjusted_for_density <- TRUE
+# adjusted_for_density <- FALSE
+adjusted_for_density <- TRUE
 
 # trend_count <- 1
 trend_count <- 2
@@ -43,26 +43,26 @@ trend_count <- 2
 no_covs <- TRUE
 # no_covs <- FALSE
 
-set_group <- "immatures"
+# set_group <- "immatures"
 # set_group <- "mature males"
-# set_group <- "mature females"
+set_group <- "mature females"
 
 if(no_covs) {
   if(adjusted_for_density){
   model_name <- "apr-2024-density"
   if(set_group == "immatures"){
     y_label <- "Immature condition indices (adjusting for density)"
-    which_flip <- 0L
+    which_flip <- 1L
     which_flip2 <- 2L
   }
   if(set_group == "mature males") {
     y_label <- "Mature male condition indices (adjusting for density)"
-    which_flip <- 0L
-    which_flip2 <- 0L
+    which_flip <- 1L
+    which_flip2 <- 2L
   }
   if(set_group ==  "mature females") {
     y_label <- "Mature female condition indices (adjusting for density)"
-    which_flip <- 0L
+    which_flip <- 1L
     which_flip2 <- 0L
   }
   } else {
@@ -75,12 +75,12 @@ if(no_covs) {
 
   if(set_group == "mature males") {
     y_label <- "Mature male condition indices (not controlling for density)"
-    which_flip <- 0L
-    which_flip2 <- 0L
+    which_flip <- 1L
+    which_flip2 <- 2L
   }
   if(set_group ==  "mature females") {
     y_label <- "Mature female condition indices (not controlling for density)"
-    which_flip <- 0L
+    which_flip <- 1L
     which_flip2 <- 0L
   }
   }
