@@ -8,23 +8,20 @@ library(patchwork)
 # devtools::load_all(".")
 theme_set(ggsidekick:::theme_sleek())
 
+
+source("analysis-condition/00-species-list.R")
+
 # fig_height <- 4 * 2
 # fig_width <- 5 * 2
 variable <- "days_to_solstice"
-variable <- "log_density_c"
+# variable <- "log_density_c"
 # xlabel <- "Local log density of maturity class (centered on mean)"
 
-# model_name <- "all-st2002-doy-d0c"
-# model_name <- "all-st2002-doy-d0c-unweighted"
-# model_name <- "all-st2002-doy-d0c-within-yr-weights"
-# model_name <- "all-st2002-doy-d0c-small-weights"
-# model_name <- "all-st2002-doy-ld0c-unweighted"
+# model_name <- "apr-2024" # might not need this because density removed from ones lacking a negative effect.
+model_name <- "apr-2024-density"
 
-model_name <- "all-blackswan-doy-ld0c-unweighted"
-
-
-# group_tag <- "mat-m"
-group_tag <- "mat-fem"
+group_tag <- "mat-m"
+# group_tag <- "mat-fem"
 # group_tag <- "imm"
 
 f <- list.files(paste0("data-generated/condition-models-", group_tag, "/", model_name, "/"),
@@ -35,6 +32,7 @@ m <- purrr::map(f, readRDS)
 
 
 p <- list()
+p2 <- list() #for filtered version
 
 for (i in seq_along(m)){
 
@@ -48,7 +46,7 @@ for (i in seq_along(m)){
       ),
       ann_log_density_c = 0,
       dens_dev = 0,
-      year = 2021L # a chosen year
+      year = max(m[[i]]$data$year) # a chosen year
     )
     xlabel <- "Local log density of maturity class (centered on mean)"
   }
@@ -63,7 +61,7 @@ for (i in seq_along(m)){
       log_density_c = 0,
       ann_log_density_c = 0,
       dens_dev = 0,
-      year = 2021L # a chosen year
+      year = max(m[[i]]$data$year) # a chosen year
     )
     xlabel <- "Days from solstice"
   }
@@ -134,7 +132,13 @@ p[[i]] <- p[[i]] + ggtitle(paste0(stringr::str_to_title(m[[i]]$data$species_comm
 } else {
   p[[i]] <- p[[i]] + ggtitle(paste0(stringr::str_to_title(m[[i]]$data$species_common_name)))
 }
+
+p2[[i]] <- p[[i]]
+if(m[[i]]$data$species_common_name[1] %in% tolower(c(species_to_remove))) { p2[[i]] <- NULL }
+
 }
+
+p2 <- p2 %>% discard(is.null)
 
 
 if(group_tag == "mat-m") {group_label <- "Mature male"}
@@ -160,17 +164,34 @@ AAAAAA
 #BBBBB
 "
 
+if(variable == "log_density_c") {set_font <- 9} else{
+  set_font <- 12
+}
+
+
 (g <- ((y_lab_big |
-          wrap_plots(gglist = p, ncol = 4) &
-          theme(text = element_text(size = 9))) +
+          wrap_plots(gglist = p, ncol = 6) &
+          theme(text = element_text(size = set_font))) +
           plot_layout(widths = c(0.05, 1)))
   /x_lab_big + plot_layout(heights = c(1,0.05), design = design)
   )
 
-
 ggsave(paste0("figs/cond-effects-", variable, "-trans-",
               model_name, "-", group_tag, ".png"),
-       height = 13, width = 18)
+       height = 14, width = 22)
+
+(g2 <- ((y_lab_big |
+          wrap_plots(gglist = p2, ncol = 4) &
+          theme(text = element_text(size = set_font))) +
+         plot_layout(widths = c(0.05, 1)))
+  /x_lab_big + plot_layout(heights = c(1,0.05), design = design)
+)
+
+
+ggsave(paste0("figs/cond-effects-", variable, "-trans-",
+              model_name, "-", group_tag, "-filtered.png"),
+       height = 18, width = 14)
+
 
 
 ## would work if layout stayed the same
