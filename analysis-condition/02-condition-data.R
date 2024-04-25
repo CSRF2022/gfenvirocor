@@ -8,6 +8,10 @@ library(gfplot)
 # load overall species list
 source("analysis-condition/00-species-list.R")
 
+# species_list <- list(
+# # "Slender Sole",
+# # "Pacific Halibut"
+# )
 species_list <- list(species = species_list)
 
 get_condition_data <- function(species){
@@ -20,7 +24,8 @@ update_m <- FALSE
 # species <- "Petrale Sole"
 # species <- "Pacific Cod"
 # species <- "Walleye Pollock"
-# species <- "Pygmy Rockfish"
+# species <- "Slender Sole"
+# species <- "Pacific Halibut"
 
 # mat_threshold  <-  0.05
 mat_threshold <- 0.5
@@ -78,7 +83,7 @@ if(length(unique(fish$length_type))>1){stop("Stop. Two different length types.")
 
 ggplot(
   filter(fish, !is.na(latitude) & !is.na(longitude)),
-  aes(longitude, latitude, colour = survey_group)
+  aes(longitude, latitude, colour = survey_abbrev)
 ) +
   geom_point() +
   facet_wrap(~year)
@@ -368,7 +373,7 @@ mf <- gfplot::fit_length_weight(fish_groups, sex = "female", usability_codes = N
 mm <- gfplot::fit_length_weight(fish_groups, sex = "male", usability_codes = NULL)
 
 ## Length-weight plot ----
-plot_length_weight(object_female = mf, object_male = mm)
+gfplot::plot_length_weight(object_female = mf, object_male = mm)
 
 ## Remove black swan outliers ----
 
@@ -560,8 +565,8 @@ ggplot(dat |> mutate(weight = weight/1000) |> filter(
   geom_point(colour = "red") +
   geom_point(colour = "white", data = ds) +
   geom_point(aes(colour = cond_fac), data = ds, alpha = 0.4) +
-  geom_vline(xintercept = ds$threshold, col = "#fde725") +
-  geom_vline(xintercept = ds$threshold, col = "#21908CFF") +
+  geom_vline(xintercept = m_fish$threshold, col = "#21908CFF") +
+  geom_vline(xintercept = f_fish$threshold, col = "#fde725") +
   labs(
     colour = "Le Cren's", shape = "Sex",
     x = "Length (cm)", y = "Weight (kg)") +
