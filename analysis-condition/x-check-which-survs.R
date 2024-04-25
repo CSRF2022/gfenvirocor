@@ -23,7 +23,7 @@ d2 <- filter(d1,
 
 d3 <- anti_join(d0, d2)
 
-d4 <- filter(d1, species == species_list[[1]][[2]])
+# d4 <- filter(d1, species == species_list[[1]][[2]])
 
 d2 <- d2 %>% mutate(group_name = case_when(group_name=="Males"~"Mature males",
                                            group_name=="Females"~"Mature females",
@@ -32,10 +32,15 @@ d2 <- d2 %>% mutate(group_name = case_when(group_name=="Males"~"Mature males",
 # d2 %>% ggplot() + geom_point(aes(mean_ratio_w_0, mean_ratio_filled, size = total_samples))
 d2 %>% ggplot() + geom_point(aes(mean_ratio_true, mean_ratio_filled,
                                  shape = group_name,
-                                 alpha = min_samples,
-                                 size = max_samples, colour = survey_type)) +
+                                 # alpha = min_samples,
+                                 # size = max_samples,
+                                 alpha = max_samples,
+                                 size = min_samples,
+                                 colour = survey_type)) +
   facet_wrap(~species) +
   coord_fixed()
+
+ggsave("figs/ratios-true-vs-assumed.png")
 
 # saveRDS(d1, "data-generated/surv-summary-pre-adding-unsampled-surveys.rds")
 
@@ -43,7 +48,7 @@ d2 %>% ggplot() + geom_point(aes(mean_ratio_true, mean_ratio_filled,
 #                max_pos_by_year < 3 |
 #                pos_n < 9 |
 #                round(max_prop_pos, 2) < 0.05)
-
+#
 
 # rerun with other classes
 

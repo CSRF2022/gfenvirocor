@@ -2,36 +2,7 @@
 library(tidyverse)
 theme_set(ggsidekick:::theme_sleek())
 
-
-flatfish<- tolower(c(
-  "Curlfin Sole",#
-  "Butter Sole",
-  "Sand Sole",#
-  "Petrale Sole", #
-  "Arrowtooth Flounder", #
-  "English Sole",#
-  "Dover Sole",#
-  "Rex Sole", #
-  "Flathead Sole",#
-  "Southern Rock Sole",#
-  "Slender Sole",#
-  "Pacific Sanddab",#
-  "Pacific Halibut"#
-))
-
-rockfish<- tolower(c(
-  "Pacific Ocean Perch",
-  "Bocaccio",
-  "Canary Rockfish",
-  "Redstripe Rockfish", # MSA added with mean > 4
-  "Rougheye/Blackspotted Rockfish Complex", # WILL NEED UPDATE FOR ALL MAT CLASSES
-  "Silvergray Rockfish", # MSA added with mean > 5
-  "Shortspine Thornyhead",
-  "Widow Rockfish", # hake would need mean > 1, mssm1 > 4
-  "Yelloweye Rockfish",
-  "Yellowmouth Rockfish", #
-  "Yellowtail Rockfish"
-))
+source("analysis-condition/00-species-list.R")
 
 f1 <- list.files(paste0("data-generated/density-data/"), pattern = ".rds", full.names = TRUE)
 d1 <- purrr::map_dfr(f1, readRDS)
@@ -102,7 +73,7 @@ d1 %>%
   facet_wrap(~species_common_name, ncol = 3, scales = "free_y") +
   ggtitle("MSSM WCVI when present")
 
-ggsave("figs/boxplots-mssm-WCVI-split.png", height = 10, width = 16)
+ggsave("figs/boxplots-mssm-WCVI-split-apr-2024.png", height = 10, width = 16)
 
 
 d1 %>%
@@ -112,7 +83,7 @@ d1 %>%
   facet_wrap(~species_common_name, ncol = 3, scales = "free_y") +
   ggtitle("MSSM QCS when present")
 
-ggsave("figs/boxplots-mssm-QCS-split.png", height = 10, width = 16)
+ggsave("figs/boxplots-mssm-QCS-split-apr-2024.png", height = 10, width = 16)
 
 d1 %>%
   mutate(year = year - 2000,
@@ -125,7 +96,7 @@ d1 %>%
   facet_wrap(~species_common_name, ncol = 3, scales = "free_y") +
   ggtitle("SYN when present")
 
-ggsave("figs/boxplots-SYN-split.png", height = 14, width = 16)
+ggsave("figs/boxplots-SYN-split-apr-2024.png", height = 14, width = 16)
 
 # d1 %>%
 #   mutate(year = year - 2000) %>%
@@ -158,7 +129,7 @@ d1 %>% filter(species_common_name %in% flatfish) %>%
   facet_grid(species_common_name~survey_abbrev, scales = "free_y") +
   ggtitle("SYN Flatfish  when present")
 
-ggsave("figs/boxplots-flatfish-syn-split.png", height = 12, width = 14)
+ggsave("figs/boxplots-flatfish-syn-split-apr-2024.png", height = 12, width = 14)
 
 d1 %>% filter((species_common_name %in% rockfish)) %>%
   mutate(year = year - 2000) %>%
@@ -167,7 +138,7 @@ d1 %>% filter((species_common_name %in% rockfish)) %>%
   facet_grid(species_common_name~survey_abbrev, scales = "free_y") +
   ggtitle("SYN Rockfish when present")
 
-ggsave("figs/boxplots-rockfish-syn-split.png", height = 10, width = 14)
+ggsave("figs/boxplots-rockfish-syn-split-apr-2024.png", height = 12, width = 14)
 
 d1 %>% filter(!(species_common_name %in% c(rockfish,flatfish))) %>%
   mutate(year = year - 2000) %>%
@@ -176,7 +147,7 @@ d1 %>% filter(!(species_common_name %in% c(rockfish,flatfish))) %>%
   facet_grid(species_common_name~survey_abbrev, scales = "free_y") +
   ggtitle("SYN Other when present")
 
-ggsave("figs/boxplots-other-syn-split.png", height = 6, width = 14)
+ggsave("figs/boxplots-other-syn-split-apr-2024.png", height = 12, width = 14)
 
 
 
@@ -205,7 +176,7 @@ d1 %>% filter(species_common_name %in% flatfish) %>%
   density_boxplots ()+
   ggtitle("Flatfish")
 
-ggsave("figs/boxplots-flatfish-mssm-total.png", height = 10, width = 12)
+ggsave("figs/boxplots-flatfish-mssm-total-apr-2024.png", height = 10, width = 12)
 # ggsave("figs/boxplots-flatfish-mssm-total.png", height = 14, width = 8)
 
 d1 %>% filter(species_common_name %in% rockfish) %>%
@@ -213,14 +184,14 @@ d1 %>% filter(species_common_name %in% rockfish) %>%
   density_boxplots ()+
   ggtitle("Rockfish")
 
-ggsave("figs/boxplots-rockfish-mssm-total.png", height = 9, width = 12)
+ggsave("figs/boxplots-rockfish-mssm-total-apr-2024.png", height = 9, width = 12)
 
 d1 %>% filter(!(species_common_name %in% c(rockfish,flatfish))) %>%
   filter(survey_type %in% c("MSSM<=05", "MSSM>05")) %>%
   density_boxplots () +
   ggtitle("Other")
 
-ggsave("figs/boxplots-other-mssm-total.png", height = 6, width = 12)
+ggsave("figs/boxplots-other-mssm-total-apr-2024.png", height = 6, width = 12)
 
 
 # d1 %>% filter(!(species_common_name %in% c(flatfish))) %>%
@@ -238,7 +209,7 @@ d1 %>% filter(species_common_name %in% flatfish) %>%
   ggtitle("Flatfish") +
   scale_color_brewer(palette = "Set1")
 #
-ggsave("figs/boxplots-flatfish-syn.png", height = 14, width = 14)
+ggsave("figs/boxplots-flatfish-syn-apr-2024.png", height = 14, width = 14)
 # #
 d1 %>% filter((species_common_name %in% rockfish)) %>%
   filter(survey_type %in% c("SYN")) %>%
@@ -246,7 +217,7 @@ d1 %>% filter((species_common_name %in% rockfish)) %>%
   ggtitle("Rockfish")+
   scale_color_brewer(palette = "Set1")
 
-ggsave("figs/boxplots-rockfish-syn.png", height = 14, width = 14)
+ggsave("figs/boxplots-rockfish-syn-apr-2024.png", height = 14, width = 14)
 
 #
 d1 %>% filter(!(species_common_name %in% c(rockfish,flatfish))) %>%
@@ -255,7 +226,7 @@ d1 %>% filter(!(species_common_name %in% c(rockfish,flatfish))) %>%
   scale_color_brewer(palette = "Set1")+
   ggtitle("Other")
 
-ggsave("figs/boxplots-other-syn.png", height = 6, width = 14)
+ggsave("figs/boxplots-other-syn-apr-2024.png", height = 6, width = 14)
 
 
 
@@ -277,13 +248,13 @@ all_density_boxplots <- function(data){
 d1 %>% filter(!(species_common_name %in% c(rockfish,flatfish))) %>%
   all_density_boxplots ()
 
-ggsave("figs/boxplots-other-all-total.png", height = 8.5, width = 12)
+ggsave("figs/boxplots-other-all-total-apr-2024.png", height = 8.5, width = 12)
 
 
 d1 %>% filter((species_common_name %in% c(rockfish))) %>%
-  all_density_boxplots () + guides(colour=guide_legend(nrow=2))
+  all_density_boxplots() + guides(colour=guide_legend(nrow=2))
 
-ggsave("figs/boxplots-rockfish-all-total.png", height = 9, width = 16)
+ggsave("figs/boxplots-rockfish-all-total-apr-2024.png", height = 9, width = 16)
 
 
 
@@ -292,7 +263,7 @@ d1 %>% filter((species_common_name %in% c(flatfish))) %>%
     "curlfin sole", "butter sole", "sand sole"))) %>%
   all_density_boxplots () + guides(colour=guide_legend(nrow=2))
 
-ggsave("figs/boxplots-flatfish-all-total.png", height = 9, width = 14)
+ggsave("figs/boxplots-flatfish-all-total-apr-2024.png", height = 9, width = 14)
 
 
 
@@ -360,7 +331,7 @@ ds2 %>% filter(total_events > 0) %>%
   ggtitle("Ratios relative to number of locations (sets) sampled each year on each survey",
           subtitle = "Points in grey area use higher level ratios, any dashed verticle lines are proposed thresholds for this behaviour")
 
-ggsave("figs/ratios-by-locations-sampled-2.png", width = 12, height = 8)
+ggsave("figs/ratios-by-locations-sampled-apr-2024.png", width = 12, height = 8)
 
 ds2 %>%
   filter(#total_fish < 200,
@@ -376,6 +347,7 @@ ds2 %>%
   geom_vline(xintercept = min_sample_number - 0.5, colour = "darkgrey", linetype = "dashed") +
   geom_vline(xintercept = min_sample_number*2- 0.5, colour = "darkgrey", linetype = "dashed") +
   geom_vline(xintercept = min_sample_number*3- 0.5, colour = "darkgrey", linetype = "dashed") +
+  geom_hline(yintercept = 0.33, colour = "darkgrey") +
   scale_x_log10() +
   coord_cartesian(expand = FALSE,
                   ylim = c( -0.05, 1.05),
@@ -383,13 +355,13 @@ ds2 %>%
   # geom_smooth(method = "gam") +
   geom_point(data = filter(ds2, total_events < min_sample_number), colour = "black") +
   geom_point() +
-  facet_wrap(~species_label, scales = "free_x")+
+  facet_wrap(~species_label, scales = "free_x", ncol = 7)+
   xlab("Annual number of fish sampled") +
   ylab("Proportion in each maturity class") +
   ggtitle("Ratios relative to number of fish measured each year on each survey",
-          subtitle = "Black points and those in grey area use higher level ratios. Dashed verticle lines represent 2 or 3 times as many fish as the min number of sets.")
+          subtitle = paste0("Black points and those in grey area use higher level ratios. Dashed verticle lines represent 2 or 3 times as many fish as the min number of sets (", min_sample_number,").\nPoints closer to solid grey line represent more equal proportions of all three groups. * indicates within year proportions used"))
 
-ggsave("figs/ratios-by-fish-sampled-2.png", width = 12, height = 8)
+ggsave("figs/ratios-by-fish-sampled-apr-2024.png", width = 14, height = 9)
 
 # x <- d1 %>%
 #   filter(survey_abbrev == "MSSM QCS" & species_common_name == "sablefish" & year == 2008)

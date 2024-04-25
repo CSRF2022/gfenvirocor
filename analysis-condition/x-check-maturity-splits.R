@@ -108,25 +108,25 @@ plot_mat_proportions <- function(
 
 
 plot_mat_proportions(d2, "Mature females", min_sample_number = 6)
-ggsave("figs/all-proportion-fem-means-sd-6-true-weights-2.png", height = 12, width = 14)
+ggsave("figs/all-proportion-fem-means-sd-6-apr-2024.png", height = 12, width = 14)
 
 # not actually run using the median values to generate the xs
 # but useful to see how things might change if it was
 plot_mat_proportions(d2, "Mature females", "median", min_sample_number = 6)
-ggsave("figs/all-proportion-fem-medians-sd-6-true-weights-2.png", height = 12, width = 14)
+ggsave("figs/all-proportion-fem-medians-sd-6-apr-2024.png", height = 12, width = 14)
 
 
 plot_mat_proportions(d2, "Mature males", min_sample_number = 6)
-ggsave("figs/all-proportion-mal-means-sd-6-true-weights-2.png", height = 12, width = 14)
+ggsave("figs/all-proportion-mal-means-sd-6-apr-2024.png", height = 12, width = 14)
 
 
 plot_mat_proportions(d2, "Immature", min_sample_number = 6)
-ggsave("figs/all-proportion-imm-means-sd-6-true-weights-2.png", height = 12, width = 14)
+ggsave("figs/all-proportion-imm-means-sd-6-apr-2024.png", height = 12, width = 14)
 
 # not actually run using the median values to generate the xs
 # but useful to see how things might change if it was
 plot_mat_proportions(d2, "Immature", "median", min_sample_number = 6)
-ggsave("figs/all-proportion-imm-medians-sd-6-true-weights-2.png", height = 12, width = 14)
+ggsave("figs/all-proportion-imm-medians-sd-6-apr-2024.png", height = 12, width = 14)
 
 
 
