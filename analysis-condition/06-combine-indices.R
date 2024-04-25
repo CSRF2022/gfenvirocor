@@ -8,64 +8,9 @@ theme_set(ggsidekick:::theme_sleek())
 fig_height <- 4 * 2
 fig_width <- 5 * 2
 
+source("analysis-condition/00-species-list.R")
 
-# species_list <- c(
-#   "Arrowtooth Flounder", #
-#   "Petrale Sole", #
-#   "English Sole", #
-#   "Dover Sole", #
-#   "Rex Sole",#
-#   "Flathead Sole", #
-#   "Southern Rock Sole", # ,
-#   "Curlfin Sole", #
-#   "Sand Sole",#
-#   "Slender Sole",#
-#   "Pacific Sanddab",#
-#   "Pacific Halibut",
-#   "Butter Sole"#
-#   ## "Starry Flounder"# too few males!
-#   ## "C-O Sole", # way too few!
-#   ## "Deepsea Sole" # no maturity
-# )
-
-
-
-species_list <- c(
-  "North Pacific Spiny Dogfish",
-  "Pacific Ocean Perch",
-  "Pacific Cod",
-  "Walleye Pollock",
-  "Sablefish",
-  "Lingcod",
-  "Bocaccio",
-  "Canary Rockfish",
-  "Redstripe Rockfish", # MSA added with mean > 4
-  "Rougheye/Blackspotted Rockfish Complex", # WILL NEED UPDATE FOR ALL MAT CLASSES
-  "Silvergray Rockfish", # MSA added with mean > 5
-  "Shortspine Thornyhead",
-  "Widow Rockfish", # hake would need mean > 1, mssm1 > 4
-  "Yelloweye Rockfish",
-  "Yellowmouth Rockfish", #
-  "Yellowtail Rockfish",
-  "Petrale Sole", #
-  "Arrowtooth Flounder", #
-  "English Sole",#
-  "Dover Sole",#
-  "Rex Sole", #
-  "Flathead Sole",#
-  "Southern Rock Sole",#
-  "Slender Sole",#
-  "Pacific Sanddab",#
-  "Pacific Halibut",#
-  "Curlfin Sole",#
-  "Sand Sole",#
-  "Butter Sole"
-)
-
-
-
-
-index_list <- expand.grid(species = species_list,
+index_list <- expand.grid(species = unlist(species_list),
                           maturity = c("mat", "imm", "all"),
                           males = c(TRUE, FALSE)) %>%
   mutate(
@@ -73,6 +18,17 @@ index_list <- expand.grid(species = species_list,
     males = ifelse(maturity == "imm", FALSE, males)
   ) %>%
   distinct()
+
+
+# these files are built while running the condition models
+# only species used there will be included here
+f1 <- list.files(paste0("data-generated/compare-models/"),
+                 pattern = ".rds", full.names = TRUE)
+d <- purrr::map_dfr(f1, readRDS)
+
+saveRDS(d, "data-generated/all-models-compared.rds")
+
+# d <- filter(d, !(species %in% species_to_remove))
 
 models <- readRDS("data-generated/all-models-compared.rds") %>%
   filter(prop_ci_error < 0.05) %>%
@@ -150,22 +106,19 @@ d <- purrr::pmap_dfr(
 saveRDS(d, "data-generated/density-indices-best.rds")
 
 # get totals
-model_string_fixed <- "dln-all-only-w-ann-prop"
+model_string_fixed <- "dln-all-mar-2024"
 index_list2 <- index_list %>% mutate(model_string = model_string_fixed) %>% as.list()
 d0 <- purrr::pmap_dfr(
   index_list2, # specific model chosen above
   combine_indices,
   model_type = "density",
   file_prefix = "data-generated/density-index/",
-  .id = "model") %>% filter(group == "total") %>% mutate(
-    species = ifelse(species == "Rougheye/Blackspotted Rockfish Complex",
-                     "Rougheye/Blackspotted", species
-    ))
+  .id = "model") %>% filter(group == "total")
 
 saveRDS(d0, paste0("data-generated/density-indices-total.rds"))
 
 
-model_string_fixed <- "dln-all-only-true-ratio-6"
+model_string_fixed <- "dln-only-sampled-shrunk"
 index_list2 <- index_list %>% mutate(model_string = model_string_fixed) %>% as.list()
 d1 <- purrr::pmap_dfr(
   index_list2, # specific model chosen above
@@ -177,7 +130,7 @@ d1 <- purrr::pmap_dfr(
 saveRDS(d1, paste0("data-generated/density-indices-", model_string_fixed, ".rds"))
 
 
-model_string_fixed <- "dln-all-split-all-weights"
+model_string_fixed <- "dln-all-shrunk"
 index_list2 <- index_list %>% mutate(model_string = model_string_fixed) %>% as.list()
 d2 <- purrr::pmap_dfr(
   index_list2, # specific model chosen above
@@ -191,6 +144,11 @@ saveRDS(d2, paste0("data-generated/density-indices-", model_string_fixed, ".rds"
 
 
 
+d0 <- filter(d0, !(species %in% species_to_remove)) %>% mutate(
+  species = ifelse(species == "Rougheye/Blackspotted Rockfish Complex",
+                   "Rougheye/Blackspotted", species
+  ))
+d <- filter(d, !(species %in% species_to_remove))
 
 d |> mutate(
   # group = forcats::fct_relevel(group, "immatures", "mature males", "mature females"),
@@ -219,33 +177,31 @@ ggplot(aes(year, est/1000*4,
                        option = "D") +
   # scale_color_viridis_d(option = "C", direction =-1, end = 0.9) +
   # scale_fill_viridis_d(option = "C", direction =-1, end = 0.9) +
+  # guides(linetype = guide_legend(order = 1),colour = guide_legend(order = 2),fill = guide_legend(order = 2),fill = guide_legend(alpha = 2)) +
+  # theme(legend.position = c(0.9, 0.06) )+
   labs(
     fill = NULL,
     alpha = NULL,
     colour = NULL,
     linetype = NULL,
-    x="Year", y="Relative biomass") +
-  # guides(linetype = guide_legend(order = 1),colour = guide_legend(order = 2),fill = guide_legend(order = 2),fill = guide_legend(alpha = 2)) +
-  theme(legend.position = c(0.9, 0.07) )
+    x="Year", y="Relative biomass")
 
 
 ggsave(paste0("figs/all-density-indices",
               # "-fixed",
               # "-not-flat-",
               # "-flatfish-",
-              "-with-best-model",
+              "-with-best-model-mar2024-filtered",
               # model_string_fixed,
               ".png"),
        # height = fig_height*.5, width = fig_width*1.1
        # height = fig_height*.65, width = fig_width*1.1
-       height = fig_height*1.4, width = fig_width*1
+       height = fig_height*1.4, width = fig_width*1.2
 )
 
 
-
-
-
 d1 |> bind_rows(d2) |>
+  filter(!(species %in% species_to_remove)) |>
   # bind_rows(d0) |>
   mutate(
   # group = forcats::fct_relevel(group, "immatures", "mature males", "mature females"),
@@ -276,28 +232,34 @@ d1 |> bind_rows(d2) |>
   # geom_ribbon(alpha = 0.1) +
   facet_wrap(~species, scales = "free_y", ncol = 5) +
   # scale_linetype(limits = c("Total")) +
-  scale_linetype_manual(values=c(3,1,2),
-      labels = c("Split (measured survey-years)","Total density (all data)","Spilt (all data)")
+  scale_linetype_manual(values=c(1,2,3),
+      labels = c("Total density (all data)","Spilt (all data)","Split (measured survey-years)")
 ) +
   scale_alpha_discrete(range = c(0.1, 0.2)) +
   # scale_color_discrete(
   #   labels = c("Split (measured survey-years)","Total density (all data)","Spilt (all data)")) +
   # scale_fill_viridis_d(option = "C", direction =-1, end = 0.9) +
+  # guides(linetype = guide_legend(order = 1),colour = guide_legend(order = 2),fill = guide_legend(order = 2),fill = guide_legend(alpha = 2)) +
+  theme(legend.position = c(0.9, 0.07) )+
   labs(
     fill = NULL,
     alpha = NULL,
     colour = NULL,
     linetype = NULL,
-    x="Year", y="Relative biomass") +
-  # guides(linetype = guide_legend(order = 1),colour = guide_legend(order = 2),fill = guide_legend(order = 2),fill = guide_legend(alpha = 2)) +
-  theme(legend.position = c(0.9, 0.07) )
+    x="Year", y="Relative biomass")
 
+ggsave(paste0("figs/all-density-indices",
+              "-summed-comparison-mar2024",
+              "-BW.png"),
+       height = fig_height*1.4, width = fig_width*1
+)
 
 
 hex <- scales::hue_pal()(2)
 
 d1 |> bind_rows(d2) |>
   bind_rows(d0) |>
+  filter(!(species %in% species_to_remove)) |>
   mutate(
     species = ifelse(species == "Rougheye/Blackspotted Rockfish Complex",
                      "Rougheye/Blackspotted", species
@@ -325,12 +287,12 @@ d1 |> bind_rows(d2) |>
   # geom_ribbon(alpha = 0.1) +
   facet_wrap(~species, scales = "free_y", ncol = 5) +
   # scale_linetype(limits = c("Total")) +
-  scale_linetype_manual(values=c(3,1,2),
-                        labels = c("Split (measured survey-years)","Total density (all data)","Spilt (all data)")
+  scale_linetype_manual(values=c(1,2,3),
+                        labels = c("Total density (all data)","Spilt (all data)", "Split (measured survey-years)")
   ) +
   scale_alpha_discrete(range = c(0.1, 0.2)) +
-  scale_color_manual(values= c(hex[1], "#A9A9A9", hex[2]),
-    labels = c("Split (measured survey-years)","Total density (all data)","Spilt (all data)")) +
+  scale_color_manual(values= c("#A9A9A9", hex[2],hex[1]),
+    labels = c("Total density (all data)","Spilt (all data)","Split (measured survey-years)")) +
   scale_fill_viridis_d(option = "C", direction =-1, end = 0.9) +
   labs(
     fill = NULL,
@@ -339,10 +301,10 @@ d1 |> bind_rows(d2) |>
     linetype = NULL,
     x="Year", y="Relative biomass") +
   # guides(linetype = guide_legend(order = 1),colour = guide_legend(order = 2),fill = guide_legend(order = 2),fill = guide_legend(alpha = 2)) +
-  theme(legend.position = c(0.9, 0.07) )
+  theme(legend.position = c(0.8, 0.06) )
 
 ggsave(paste0("figs/all-density-indices",
-              "-summed-comparison",
+              "-summed-comparison-mar2024",
               ".png"),
        height = fig_height*1.4, width = fig_width*1
 )
@@ -361,12 +323,7 @@ ggsave(paste0("figs/all-density-indices",
 #
 
 
-
-# model_name <- "all-st2002-doy"
-# model_name <- "all-st2002-doy-unweighted"
-# model_name <- "all-st2002-doy-within-yr-weights"
-# model_name <- "all-st2002-doy-small-weights"
-model_name1 <- "doy-unweighted"
+model_name1 <- "apr-2024"
 
 f1 <- list.files(paste0("data-generated/cond-index/",
                        model_name1), pattern = ".rds", full.names = TRUE)
@@ -377,24 +334,19 @@ min_est <- min(d1$est)
 max_est <- max(d1$est)
 
 
-# model_name <- "all-st2002-doy-d0c"
-# model_name <- "all-st2002-doy-d0c-unweighted"
-# model_name <- "all-st2002-doy-d0c-within-yr-weights"
-# model_name <- "all-st2002-doy-d0c-small-weights"
-#
-
-model_name2 <- "all-blackswan-doy-ld0c-unweighted"
+model_name2 <- "apr-2024-density"
 
 f2 <- list.files(paste0("data-generated/cond-index/",
                        model_name2), pattern = ".rds", full.names = TRUE)
 
 d2 <- purrr::map_dfr(f2, readRDS)
 
-# d1 %>%
-d2 %>%
+d1 %>%
+# d2 %>%
   # filter(!(species %in% c(Flatfish))) %>%
   # filter(!(species %in% c(Flatfish, Rockfish))) %>%
   # filter(species %in% Flatfish) %>%
+  filter(!(species %in% species_to_remove)) |>
   mutate(  species = ifelse(species == "Rougheye/Blackspotted Rockfish Complex",
                             "Rougheye/Blackspotted", species
   ),
@@ -426,11 +378,11 @@ ggplot( aes(year, est, fill = group)) +
   scale_fill_viridis_d(option = "D", direction =1) +
   # ggtitle(paste(model_name))+
   # theme(legend.position = "none") +
-  theme(legend.position = c(0.9,0.07)) +
+  theme(legend.position = c(0.5,0.06)) +
   labs(
     x = "",
-    # y = "Condition index",
-    y = "Condition index excluding effect of density-dependence",
+    y = "Condition index",
+    # y = "Condition index excluding effect of density-dependence",
     # x = "Year",
        alpha = "",
        fill = "",
@@ -442,9 +394,8 @@ ggsave(paste0("figs/",
               # "not-flat-",
               # "all-",
               "fixed-",
-
-              # model_name1,
-              model_name2,
+              model_name1,
+              # model_name2,
               ".png"),
        height = fig_height*1.4,
        # height = fig_height*1,
