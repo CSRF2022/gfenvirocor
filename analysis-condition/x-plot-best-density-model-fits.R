@@ -13,18 +13,18 @@ theme_set(ggsidekick:::theme_sleek())
 dir.create(paste0("data-generated/density-effects/"))
 source("analysis-condition/00-species-list.R")
 
-# fig_height <- 4 * 2
-# fig_width <- 5 * 2
+
 knot_distance <- 20
 variable <- "days_to_solstice"
 # variable <- "log_depth_c"
+
+# residual_check <- FALSE
 residual_check <- TRUE
 
-
-
-# group_tag <- "mat-m"
+# group_tag <- "total"
+group_tag <- "mat-m"
 # group_tag <- "mat-fem"
-group_tag <- "imm"
+# group_tag <- "imm"
 
 
 # just plot the better model
@@ -36,7 +36,6 @@ best_model <- readRDS("data-generated/all-models-compared.rds") %>%
   select(species, model_string, model_total)
 
 m <- list()
-# pd <- list()
 p <- list()
 
 
@@ -49,6 +48,16 @@ for (i in seq_along(best_model$species)){
   species <- best_model$species[i]
   spp <- gsub(" ", "-", gsub("\\/", "-", tolower(species)))
 
+  if(group_tag == "total") {group_label <- "Total"}
+  if(group_tag == "mat-m") {group_label <- "Mature male"}
+  if(group_tag == "mat-fem") {group_label <- "Mature female"}
+  if(group_tag == "imm") {group_label <- "Immature"}
+
+  labels <- readRDS(paste0(
+    "data-generated/density-split-ind/", spp, "-split-",
+    best_model$model_string[i], "-", knot_distance, "-km.rds"
+  )) |> filter(group == group_label) |>
+    select(species, group, index, model) |> distinct()
 
   if(group_tag == "total") {
     model_name <- best_model$model_total[i]
@@ -63,17 +72,6 @@ for (i in seq_along(best_model$species)){
                         "-km.rds"))
 
   m[[i]] <- sdmTMB:::update_version(m[[i]])
-
-  if(group_tag == "total") {group_label <- "Total"}
-  if(group_tag == "mat-m") {group_label <- "Mature male"}
-  if(group_tag == "mat-fem") {group_label <- "Mature female"}
-  if(group_tag == "imm") {group_label <- "Immature"}
-
-  labels <- readRDS(paste0(
-    "data-generated/density-split-ind/", spp, "-split-",
-    model_name, "-", knot_distance, "-km.rds"
-  )) |> filter(group == group_label) |>
-    select(species, group, index, model) |> distinct()
 
   if(residual_check){
 
@@ -95,7 +93,9 @@ for (i in seq_along(best_model$species)){
            # sub = ifelse(isTRUE(m[[i]]$family$delta), m[[i]]$family$clean_name, paste0(m[[i]]$family[1], "(link = 'log')")),
            main = species)
     abline(0, 1)
-    legend("topleft", c(paste("\n", gsub("link", "", labels$model))), bty = "n")
+    legend("topleft", c(paste("\n",
+           sub("\\(link1 = 'logit', link2 = 'log'\\)", "", labels$model)
+           )), bty = "n")
     # browser()
     p[[i]] <- recordPlot()
 
@@ -235,12 +235,12 @@ if(residual_check){
   library(cowplot)
   plot_grid(plotlist = p, align = "hv",
             scale = 1.1,
-            ncol = 5
+            ncol = 6
             )  + theme(plot.margin = margin(0,0,0,0, "cm"))
 
   ggsave(paste0("figs/residual-clean-",
                 best_model$model_total[1], "-", group_tag, "-best.png"),
-         height = 30, width = 16)
+         height = 25, width = 20)
 
 } else {
 y_lab_big <- ggplot() +
