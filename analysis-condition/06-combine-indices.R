@@ -10,6 +10,9 @@ fig_width <- 5 * 2
 
 source("analysis-condition/00-species-list.R")
 
+
+### for combining biomass indices
+
 index_list <- expand.grid(species = unlist(species_list),
                           maturity = c("mat", "imm", "all"),
                           males = c(TRUE, FALSE)) %>%
@@ -321,84 +324,4 @@ ggsave(paste0("figs/all-density-indices",
 #                      model_string = paste0(model_name,"-15-km"),
 #                      .id = "model")
 #
-
-
-model_name1 <- "apr-2024"
-
-f1 <- list.files(paste0("data-generated/cond-index/",
-                       model_name1), pattern = ".rds", full.names = TRUE)
-
-d1 <- purrr::map_dfr(f1, readRDS)
-
-min_est <- min(d1$est)
-max_est <- max(d1$est)
-
-
-model_name2 <- "apr-2024-density"
-
-f2 <- list.files(paste0("data-generated/cond-index/",
-                       model_name2), pattern = ".rds", full.names = TRUE)
-
-d2 <- purrr::map_dfr(f2, readRDS)
-
-d1 %>%
-# d2 %>%
-  # filter(!(species %in% c(Flatfish))) %>%
-  # filter(!(species %in% c(Flatfish, Rockfish))) %>%
-  # filter(species %in% Flatfish) %>%
-  filter(!(species %in% species_to_remove)) |>
-  mutate(  species = ifelse(species == "Rougheye/Blackspotted Rockfish Complex",
-                            "Rougheye/Blackspotted", species
-  ),
-              # group = forcats::fct_relevel(group, "immatures", "mature males", "mature females"),
-  # group = factor(group, levels = c("immatures", "mature males", "mature females", "total"),
-  #                labels = c("Immatures", "Mature males", "Mature females", "Total")),
-  # group = factor(group, levels = c( "mature females","mature males", "immatures", "total"),
-  #                labels = c("Mature females", "Mature males", "Immatures", "Total")),
-              group = factor(group, levels = c("immatures", "mature males", "mature females"),
-                             labels = c("Immatures", "Mature males", "Mature females")),
-              upr_trimmed = ifelse(upr > 1.4, 1.4, upr)
-              ) %>%
-ggplot( aes(year, est, fill = group)) +
-
-  geom_line(aes(colour = group)#, linewidth = 1
-            ) +
-  geom_ribbon(aes(ymin = lwr, ymax = upr_trimmed, alpha = group)) +
-  geom_hline(yintercept = 1, linetype = "dotted") +
-
-  # scale_y_log10() +
-  facet_wrap(~species,
-             scales = "free_y",
-             ncol = 5) +
-  # scale_color_brewer(palette = "Set3") +
-  # scale_fill_brewer(palette = "Set3") +
-  coord_cartesian( ylim = c(min_est, max_est)) +
-  scale_alpha_discrete(range = c(0.1, 0.3)) +
-  scale_color_viridis_d(option = "D", direction =1) +
-  scale_fill_viridis_d(option = "D", direction =1) +
-  # ggtitle(paste(model_name))+
-  # theme(legend.position = "none") +
-  theme(legend.position = c(0.5,0.06)) +
-  labs(
-    x = "",
-    y = "Condition index",
-    # y = "Condition index excluding effect of density-dependence",
-    # x = "Year",
-       alpha = "",
-       fill = "",
-       colour = "")
-
-ggsave(paste0("figs/",
-              "all-condition-indices-",
-              # "flatfish-",
-              # "not-flat-",
-              # "all-",
-              "fixed-",
-              model_name1,
-              # model_name2,
-              ".png"),
-       height = fig_height*1.4,
-       # height = fig_height*1,
-       width = fig_width*1
-)
 
