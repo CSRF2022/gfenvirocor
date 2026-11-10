@@ -63,7 +63,7 @@ rdev <- bind_rows(
     "YTR-CST-2014-MCMC(Rdev)-forRobyn.csv"
   )) %>% mutate(assessment = names(cols)[1], birth_year = year - 1),
   summarise_mcmc(paste0(
-    assess_dir, "YTR-2024-MCMC-forPhilina-261104/",
+    assess_dir, "YTR-BC-2024-forPhilina-(261109.v1)/",
     "YTR-BC-2024-MCMC(Rdev)-forPhilina.csv"
   )) %>% mutate(assessment = names(cols)[2], birth_year = year)
 )

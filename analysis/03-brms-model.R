@@ -12,6 +12,14 @@ dat <- readRDS(paste0("data/all-productivity-longer-2023-06-08.rds"))  %>%
   filter(!(species == "Pacific Cod" & recruitment_age == 3)) %>%
   filter(!(species == "Yellowtail Rockfish" & recruitment_age == 0))
 
+# where a stock has more than one assessment, keep the newer one
+if ("assessed" %in% names(dat)) {
+  dat <- dat %>%
+    group_by(species, stock) %>%
+    filter(assessed == max(assessed)) %>%
+    ungroup()
+}
+
 # select hypothesis
 climate_model <- "ROMS"
 

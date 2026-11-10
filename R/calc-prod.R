@@ -12,6 +12,11 @@
 #'   Use `1` for two sex biomass estimates.
 #' @param recruitment_age default `1`; integer value
 #' @param maturity_age default `1`; integer value
+#' @param catch_cols default `NULL` sums all catch columns; otherwise a vector
+#'   of the catch file columns to sum, for area stocks that share a catch file
+#' @param shared_mcmcprefix default `NULL`; mcmc file prefix to use for
+#'   recruitment deviations when there is no stock-specific file, for area
+#'   stocks from one assessment that share recruitment deviations
 #'
 #' @return dataframe
 #' @export
@@ -39,7 +44,9 @@ calc_prod <- function(catchfile,
                       end_year = NULL,
                       proportion_catch = 0.5,
                       recruitment_age = 1,
-                      maturity_age = 1
+                      maturity_age = 1,
+                      catch_cols = NULL,
+                      shared_mcmcprefix = NULL
                       ){
 
   # some of Rowan's output folders have no catch file
@@ -113,8 +120,13 @@ calc_prod <- function(catchfile,
       var_name = "recruits"
     )
 
+    rdev_file <- paste0(mcmcprefix, "Rdev", mcmcsuffix)
+    if (!file.exists(rdev_file) && !is.null(shared_mcmcprefix)) {
+      rdev_file <- paste0(shared_mcmcprefix, "Rdev", mcmcsuffix)
+    }
+
     d <- awatea_mcmc(
-      csv = paste0(mcmcprefix, "Rdev", mcmcsuffix),
+      csv = rdev_file,
       species,
       stock,
       var_name = "rdev"
@@ -125,6 +137,10 @@ calc_prod <- function(catchfile,
       c <- data.frame(year = b$year, catch = NA_real_)
     } else {
       c <- c %>% rename(year = `...1`)
+      if (!is.null(catch_cols)) {
+        stopifnot(all(catch_cols %in% names(c)))
+        c <- c[, c("year", catch_cols)]
+      }
       c$catch <- rowSums(c[,2:ncol(c)])
     }
 

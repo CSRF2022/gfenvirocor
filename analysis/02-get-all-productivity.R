@@ -37,7 +37,12 @@ for (i in 1:nrow(gf)) {
   )
 
   if (model == "rowans") {
-    catchdata <- paste0(gf$folder[i], gf$fileprefix[i], "-MPD(C", gf$filesuffix[i])
+    # newer outputs name the catch file in the sheet; older ones say "use code when from rowan"
+    catchdata <- if (grepl("\\.csv$", gf$catchfile[i])) {
+      paste0(gf$folder[i], gf$catchfile[i])
+    } else {
+      paste0(gf$folder[i], gf$fileprefix[i], "-MPD(C", gf$filesuffix[i])
+    }
     prefix <- paste0(gf$folder[i], gf$fileprefix[i], "-MCMC(")
     suffix <- gf$filesuffix[i]
   } else {
@@ -65,9 +70,15 @@ for (i in 1:nrow(gf)) {
     end_year = gf$end[i],
     proportion_catch = gf$prop_catch[i],
     recruitment_age = gf$age_recruited[i],
-    maturity_age = round(gf$age50mature[i])
+    maturity_age = round(gf$age50mature[i]),
+    # area stocks from one assessment can share a catch file and recruitment deviations
+    catch_cols = if (is.na(gf$catch_cols[i])) NULL else strsplit(gf$catch_cols[i], ",\\s*")[[1]],
+    shared_mcmcprefix = if (is.na(gf$shared_prefix[i])) NULL else
+      paste0(gf$folder[i], gf$shared_prefix[i], "-MCMC(")
   )
 
+  # some stocks have more than one assessment, so keep track of which this is
+  d[[i]]$assessed <- gf$Assessed[i]
   d[[i]]$group <- gf$Group[i]
 
   # browser()

@@ -50,8 +50,21 @@ stocks <- tribble(
   "Walleye Pollock", "3CD5AB", "Walleye pollock 3CD5AB", "WAP-South", "Gadus chalcogrammus", "HRP"
 )
 
+# reference points for assessments that differ from the stock default above.
+# The 2023 POP reference points are coastwide only, so the areas have none.
+rp_by_assessment <- c(
+  "YTR-BC-2024" = "RP",
+  "BOR-CST-2024" = "bmsy_file",
+  "SGR-BC-2025" = "RP_bmsy",
+  "POP-3CD-2023" = NA,
+  "POP-5ABC-2023" = NA,
+  "POP-5DE-2023" = NA
+)
+
 rp_notes <- c(
   RP = "LRP and USR are from the MCMC(RP) output; USR is entered as trp.",
+  RP_bmsy = "LRP is 0.4 Bmsy and USR is 0.8 Bmsy from the MCMC(RP) output; USR is entered as trp.",
+  bmsy_file = "LRP is 0.4 Bmsy and USR is 0.8 Bmsy, calculated from the MCMC(Bmsy) output; USR is entered as trp.",
   HRP = "LRP is Bmin and USR is Bavg from the MCMC(HRP) output; USR is entered as trp.",
   bmsy = "LRP is 0.4 Bmsy and USR is 0.8 Bmsy, calculated from posterior Bmsy; USR is entered as trp.",
   sbo = "LRP is 0.2 SB0 and USR is 0.4 SB0, calculated from posterior SB0; USR is entered as trp."
@@ -65,8 +78,10 @@ gf <- readxl::read_xlsx("data/GF_assessments.xlsx") %>%
   filter(Species != "Pacific Cod" | age_recruited == pcod_age_recruited) %>%
   mutate(folder = paste0(assess_dir, gsub("^\\.\\./", "", folder))) %>%
   left_join(stocks, by = c("Species", "Stock")) %>%
-  # the 2024 yellowtail assessment supplied reference points but the 2014 one did not
-  mutate(rp_source = if_else(fileprefix %in% "YTR-BC-2024", "RP", rp_source))
+  mutate(rp_source = if_else(
+    fileprefix %in% names(rp_by_assessment),
+    unname(rp_by_assessment[fileprefix]), rp_source
+  ))
 
 stopifnot(!any(is.na(gf$stock_code)))
 
@@ -99,8 +114,15 @@ assessments <- list()
 for (i in 1:nrow(gf)) {
   print(paste(gf$Species[i], gf$Stock[i], gf$model_type[i]))
 
+  catch_cols <- if (is.na(gf$catch_cols[i])) NULL else strsplit(gf$catch_cols[i], ",\\s*")[[1]]
+
   if (gf$model_type[i] == "rowans") {
-    catchdata <- paste0(gf$folder[i], gf$fileprefix[i], "-MPD(C", gf$filesuffix[i])
+    # newer outputs name the catch file in the sheet; older ones say "use code when from rowan"
+    catchdata <- if (grepl("\\.csv$", gf$catchfile[i])) {
+      paste0(gf$folder[i], gf$catchfile[i])
+    } else {
+      paste0(gf$folder[i], gf$fileprefix[i], "-MPD(C", gf$filesuffix[i])
+    }
     catch_names <- if (file.exists(catchdata)) {
       names(read_csv(catchdata, n_max = 0, show_col_types = FALSE))
     } else {
@@ -117,7 +139,11 @@ for (i in 1:nrow(gf)) {
     fileprefix = gf$fileprefix[i],
     filesuffix = gf$filesuffix[i],
     catchfile = catchdata,
-    biomass_scale = gf$biomass_scale[i]
+    biomass_scale = gf$biomass_scale[i],
+    catch_cols = catch_cols,
+    # newer SS3 outputs include an unfished column before start and projections
+    start_year = if (gf$model_type[i] == "rowans") gf$start[i] else NULL,
+    end_year = if (gf$model_type[i] == "rowans") gf$end[i] else NULL
   )
 
   rp <- get_ref_points(
@@ -192,8 +218,6 @@ for (i in 1:nrow(gf)) {
     major_stock_name = gf$major_stock_name[i],
     assessment_year = file_year,
     assessment_type = gf$model_label[i],
-    # same stock, so the 2024 assessment replaces the 2014 one in the template
-    supersedes_assessment_id = if (gf$fileprefix[i] %in% "YTR-BC-2024") "YTR-CST-2014" else NA_character_,
     submitter_email = contact_email,
     status_notes = paste0(
       "Listed in GF_assessments.xlsx as assessed ", gf$Assessed[i],
@@ -225,13 +249,22 @@ major_stock_out <- bind_rows(major_stock) %>%
   mutate(across(where(is.double), ~ signif(.x, 6))) %>%
   match_template(read_template_columns(paste0(template_dir, "data/major_stock.csv")))
 
-assessments_out <- bind_rows(assessments) %>%
+# where a stock has more than one assessment, each one supersedes the one before
+assessments <- bind_rows(assessments) %>%
+  group_by(major_stock_id) %>%
+  arrange(assessment_year, .by_group = TRUE) %>%
+  mutate(supersedes_assessment_id = lag(assessment_id)) %>%
+  ungroup()
+
+assessments_out <- assessments %>%
   match_template(read_template_columns(paste0(template_dir, "metadata/assessments.csv")))
 
+# the stock list has one row per stock, so it gets the latest assessment
 stock_list_out <- stock_list %>%
   rows_update(
-    bind_rows(assessments) %>%
+    assessments %>%
       filter(major_stock_name %in% stock_list$major_stock_name) %>%
+      slice_max(assessment_year, by = major_stock_name) %>%
       select(major_stock_name, major_stock_id, assessment_year),
     by = "major_stock_name"
   )

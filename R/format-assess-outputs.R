@@ -56,9 +56,11 @@ summarise_ref_point <- function(x, name) {
 #' Get limit and upper reference points supplied with assessment outputs
 #'
 #' @param rp_source where the reference points come from: `"RP"` for `LRP` and
-#'   `USR` in an MCMC(RP) file, `"HRP"` for `Bmin` and `Bavg` in an MCMC(HRP)
-#'   file, `"bmsy"` for 0.4 and 0.8 Bmsy from an MCMC(P) file, `"sbo"` for 0.2
-#'   and 0.4 SB0 from an iscam_mcmc.csv file, and `NA` when none are available
+#'   `USR` in an MCMC(RP) file, `"RP_bmsy"` for `40Bmsy` and `80Bmsy` in an
+#'   MCMC(RP) file, `"HRP"` for `Bmin` and `Bavg` in an MCMC(HRP) file,
+#'   `"bmsy"` for 0.4 and 0.8 Bmsy from an MCMC(P) file, `"bmsy_file"` for 0.4
+#'   and 0.8 Bmsy from an MCMC(Bmsy) file, `"sbo"` for 0.2 and 0.4 SB0 from an
+#'   iscam_mcmc.csv file, and `NA` when none are available
 #' @param folder folder containing the outputs
 #' @param fileprefix stock prefix for Rowan's files
 #' @param filesuffix file name suffix for Rowan's files
@@ -77,11 +79,22 @@ get_ref_points <- function(rp_source, folder, fileprefix, filesuffix, scale = 1)
   rowan_file <- function(x) {
     paste0(folder, fileprefix, "-MCMC(", x, filesuffix)
   }
+  lrp <- trp <- NULL
 
   if (rp_source == "RP") {
     .d <- read(rowan_file("RP"))
     lrp <- .d$LRP
     trp <- .d$USR
+  }
+  if (rp_source == "RP_bmsy") {
+    .d <- read(rowan_file("RP"))
+    lrp <- .d$`40Bmsy`
+    trp <- .d$`80Bmsy`
+  }
+  if (rp_source == "bmsy_file") {
+    .d <- read(rowan_file("Bmsy"))
+    lrp <- 0.4 * .d$Bmsy
+    trp <- 0.8 * .d$Bmsy
   }
   if (rp_source == "HRP") {
     .d <- read(rowan_file("HRP"))
@@ -99,6 +112,7 @@ get_ref_points <- function(rp_source, folder, fileprefix, filesuffix, scale = 1)
     trp <- 0.4 * .d$sbo
   }
 
+  stopifnot(!is.null(lrp), !is.null(trp))
   cbind(
     summarise_ref_point(lrp * scale, "lrp"),
     summarise_ref_point(trp * scale, "trp")
@@ -145,11 +159,16 @@ name_assess_var <- function(d, name) {
 #' @param catchfile catch file location and name
 #' @param biomass_scale multiplier converting biomass and catch to tonnes and
 #'   recruits to thousands of fish
+#' @param catch_cols `NULL` sums all catch columns; otherwise the catch file
+#'   columns to sum, for area stocks that share a catch file
+#' @param start_year,end_year if supplied, drop years before `start_year` (e.g.
+#'   an unfished equilibrium column) and after `end_year + 1` (projections)
 #'
 #' @return dataframe of template columns, one row per year
 #'
 get_assess_outputs <- function(model_type, folder, fileprefix, filesuffix,
-                               catchfile, biomass_scale = 1) {
+                               catchfile, biomass_scale = 1, catch_cols = NULL,
+                               start_year = NULL, end_year = NULL) {
   if (model_type == "landmark") {
     # only annual medians were provided; SSB in kt and recruits in millions
     .d <- readr::read_csv(catchfile, show_col_types = FALSE)
@@ -171,9 +190,11 @@ get_assess_outputs <- function(model_type, folder, fileprefix, filesuffix,
         catchfile,
         name_repair = "minimal", show_col_types = FALSE
       ))
+      .cols <- if (is.null(catch_cols)) names(.c)[-1] else catch_cols
+      stopifnot(all(.cols %in% names(.c)))
       catch <- data.frame(
         year = as.integer(.c[[1]]),
-        total_catch = rowSums(.c[, -1, drop = FALSE]) * biomass_scale
+        total_catch = rowSums(.c[, .cols, drop = FALSE]) * biomass_scale
       )
     } else {
       catch <- data.frame(year = b$year, total_catch = NA_real_)
@@ -198,6 +219,9 @@ get_assess_outputs <- function(model_type, folder, fileprefix, filesuffix,
   if (!is.null(u)) {
     out <- dplyr::full_join(out, name_assess_var(u, "fishing_mortality_rate"), by = "year")
   }
+
+  if (!is.null(start_year)) out <- out[out$year >= start_year, ]
+  if (!is.null(end_year)) out <- out[out$year <= end_year + 1, ]
 
   dplyr::arrange(out, year)
 }
