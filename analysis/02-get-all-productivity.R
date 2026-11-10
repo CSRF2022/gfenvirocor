@@ -7,6 +7,10 @@ library(sf)
 
 gf <- readxl::read_xlsx("data/GF_assessments.xlsx") %>% filter(Outputs == "Y")
 
+# assessment outputs are now grouped in one folder outside this repo
+assess_dir <- "../Assess_outputs/"
+gf$folder <- paste0(assess_dir, gsub("^\\.\\./", "", gf$folder))
+
 unique(gf$Species)
 
 d <- list()

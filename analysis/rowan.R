@@ -13,94 +13,94 @@ mcmcsuffix <- ")-forRobyn.csv"
 recruitment_age <- 1
 
 # Pacific Ocean Perch (POP) 3CD and 5DE in 2012
-folder <- "../rowan/POP-3CD+5DE-2012-Awatea-output-forRobyn-230124/"
+folder <- "../Assess_outputs/rowan/POP-3CD+5DE-2012-Awatea-output-forRobyn-230124/"
 fileprefix <- "POP-3CD-2012"
 species <- "Pacific Ocean Perch"
 stock <- "3CD"
 
-folder <- "../rowan/POP-3CD+5DE-2012-Awatea-output-forRobyn-230124/"
+folder <- "../Assess_outputs/rowan/POP-3CD+5DE-2012-Awatea-output-forRobyn-230124/"
 fileprefix <- "POP-5DE-2012"
 species <- "Pacific Ocean Perch"
 stock <- "5DE"
 
 # Pacific Ocean Perch (POP) 5ABC in 2017
-folder <- "../rowan/POP-5ABC-2017-Awatea-output-forRobyn-230123/"
+folder <- "../Assess_outputs/rowan/POP-5ABC-2017-Awatea-output-forRobyn-230123/"
 fileprefix <- "POP-5ABC-2017"
 species <- "Pacific Ocean Perch"
 stock <- "5ABC"
 
 # Yellowtail Rockfish (YTR) in 2014
-folder <- "../rowan/YTR-CST-2014-Awatea-output-forRobyn-230124/"
+folder <- "../Assess_outputs/rowan/YTR-CST-2014-Awatea-output-forRobyn-230124/"
 fileprefix <- "YTR-CST-2014"
 species <- "Yellowtail Rockfish"
 stock <- "Coastwide"
 
 # Silvergray (SGR) in 2013
-folder <- "../rowan/SGR-CST-2013-Awatea-output-forRobyn-230124/"
+folder <- "../Assess_outputs/rowan/SGR-CST-2013-Awatea-output-forRobyn-230124/"
 fileprefix <- "SGR-CST-2013"
 species <- "Silvergray Rockfish"
 stock <- "Coastwide"
 
 # Redstripe Rockfish (RSR)in 2018 (not a composite, one run each)
 # lag between recruitment and production interesting
-folder <- "../rowan/RSR-BCN-BCS-2018-Awatea-output-forRobyn-230120/"
+folder <- "../Assess_outputs/rowan/RSR-BCN-BCS-2018-Awatea-output-forRobyn-230120/"
 fileprefix <- "RSR-BCN-2018"
 species <- "Redstripe Rockfish"
 stock <- "BC North"
 
-folder <- "../rowan/RSR-BCN-BCS-2018-Awatea-output-forRobyn-230120/"
+folder <- "../Assess_outputs/rowan/RSR-BCN-BCS-2018-Awatea-output-forRobyn-230120/"
 fileprefix <- "RSR-BCS-2018"
 species <- "Redstripe Rockfish"
 stock <- "BC South"
 
 # ROUGHEYE/BLACKSPOTTED ROCKFISH (REBS, BSR, RER)
-folder <- "../rowan/REBS-North-2020-Awatea-output-forRobyn-230120/"
+folder <- "../Assess_outputs/rowan/REBS-North-2020-Awatea-output-forRobyn-230120/"
 fileprefix <- "BSR-CST-2020"
 species <- "Rougheye/Blackspotted Complex"
 stock <- "BC North"
 
-folder <- "../rowan/REBS-South-2020-Awatea-output-forRobyn-230120/"
+folder <- "../Assess_outputs/rowan/REBS-South-2020-Awatea-output-forRobyn-230120/"
 fileprefix <- "RER-CST-2020"
 species <- "Rougheye/Blackspotted Complex"
 stock <- "BC South"
 
 # Widow Rockfish
-folder <- "../rowan/WWR-CST-2019-Awatea-output-forRobyn-230120/"
+folder <- "../Assess_outputs/rowan/WWR-CST-2019-Awatea-output-forRobyn-230120/"
 fileprefix <- "WWR-CST-2019"
 species <- "Widow Rockfish"
 stock <- "Coastwide"
 
 # # Rock Sole (ROL) 5AB and 5CD in 2013
-folder <- "../rowan/ROL-5AB+5CD-2013-Awatea-output-forRobyn-230124/"
+folder <- "../Assess_outputs/rowan/ROL-5AB+5CD-2013-Awatea-output-forRobyn-230124/"
 fileprefix <- "ROL-5AB-2013"
 species <- "Southern Rock Sole"
 stock <- "5AB"
 
-folder <- "../rowan/ROL-5AB+5CD-2013-Awatea-output-forRobyn-230124/"
+folder <- "../Assess_outputs/rowan/ROL-5AB+5CD-2013-Awatea-output-forRobyn-230124/"
 fileprefix <- "ROL-5CD-2013"
 species <- "Southern Rock Sole"
 stock <- "5CD"
 
 ## Shortspine Thornyhead
-folder <- "../rowan/SST-CST-2015-iSCAM-output-forRobyn-230203/"
+folder <- "../Assess_outputs/rowan/SST-CST-2015-iSCAM-output-forRobyn-230203/"
 fileprefix <- "SST-CST-2015"
 species <- "Shortspine Thornyhead"
 stock <- "Coastwide"
 
 ## Yellowmouth Rockfish
-folder <- "../rowan/YMR-CST-2021-SS3-output-forRobyn-230202/"
+folder <- "../Assess_outputs/rowan/YMR-CST-2021-SS3-output-forRobyn-230202/"
 fileprefix <- "YMR-CST-2021"
 species <- "Yellowmouth Rockfish"
 stock <- "Coastwide"
 
 ## Bocaccio
-folder <- "../rowan/BOR-CST-2021-Awatea-output-forRobyn-230119/"
+folder <- "../Assess_outputs/rowan/BOR-CST-2021-Awatea-output-forRobyn-230119/"
 fileprefix <- "BOR-CST-2021"
 species <- "Bocaccio"
 stock <- "Coastwide"
 
 ## Canary Rockfish
-folder <- "../rowan/CAR-CST-2022-SS3-output-forRobyn-230202/"
+folder <- "../Assess_outputs/rowan/CAR-CST-2022-SS3-output-forRobyn-230202/"
 fileprefix <- "CAR-CST-2022"
 species <- "Canary Rockfish"
 stock <- "Coastwide"

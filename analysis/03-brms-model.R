@@ -8,14 +8,15 @@ library(bayesplot)
 date_stamp <- Sys.Date()
 
 # dat <- readRDS(paste0("data/all-productivity-longer-2023-04-24.rds"))  %>%
-dat <- readRDS(paste0("data/all-productivity-longer-2023-06-07.rds"))  %>%
-  filter(!(species == "Pacific Cod" & recruitment_age == 3))
+dat <- readRDS(paste0("data/all-productivity-longer-2023-06-08.rds"))  %>%
+  filter(!(species == "Pacific Cod" & recruitment_age == 3)) %>%
+  filter(!(species == "Yellowtail Rockfish" & recruitment_age == 0))
 
 # select hypothesis
 climate_model <- "ROMS"
 
-response <- "Production"
-# response <- "Recruitment"
+# response <- "Production"
+response <- "Recruitment"
 
 
 # # climate_component <- c("TOB")
@@ -31,11 +32,11 @@ summary_type <- "min"
 # summary_type <- "max"
 
 if(response == "Recruitment"){
-  life_stage <- "Eggs/gestation"
-  life_stage2 <- "eggs/gestation"
-  life_stage3 <- "eggs"
-  # life_stage <- "Larval"
-  # life_stage2 <- life_stage3 <- "larval"
+  # life_stage <- "Eggs/gestation"
+  # life_stage2 <- "eggs/gestation"
+  # life_stage3 <- "eggs"
+  life_stage <- "Larval"
+  life_stage2 <- life_stage3 <- "larval"
 } else {
   life_stage <- "Adult"
   life_stage2 <- life_stage3 <- "adult"
@@ -138,7 +139,7 @@ if(life_stage == "Adult") {
 
   dat0 <- filter(dat,
                  agg_type == summary_type &
-                 # variable_type %in% climate_component &
+                 variable_type %in% climate_component &
                  stage == life_stage &
                  climate_model == "roms",
                  lag == 0)
@@ -223,6 +224,7 @@ ggplot(dat0, aes(value, response,
         axis.text.y = element_blank(),
         axis.ticks.y = element_blank()
   )
+
 ggsave(paste0("figs/", response, "-rate-", life_stage3, "-", climate_component_name,
               "-", summary_type, "-corplot.png"),
        width = 8, height = 5)
@@ -252,6 +254,11 @@ d <- dat0 %>%
   select(-vbiomass,-vbiomass2, -harvest_rate, -harvest_rate2)
 
 
+f <- paste0("models/", response, "-rate-", life_stage3, "-",
+            climate_component_name, "-",summary_type, "-", date_stamp, ".rds")
+if(file.exists(f)){
+m1 <- readRDS(f)
+} else {
 if(length(unique(d$variable_type)) == 1) {
 # if(unique(d$variable_type) == "O2") {
 #   priors1 <-
@@ -334,6 +341,7 @@ m1 <- brm(
 
 saveRDS(m1, paste0("models/", response, "-rate-", life_stage3, "-",
                    climate_component_name, "-",summary_type, "-", date_stamp, ".rds"))
+}
 
 
 # m2 <- brm(
@@ -355,6 +363,8 @@ prior_summary(m1)
 m <- m1
 # m <- m2
 # get_variables(m)
+m
+
 
 data_labels <- select(d, species, stock, spp_stock, Stock, group, value_c) %>%
   group_by(spp_stock) %>%
@@ -458,6 +468,8 @@ out |>
 
 plot_quadratic_variable_effect(m)
 
-ggsave(paste0("figs/", response, "-rate-", life_stage3, "-", climate_component_name, "-",summary_type, "-", date_stamp, ".png"),
+ggsave(paste0("figs/", response, "-rate-", life_stage3, "-",
+              climate_component_name, "-",summary_type, "-",
+              date_stamp, ".png"),
        width = 8, height = 5.5)
 

@@ -40,14 +40,16 @@ nc_data <- nc_open(paste0(file,'.nc'))
 
 
 # note that "lon" will return a short dim vector of unique values and "longitude" will return the full matrix
-lon1 <- ncvar_get(nc_data, "lon_rho", verbose = T) # stored in a large matrix
-lat1 <- ncvar_get(nc_data, "lat_rho", verbose = T)
+lon <- ncvar_get(nc_data, "lon_rho", verbose = T) # stored in a large matrix
+lat <- ncvar_get(nc_data, "lat_rho", verbose = T)
 mask_rho <- ncvar_get(nc_data, "mask_rho", verbose = T) # mask_rho (a mask for model grids that are on land=0 and ocean=1)
 
 time <- ncvar_get(nc_data, "ocean_time", verbose = T) #vector of seconds from midnight 1st Jan 1970 in Andy's data
 
 head(lon) # look at the first few entries in the longitude vector
-var.array <- ncvar_get(nc_data, "tob") # store the data in a 3-dimensional array
+# var.array <- ncvar_get(nc_data, "tob") # store the data in a 3-dimensional array
+var.array <- ncvar_get(nc_data, "salt") # store the data in a 3-dimensional array
+
 dim(var.array)
 
 # All done reading in the data. We can close the netCDF file.
@@ -117,9 +119,11 @@ df <- extract_netcdf_values(paste0(file,'.nc'),
                             xvar_name = "lon_rho",
                             yvar_name = "lat_rho",
                             time_name = "ocean_time",
-                            nc_variable_name = "temp",
+                            # nc_variable_name = "temp"
+                            nc_variable_name = "salt",
                             # out_variable_name = "sst"
-                            out_variable_name = "roms-tob"
+                            # out_variable_name = "roms-tob"
+                            out_variable_name = "roms-salinity"
                             )
 
 # saveRDS(df, "data/annual_mean_sst_BC.rds")

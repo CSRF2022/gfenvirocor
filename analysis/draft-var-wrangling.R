@@ -45,7 +45,6 @@ library(sf)
 # variable_long_name: Sea Water Potential Temperature at Sea Floor
 # variable_units: degC
 
-
 nc_data <- nc_open('data/bottom-temp/tob_Omon_BCC-CSM2-HR_hist-1950_r1i1p1f1_gn_195001-197912.nc')
 # # Save the print(nc) dump to a text file
 {
@@ -277,13 +276,12 @@ df <- get_stock_enviro_var(  temporal_grid = grid,
 # ## get major area from PBSmapping
 #
 # library(gfplot)
-# library(PBSmapping) # needs this for some reason
+library(PBSmapping) # needs this for some reason
 #
-# load_boundaries <- function(utm_zone) {
-#   data("major", package = "PBSdata", envir = environment())
-#   gfplot:::ll2utm(major, utm_zone = utm_zone)
-# }
-#
+load_boundaries <- function(utm_zone) {
+  data("major", package = "PBSdata", envir = environment())
+  gfplot:::ll2utm(major, utm_zone = utm_zone)
+}
 # major_labels <- gfplot:::boundary_labels(9, xmin = 122)
 # majorbound <- load_boundaries(9)
 #
@@ -297,6 +295,8 @@ df <- get_stock_enviro_var(  temporal_grid = grid,
 #               aes(X , Y, label = label), colour = "grey97"
 # )
 #
+
+
 #
 # library(sp)
 Area_3cd <- majorbound %>% filter(PID %in% c(3,4))
@@ -366,3 +366,11 @@ cells_in_area <- st_intersection(gridsf, Area_3cd)
 # new_grid3 <- new_grid1 %>% filter(year == "1950")
 # ggplot(new_grid3) + geom_sf()
 ggplot(cells_in_area) + geom_sf()
+
+
+grid <- readRDS("data/prediction_grid_coastaltl_new.rds")
+unique(grid$survey_name)
+
+grid %>% filter(survey_name == "syn bc")
+ggplot(grid) + geom_point(aes(longitude, latitude)) +
+  gfplot::theme_pbs()

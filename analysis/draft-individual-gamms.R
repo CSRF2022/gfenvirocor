@@ -3,7 +3,7 @@ library(tidyverse)
 library(mgcv)
 library(gratia)
 
-dat <- readRDS(paste0("data/all-productivity-longer-2023-03-21.rds"))
+dat <- readRDS(paste0("data/all-productivity-longer-2023-04-13.rds"))
 
 # just plot biomass ~ time w catch, P ~ time, P/B ~ time, P/B ~ B
 # no lag
@@ -19,7 +19,15 @@ dat0 <- filter(dat, months == "ann" &
 glimpse(dat0)
 
 # add variable name
-dat0 <- dat0 %>% mutate(variable = paste(agg_type, months, variable_type, "lag =", lag))
+dat0 <- dat0 %>%
+  group_by(species, stock) %>%
+  mutate(
+  value_sd = sd(value, na.rm = TRUE),
+  p_by_biomass2 = p_by_biomass * 100,
+  value_c = value - mean(value, na.rm = TRUE),
+  variable = paste(agg_type, months, variable_type, "lag =", lag),
+  spp_stock = as.factor(paste(species, stock))
+                        )
 
 
 
@@ -47,6 +55,48 @@ ggplot(dat0, aes(value, p_by_biomass,
         )
 
 ggsave("figs/Flatfish-production-by-temp.png", width = 4, height = 6)
+
+
+
+library(glmmTMB)
+
+m1 <- glmmTMB(p_by_biomass ~
+             value + (value|spp_stock),
+           # correlation=corAR1(form=~year),
+           data = dat0
+)
+library(brms)
+
+priors <-
+  prior(normal(0, 2), class = "b") +
+  prior(normal(0, 20), class = "Intercept") +
+  prior(student_t(3, 0, 2.5), class = "sd") +
+  prior(lkj_corr_cholesky(1), class = "L") +
+  prior(student_t(3, 0, 2.5), class = "sigma")
+
+m1 <- brm(p_by_biomass ~
+                value_c + I(value_c^2) + (value_c + I(value_c^2)|spp_stock),
+              autocor = cor_ar(form = ~ year|spp_stock, p = 1),
+          chains = 2, #4
+          iter = 1000, #2000
+          prior = priors,
+          data = dat0
+)
+
+m1
+
+brms::prior_summary(m1)
+
+library(tidybayes)
+library(bayesplot)
+
+m1_lp <- brms::posterior_linpred(m1)
+
+
+
+tidybayes::spread_draws(m1, r_taxonomic_group[taxa, param])
+brms::as_draws_df
+
 
 
 ggplot(dat0, aes(year, value, colour = paste(species, stock))) +

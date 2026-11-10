@@ -24,8 +24,9 @@ calc_rcp_diff <- function(
   agg_type = "min",
   months = c(1:12),
   nc_var = "Oxygen",
+  lower_limit = 0,
   out_var_name = "O2-RCP8.5",
-  var_label = "Monthly\nmin \nO2",
+  var_label = "Monthly\nmin O2 \nmmol/m3",
   viridis_option = "D"
   # nc_var = "temp",
   # out_var_name = "SST-RCP8.5",
@@ -83,9 +84,10 @@ df_grid <- project_netcdf_values("data/RCP-temp.rds",
 
 # browser()
 df_grid  %>% filter(!is.na(!!sym(out_var_name))) %>%
-  mutate(year = ifelse(year == "1981", "1981-2010", ifelse(year == "2041", "2041-2070", year))) %>%
-  ggplot() + geom_tile(aes(X, Y, fill = !!sym(out_var_name))) +
-  scale_fill_viridis_c(name= var_label, option = viridis_option) +
+  mutate(year = ifelse(year == "X1981", "1981-2010", ifelse(year == "X2041", "2041-2070", year))) %>%
+  ggplot() + geom_tile(aes(X, Y, colour = !!sym(out_var_name), fill = !!sym(out_var_name))) +
+  scale_fill_viridis_c(name= var_label, option = viridis_option, limits = c(lower_limit, NA)) +
+  scale_colour_viridis_c(name= var_label, option = viridis_option, limits = c(lower_limit, NA)) +
   facet_wrap(~year) +
   coord_fixed() +
   gfplot::theme_pbs() +
@@ -97,15 +99,51 @@ df_grid  %>% filter(!is.na(!!sym(out_var_name))) %>%
 
 }
 
+# load bottom values
+file1 <- 'data/roms-scenarios/bcc42_bioNew_mon1981to2010_botTSO'
+file2 <- 'data/roms-scenarios/bcc42_bioNew_can85_mon2041to2070_botTSO'
+
+# note, O2 is in mmol/m3
 calc_rcp_diff(file1, file2, months = c(1:4)) + ggtitle("RCP 8.5")
 # ggsave("figs/map-O2-RCP8.5-monthly-min-1-12.png", width = 8, height = 5)
-ggsave("figs/map-O2-RCP8.5-monthly-min-1-4.png", width = 6, height = 4)
+ggsave("figs/map-O2-RCP8.5-monthly-min-1-4.jpg", width = 6, height = 4)
+
+calc_rcp_diff(file1, file2, months = c(1:12)) + ggtitle("RCP 8.5")
+# ggsave("figs/map-O2-RCP8.5-monthly-min-1-12.png", width = 8, height = 5)
+ggsave("figs/map-O2-RCP8.5-monthly-min-1-12.jpg", width = 6, height = 4)
+
+
+calc_rcp_diff(file1, file2,
+              nc_var = "temp",
+              out_var_name = "TOB-RCP8.5",
+              agg_type = "max",
+              var_label = "Max monthly\nbottom \ntemperature",
+              viridis_option = "B"
+              ) + ggtitle("RCP 8.5")
+
+ggsave("figs/map-TOB-RCP8.5-monthly-max-1-12.jpg", width = 6, height = 4)
+
+
+file1 <- 'data/roms-scenarios/bcc42_bioNew_mon1981to2010_surTSO'
+file2 <- 'data/roms-scenarios/bcc42_bioNew_can85_mon2041to2070_surTSO'
 
 calc_rcp_diff(file1, file2,
               nc_var = "temp",
               out_var_name = "SST-RCP8.5",
-              var_label = "Monthly\nmax \nSST",
+              agg_type = "max",
+              var_label = "Max\nmonthly\nSST",
+              lower_limit = 12,
               viridis_option = "B"
-              ) + ggtitle("RCP 8.5")
+) + ggtitle("RCP 8.5")
 
-ggsave("figs/map-SST-RCP8.5-monthly-max-1-12.png", width = 6, height = 4)
+ggsave("figs/map-SST-RCP8.5-monthly-max-1-12.jpg", width = 6, height = 4)
+
+# calc_rcp_diff(file1, file2,
+#               nc_var = "Oxygen",
+#               agg_type = "min",
+#               out_var_name = "SSO-RCP8.5",
+#               var_label = "Monthly\nmin \nsurface O2",
+#               viridis_option = "D"
+# ) + ggtitle("RCP 8.5")
+#
+# ggsave("figs/map-SSO-RCP8.5-monthly-min-1-12.png", width = 6, height = 4)

@@ -1,8 +1,8 @@
 library(tidyverse)
 
 df <- calc_prod(
-  catchfile = "../rowan/BOR-CST-2021-Awatea-output-forRobyn-230119/BOR-CST-2021-MPD(C)-forRobyn.csv",
-  mcmcprefix = "../rowan/BOR-CST-2021-Awatea-output-forRobyn-230119/BOR-CST-2021-MCMC(",
+  catchfile = "../Assess_outputs/rowan/BOR-CST-2021-Awatea-output-forRobyn-230119/BOR-CST-2021-MPD(C)-forRobyn.csv",
+  mcmcprefix = "../Assess_outputs/rowan/BOR-CST-2021-Awatea-output-forRobyn-230119/BOR-CST-2021-MCMC(",
   mcmcsuffix = ")-forRobyn.csv",
   species = "bocaccio",
   stock = "Coastwide",
