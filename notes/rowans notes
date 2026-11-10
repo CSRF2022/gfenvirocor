@@ -1,0 +1,94 @@
+I've extracted vulnerable biomass (VB) from the Awatea models because this was previously calculated for the MCMC samples.
+'VB-Awatea-Models-forPhilina-230404.7z' posted to Google Drive:
+https://drive.google.com/drive/folders/1MTiafJfxVaoJXgM5q1gRPUUetRkZdj7B?usp=sharing
+ 
+The SS3 model does not report VB in its posterior 'sso' files. It can be calculated from the timeseries object (MPD only) as catch divided by harvest rates (V=C/u). For reasons beyond me, the SS3 team uses the term 'sel(B)' (selected biomass?) as catch. Both catch and sel(B) appear in the timeseries from Report.sso and they mirror each other except that sel(B) also reports the catch used for projections. (Perhaps catch and sel(B) might differ under alternative user choices, but for our work they are the same.) Regardless, you could use the objects I sent you previously and divide catch by the harvest rate MCMCs (V=C/u).
+ 
+I have no plans to derive VB MCMCs from SS3 because this involves an awkward and time-consuming manipulation where thousands of Report files are created using –mceval and the timeseries would be extracted and appended for each MCMC sample.[3:16 PM]I'm not familiar with the term 'age of requirement'. All models use age 1 for initial recruitment age, except SS3 which uses age 0.
+ 
+q    = catchability of surveys or commercial CPUE series for abundance;
+mu = age at full selectivity (usually females) for surveys or fisheries;
+vL  = variance of the ascending limb (left side) when fitting selectivity;
+Delta = male offset for mu
+ 
+Aside:
+ 
+For the SS3 models, PA = parameters and RP = reference points.
+ 
+For the Walleye Pollock iSCAM model, HRP = historical reference points Bavg and Bmin, used instead of MSY-based reference points.
+The iSCAM model for Shortspine Thornyhead used MSY-based reference points.
+ 
+BOR  = Bocaccio
+BSR* = Blackspotted Rockfish (but it was actually REBS in 5DE)
+CAR  = Canary Rockfish
+POP  = Pacific Ocean Perch
+RER* = Rougheye Rockfish (but it was actually REBS in 3CD5AB)
+ROL  = Rock Sole
+RSR  = Redstripe Rockfish
+SGR  = Silvergray Rockfish
+SST  = Shortspine Thornyhead
+WAP  = Walleye Pollock
+WWR  = Widow Rockfish
+YMR  = Yellowmouth Rockfish
+YTR  = Yellowtail Rockfish
+ 
+*REBS = Rougheye / Blackspotted Rockfish complex
+ 
+Cheers/salut/ciao, Rowan
+ 
+From: English, Philina <Philina.English@dfo-mpo.gc.ca> 
+Sent: Monday, February 6, 2023 5:01 PM
+To: Haigh, Rowan <Rowan.Haigh@dfo-mpo.gc.ca>; Forrest, Robyn <Robyn.Forrest@dfo-mpo.gc.ca>
+Subject: RE: Rockfish stock assessment outputs
+ 
+Thanks Rowan!  I’ve got everything downloaded and wrangled successfully. 
+ 
+One thing I should confirm is the age at requirement in these models. I’m guessing most are age 1, like Bocaccio. Are there exceptions that I need to be alert to?
+ 
+Also, though it’s probably not relevant to what I’m doing, I’m curious what the q_, mu_, Delta_ and log.v_L variables represent?
+
+
+
+Spawning stock biomass (B) is always female in our rockfish models (to date). However, the harvest rate u=Catch/VB is catch over vulnerable biomass (males and females). We don't typically report VB, although we do calculate a VB in MPD|MCMC output. However, VB is specific to a gear|fleet and if there is more than one gear|fleet, the output VB per gear|fleet is not additive because it's the portion of total biomass that is vulnerable by each gear|fleet (through selectivity). Sometimes a 'harvest rate fraction' is used to prorate u (e.g., 0.95 trawl and 0.05 hook & line) to derive a single VB.
+ 
+So I could send you VBs from the Awatea models (SS3 does not typically calculate VB in MCMCs although I think there is a way to get it).
+ 
+Your suggestion for splitting catch by sex is a thought, but one I've never entertained. Not sure what to suggest there. I think SS3 does keep track of males and females, though I'm not sure if this is brought forward in MCMCs.
+ 
+I've got to run but let me ponder this and I'll get back to you.
+
+I've extracted vulnerable biomass (VB) from the Awatea models because this was previously calculated for the MCMC samples.
+'VB-Awatea-Models-forPhilina-230404.7z' posted to Google Drive:
+https://drive.google.com/drive/folders/1MTiafJfxVaoJXgM5q1gRPUUetRkZdj7B?usp=sharing
+ 
+The SS3 model does not report VB in its posterior 'sso' files. It can be calculated from the timeseries object (MPD only) as catch divided by harvest rates (V=C/u). For reasons beyond me, the SS3 team uses the term 'sel(B)' (selected biomass?) as catch. Both catch and sel(B) appear in the timeseries from Report.sso and they mirror each other except that sel(B) also reports the catch used for projections. (Perhaps catch and sel(B) might differ under alternative user choices, but for our work they are the same.) Regardless, you could use the objects I sent you previously and divide catch by the harvest rate MCMCs (V=C/u).
+ 
+I have no plans to derive VB MCMCs from SS3 because this involves an awkward and time-consuming manipulation where thousands of Report files are created using –mceval and the timeseries would be extracted and appended for each MCMC sample.
+
+
+
+November 4, 2026
+
+It looks like we provided Robyn with data up until the Canary (CAR) assessment in 2022. Since then, we’ve run models for:
+
+POP 2023 – Pacific Ocean Perch in three subareas (3CD, 5ABC, 5DE)
+YTR 2024 – Yellowtail Rockfish for BC coastwide
+BOR 2024 – Bocaccio update
+SGR 2025 – Silvergray Rockfish for BC coastwide
+ 
+We are currently working on Widow Rockfish (WWR), but that won’t be available until later.
+ 
+I’ve attached an extract from the YTR posteriors for:
+
+B – female spawning stock biomass
+R – recruitment of age-0 fish
+Rdev – recruitment deviations
+U – annual exploitation (harvest) rate 
+PA – main estimated parameters
+RP – an assortment of reference points
+ 
+Is this along the lines that you were looking for?
+There could be other metrics in the MCMC data that I would need to explore based on what you’re after.
+Vulnerable biomass is generally not an MCMC output from SS3 but was available from Awatea.
+
+

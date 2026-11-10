@@ -42,7 +42,12 @@ calc_prod <- function(catchfile,
                       maturity_age = 1
                       ){
 
-  c <- readr::read_csv(catchfile)
+  # some of Rowan's output folders have no catch file
+  c <- if (model_type == "rowans" && !file.exists(catchfile)) {
+    NULL
+  } else {
+    readr::read_csv(catchfile)
+  }
 
   # browser()
   if (model_type == "iscam") {
@@ -115,8 +120,13 @@ calc_prod <- function(catchfile,
       var_name = "rdev"
     )
 
-    c <- c %>% rename(year = `...1`)
-    c$catch <- rowSums(c[,2:ncol(c)])
+    if (is.null(c)) {
+      warning("No catch file for ", species, " ", stock, ", so catch and production will be NA.")
+      c <- data.frame(year = b$year, catch = NA_real_)
+    } else {
+      c <- c %>% rename(year = `...1`)
+      c$catch <- rowSums(c[,2:ncol(c)])
+    }
 
 
     u <- awatea_mcmc(
